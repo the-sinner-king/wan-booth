@@ -1,0 +1,179 @@
+(function () {
+  'use strict';
+
+  const COMFY_BASE             = 'http://localhost:8188';
+  const COMFY_WS               = 'ws://localhost:8188';
+  const VIDEO_OUTPUT_NODE_FALLBACK = '17'; // RF-I: used only if workflow has no VHS_VideoCombine node
+
+  // Human-readable labels for every node type we expect to see
+  const NODE_LABELS = {
+    'UNETLoader':            'Loading model weights',
+    'CLIPLoader':            'Loading text encoder',
+    'VAELoader':             'Loading VAE',
+    'LoadImage':             'Loading input image',
+    'CLIPVisionLoader':      'Loading CLIP Vision',
+    'CLIPVisionEncode':      'Encoding image features',
+    'CLIPTextEncode':        'Encoding prompt',
+    'ModelSamplingSD3':      'Configuring sampler',
+    'WanImageToVideo':         'Conditioning image→video',
+    'Wan22ImageToVideoLatent': 'Conditioning image→video (5B)',
+    'RandomNoise':           'Seeding noise',
+    'BasicScheduler':        'Building schedule',
+    'KSamplerSelect':        'Selecting sampler',
+    'KSamplerAdvanced':      'Denoising latents',
+    'SamplerCustomAdvanced': 'Denoising latents',
+    'CFGGuider':             'Configuring guidance',
+    'VAEDecode':             'Decoding latents → frames',
+    'VAEDecodeTiled':        'Decoding latents → frames (tiled)',
+    'VHS_VideoCombine':      'Encoding video file',
+    'LoraLoader':            'Loading LoRA weights',
+    'LoraLoaderModelOnly':   'Loading LoRA (model only)',
+  };
+
+  function dbg(msg) {
+    try { window.wan.log('[comfy] ' + msg); } catch {}
+    console.log('[WAN BOOTH]', msg);
+  }
+
+  function generateClientId() {
+    return crypto.randomUUID();
+  }
+
+  async function loadWorkflow(workflowName) {
+    return window.wan.loadWorkflow(workflowName);
+  }
+
+  function injectPlaceholders(workflow, imagePath, prompt, seed) {
+    const w = JSON.parse(JSON.stringify(workflow));
+    for (const node of Object.values(w)) {
+      if (!node.inputs) continue;
+      if (node.inputs.image      === '{{IMAGE_PATH}}') node.inputs.image      = imagePath;
+      if (node.inputs.text       === '{{PROMPT}}')     node.inputs.text       = prompt;
+      if (node.inputs.noise_seed === '{{SEED}}')       node.inputs.noise_seed = parseInt(seed, 10);
+    }
+    return w;
+  }
+
+  async function generate({ imagePath, prompt, seed, workflowName = 'i2v_5B',
+                             onProgress, onComplete, onError, onLog }) {
+    const clientId = generateClientId();
+    let ws;
+    let terminated = false;
+    let promptId   = null;
+
+    function emit(type, msg) {
+      dbg('[' + type + '] ' + msg);
+      try { onLog && onLog(type, msg); } catch {}
+    }
+
+    function terminate(errMsg) {
+      if (terminated) return;
+      terminated = true;
+      try { if (ws) ws.close(); } catch {}
+      if (errMsg) {
+        emit('error', errMsg);
+        onError && onError(errMsg);
+      }
+    }
+
+    try {
+      emit('start', 'seed=' + seed + '  image=' + imagePath);
+
+      const workflow = await loadWorkflow(workflowName);
+      emit('init', 'workflow loaded  ' + Object.keys(workflow).length + ' nodes');
+
+      // Build node ID → class_type map so we can resolve labels from WS messages
+      const nodeMap = {};
+      let videoOutputNode = VIDEO_OUTPUT_NODE_FALLBACK;
+      for (const [id, node] of Object.entries(workflow)) {
+        nodeMap[id] = node.class_type || id;
+        // RF-I: detect the VHS_VideoCombine node dynamically — don't hard-code node '17'
+        if (node.class_type === 'VHS_VideoCombine') videoOutputNode = id;
+      }
+
+      const injected = injectPlaceholders(workflow, imagePath, prompt, seed);
+
+      const wsUrl = new URL('/ws', COMFY_WS);
+      wsUrl.searchParams.set('clientId', clientId);
+      ws = new WebSocket(wsUrl.href);
+
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('WebSocket timeout')), 5000);
+        ws.onopen  = () => { clearTimeout(timer); emit('init', 'WebSocket connected'); resolve(); };
+        ws.onerror = () => { clearTimeout(timer); reject(new Error('WebSocket connection failed')); };
+      });
+
+      ws.onmessage = (event) => {
+        let msg;
+        try { msg = JSON.parse(event.data); } catch { return; }
+
+        // RF-04: ignore messages from a different job on this client
+        if (promptId && msg.data && msg.data.prompt_id && msg.data.prompt_id !== promptId) return;
+
+        if (msg.type === 'progress') {
+          const val = msg.data.value;
+          const max = msg.data.max;
+          const pct = Math.round((val / max) * 100);
+          emit('step', 'step ' + val + '/' + max + '  (' + pct + '%)');
+          onProgress && onProgress(pct, 'step ' + val + '/' + max + ' · ' + pct + '%');
+        }
+
+        if (msg.type === 'executing' && msg.data.node) {
+          const classType = nodeMap[msg.data.node] || msg.data.node;
+          const label     = NODE_LABELS[classType] || classType;
+          emit('node', classType + '  node ' + msg.data.node);
+          onProgress && onProgress(null, label);
+        }
+
+        if (msg.type === 'executed' && msg.data.node === videoOutputNode) {
+          const output = msg.data.output;
+          if (output) {
+            const files = output.gifs || output.videos || output.images || [];
+            if (files.length > 0) {
+              emit('complete', files[0].filename);
+              onComplete && onComplete(files[0].filename);
+              terminate(null);
+            }
+          }
+        }
+
+        if (msg.type === 'execution_error') {
+          terminate(msg.data.exception_message || 'ComfyUI execution error');
+        }
+
+        if (msg.type === 'execution_interrupted') {
+          terminate('Generation interrupted');
+        }
+      };
+
+      ws.onclose = (ev) => {
+        if (!terminated) terminate('WebSocket closed unexpectedly (code ' + ev.code + ')');
+      };
+
+      ws.onerror = () => {
+        if (!terminated) terminate('WebSocket error during generation');
+      };
+
+      emit('init', 'POSTing via IPC (no Origin header)');
+      const result = await window.wan.queuePrompt({ prompt: injected, client_id: clientId });
+
+      if (result.status !== 200) {
+        terminate('ComfyUI rejected prompt [' + result.status + ']: ' + (result.body || '(empty body)'));
+        return;
+      }
+
+      const data = JSON.parse(result.body);
+      if (!data.prompt_id) {
+        terminate('ComfyUI did not return a prompt ID');
+        return;
+      }
+      promptId = data.prompt_id;
+      emit('queue', 'queued  ' + promptId);
+
+    } catch (err) {
+      terminate(err.message);
+    }
+  }
+
+  window.ComfyClient = { generate };
+})();

@@ -1,0 +1,168 @@
+/**
+ * ╔══════════════════════════════════════════════════════════════════════════════╗
+ * ║  WAN BOOTH — TYPOGRAPHY SYSTEM v2 // BAD CANDY ARCADE                      ║
+ * ║  Agent:   TYPE_WEAVER::wan-booth-v2::258                                   ║
+ * ║  Fonts:   VT323 (CRT terminal workhorse) + Press Start 2P (bimodal only)   ║
+ * ║  Mandate: The machine reads like a terminal. VT323 was born for this.       ║
+ * ╚══════════════════════════════════════════════════════════════════════════════╝
+ *
+ * ─── FONT INVENTORY (2 fonts. No exceptions. No substitutions.) ──────────────
+ *
+ *   VT323
+ *     Role: CRT terminal workhorse. Every readable UI element.
+ *     Sweet spots: 16, 20, 24, 32, 40, 48px (bitmap grid multiples / Retina-safe)
+ *     Tracking: 0em (trust the bitmap glyph spacing — do not drift it)
+ *     Weight: 400 only. Faux-bold smears the pixel matrix. Forbidden.
+ *
+ *   Press Start 2P
+ *     Role: BIMODAL ONLY — 88px hero structure OR 6px micro-stamp.
+ *     FORBIDDEN zone: 10px–80px. At mid-range it is neither texture nor structure.
+ *     It becomes decoration. Decoration is death.
+ *     Tracking at 88px: -0.05em (close pixel rivers at hero scale, add mass)
+ *
+ * ─── SCALE MATH ──────────────────────────────────────────────────────────────
+ *
+ *   Base unit: 8px (VT323 native pixel grid)
+ *   Scale: Major Third (×1.25), rounded to 8px multiples for bitmap alignment.
+ *
+ *   Tier 0: 16px  [exact grid]         — log entries, ETA, small labels
+ *   Tier 1: 20px  [Retina-safe]        — UI workhorse: labels, status, body
+ *   Tier 2: 24px  [rounded to grid]    — value readouts, buttons
+ *   Tier 3: 32px  [rounded to grid]    — stage headers, section titles
+ *   Hero:   88px  Press Start 2P only  — nameplate, absolute fixed
+ *   Stamp:   6px  Press Start 2P only  — micro-texture, shape not text
+ *
+ *   NOTE: clamp() is FORBIDDEN for VT323 at body/label sizes.
+ *   Bitmap-origin fonts fracture at sub-pixel computed values. Fixed px only.
+ *
+ * ─── GHOST NODES ─────────────────────────────────────────────────────────────
+ *   [GHOST: medium : Bundle fonts locally — @font-face with font-display:block
+ *    for offline/fast-launch. CDN load requires network on first render.]
+ *   [GHOST: medium : font-synthesis:none globally prevents faux-bold on both
+ *    fonts. Single-weight bitmap fonts only. Add to html or body rule.]
+ *   [GHOST: low : -webkit-font-smoothing:none on 2x Retina gives authentic
+ *    pixel edges. Not set here — test per display before enabling.]
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+:root {
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * FONT FAMILY AXES
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* DISPLAY — Press Start 2P at hero scale (88px nameplate only).
+     The nameplate is load-bearing architecture. Not decorative. */
+  --ws-font-display: 'Press Start 2P', monospace;
+
+  /* UI — VT323 for all readable interface text.
+     Labels, buttons, status, stage headers, seed row, sliders, toggles.
+     This is the voice of the machine. */
+  --ws-font-ui: 'VT323', monospace;
+
+  /* MONO — VT323 for log / prompt / monospace contexts.
+     Same font as UI. Separate token for semantic clarity —
+     log panels and prompt textarea may get distinct leading. */
+  --ws-font-mono: 'VT323', monospace;
+
+  /* STAMP — Press Start 2P at micro-texture scale (6px only).
+     At this size the font collapses into pixel geometry (shape, not text). */
+  --ws-font-stamp: 'Press Start 2P', monospace;
+
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * SIZE SCALE
+   * VT323 scale: Major Third (×1.25) rounded to 8px bitmap grid multiples.
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  /* Tier 0 — 16px — secondary / dense information layer
+     Minimum for clean VT323 legibility. Log entries, ETA row, small labels. */
+  --ws-type-small:  16px;   /* seed-label, log-bar-label, status-text, eta-labels */
+  --ws-type-log:    16px;   /* log entries */
+  --ws-type-eta:    16px;   /* ETA row readouts */
+
+  /* Tier 1 — 20px — UI workhorse
+     The ambient voice of the machine. Labels, status, toggles, prompt body. */
+  --ws-type-label:  20px;   /* slider labels, seed toggle, drop-label, section labels */
+  --ws-type-body:   20px;   /* prompt textarea */
+  --ws-type-status: 20px;   /* status: "GENERATING — Denoising latents" */
+
+  /* Tier 2 — 24px — elevated readouts and commands
+     Live data values and button text get presence above ambient labels. */
+  --ws-type-value:  24px;   /* slider value readout: "0.80" */
+  --ws-type-button: 24px;   /* button text: "GENERATE" */
+
+  /* Tier 3 — 32px — section landmark headers
+     Stage card titles. Read as arcade panel labels bolted to the cabinet. */
+  --ws-type-stage:  32px;   /* "STAGE 1 — HIGH DETAIL PASS" */
+
+  /* HERO — Press Start 2P at 88px — nameplate ONLY
+     Absolute fixed size. No clamp(). No fluid. The nameplate does not flex.
+     If viewport forces collapse, it STEPS (see media queries below). */
+  --ws-type-display: 88px;  /* "WAN BOOTH" — load-bearing hero nameplate */
+
+  /* STAMP — Press Start 2P at 6px — micro-texture ONLY
+     Shape, not text. Category chips, badge stamps, micro-tags.
+     The void between stamp (6px) and display (88px) is forbidden territory. */
+  --ws-type-stamp:   6px;   /* category chips, badge labels */
+
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * WEIGHT TOKENS
+   * VT323 and Press Start 2P are both single-weight (400) bitmap fonts.
+   * font-weight:700 triggers browser faux-bold which smears the pixel matrix.
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  --ws-weight-display: 400;  /* PS2P 88px — only valid weight */
+  --ws-weight-ui:      400;  /* VT323 — only valid weight */
+  --ws-weight-label:   400;  /* VT323 label contexts — same as weight-ui */
+  --ws-weight-stamp:   400;  /* PS2P 6px — only valid weight */
+
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * LETTER-SPACING (TRACKING) TOKENS
+   * VT323: zero tracking at all sizes. The pixel grid IS the spacing system.
+   * Exception: stage headers (32px) get 0.05em arcade-panel label tension.
+   * PS2P at 88px: -0.05em to close pixel rivers at hero scale.
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  --ws-tracking-display: -0.05em;  /* PS2P 88px — close pixel rivers, add mass */
+  --ws-tracking-stage:    0.05em;  /* VT323 32px — arcade panel label tension */
+  --ws-tracking-ui:       0em;     /* VT323 20-24px — trust the bitmap grid */
+  --ws-tracking-mono:     0em;     /* VT323 log/prompt — zero modification */
+  --ws-tracking-stamp:    0em;     /* PS2P 6px — shape geometry, do not drift */
+
+
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * LINE HEIGHT (LEADING) TOKENS
+   * VT323 metrics are compressed — less leading than geometric fonts.
+   * Unitless values (scale with font-size, not fixed px).
+   * ═══════════════════════════════════════════════════════════════════════════ */
+
+  --ws-leading-display: 1.0;   /* PS2P 88px — structural plate, no air */
+  --ws-leading-stage:   1.0;   /* VT323 32px — section plates, not paragraphs */
+  --ws-leading-ui:      1.2;   /* VT323 20-24px — minimal breathing */
+  --ws-leading-prompt:  1.5;   /* VT323 20px — reading block, scan rhythm */
+  --ws-leading-log:     1.6;   /* VT323 16px — dense log lines, rhythm carries eye */
+  --ws-leading-stamp:   1.0;   /* PS2P 6px — atomic glyph, no wrap */
+
+}
+
+
+/* ─── NAMEPLATE FALLBACK (step sizes — not fluid clamp) ─────────────────────
+ * The nameplate does not flex. It STEPS down at breakpoints.
+ * Both steps remain above the 10-80px forbidden zone for Press Start 2P.
+ * ─────────────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 600px) {
+  :root {
+    --ws-type-display: 48px; /* step: remains above the 10-80px void */
+  }
+}
+
+@media (max-width: 360px) {
+  :root {
+    --ws-type-display: 32px; /* minimum structural anchor */
+  }
+}

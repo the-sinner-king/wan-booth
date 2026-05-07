@@ -1,0 +1,31 @@
+# Node
+app/node_modules/
+npm-debug.log*
+
+# Electron build output
+app/dist/
+app/out/
+
+# Mac
+.DS_Store
+**/.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Generated output / temp
+app/*.tmp
+app/output/
+
+# Soulforge / Glitchswarm session files (local dev artifacts)
+BLACKBOARD.json
+BLACKBOARD.json.lock
+GLITCHSWARM_BLACKBOARD.json
+OBSIDIAN_REPORT.json
+SCOUT_REPORT.json
+*_north_star.md
+team_roster.md
+
+# ComfyUI workflow temp outputs
+app/workflows/**_output*.json
