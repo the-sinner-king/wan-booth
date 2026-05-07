@@ -1,0 +1,1045 @@
+WAN BOOTH — COMPLETE INFRASTRUCTURE DOCUMENT
+Generated: 2026-05-07 from source code audit (S258)
+Source: /THE_THRONE/AExMUSE/04_📦_PROJECTS/PROJECT_VENUS_FLYTRAP/WAN_BOOTH/
+GitHub: https://github.com/the-sinner-king/wan-booth
+================================================================================
+
+
+PART 1 — WHAT THIS IS
+================================================================================
+
+WAN BOOTH is an Electron 28.3.3 desktop application that wraps ComfyUI's
+headless HTTP/WebSocket API and presents a single-purpose image-to-video
+generation interface. The user drops an image, writes a motion prompt, and
+hits GENERATE. A video comes out. No nodes are visible. No model configuration
+is exposed.
+
+The application is a thin coordinator between three systems:
+  - The Electron window (user interface)
+  - The ComfyUI Python server (inference engine)
+  - The ComfyUI workflow JSON (the locked, pre-baked computation graph)
+
+Everything the user sees is in the Electron app. Everything that actually
+generates the video is in ComfyUI. The app never runs a model directly.
+
+
+PART 2 — FILE INVENTORY
+================================================================================
+
+wan-booth/
+  app/
+    main.js             — Electron main process (Node.js)
+    preload.js          — Electron IPC bridge (contextBridge)
+    renderer.js         — UI logic (browser-side JavaScript)
+    comfy.js            — ComfyUI API client (browser-side)
+    index.html          — Single-window UI + inline CSS
+    color-tokens.css    — OKLCH color system (Bad Candy Arcade palette)
+    type-tokens.css     — VT323 + Press Start 2P typography tokens
+    package.json        — Electron 28.3.3, npm scripts
+    workflows/
+      i2v_14B_2stage.json — Primary workflow: Wan 2.2 14B 2-stage MoE
+      i2v_5B.json         — Scaffold workflow: Wan 2.2 TI2V-5B
+    setup/
+      install_comfyui.sh  — ComfyUI install script
+  test/
+    regression.js       — 87 regression tests (Node.js, no framework)
+  README.md
+  NORTH_STAR.md         — Project specification and decision log
+
+
+PART 3 — STARTUP SEQUENCE
+================================================================================
+
+1. User launches the Electron app (npm start → electron .)
+
+2. main.js runs in the Node.js main process:
+   a. app.whenReady() fires
+   b. startComfyUI() runs:
+      - Calls isComfyUIRunning() — HTTP GET to http://127.0.0.1:8188/system_stats
+      - If ComfyUI already running: skip spawn (don't duplicate)
+      - If not running: spawn Python subprocess
+        Command: ~/Desktop/ComfyUI/venv/bin/python main.py --listen 127.0.0.1 --bf16-unet
+        Working directory: ~/Desktop/ComfyUI/
+        Environment: spreads process.env + PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7
+        Flags: detached=false, stdio='ignore'
+        Sets comfyOwnedByApp=true to track ownership
+   c. createWindow() runs:
+      - BrowserWindow: 900×700px, contextIsolation=true, nodeIntegration=false
+      - Loads index.html via loadFile(__dirname + '/index.html')
+      - Opens DevTools unless NODE_ENV === 'production'
+
+3. index.html loads in the renderer process (sandboxed browser context)
+   - Links color-tokens.css and type-tokens.css via <link> tags
+   - Loads comfy.js (ComfyUI API client)
+   - Loads renderer.js (UI logic)
+   - Sets up Content Security Policy via meta tag
+
+4. renderer.js init() runs:
+   - Calls window.wan.getHomedir() → stores home directory path
+   - Calls checkComfyStatus() → window.wan.getComfyStatus()
+   - If ComfyUI alive: displays "READY" with idle state color
+   - If not: displays error message
+
+5. App waits for user input.
+
+6. On quit: main.js before-quit handler fires
+   - If comfyOwnedByApp=true AND comfyProcess not already killed:
+     SIGTERM → 3s timeout → SIGKILL
+
+
+PART 4 — IPC ARCHITECTURE (main.js ↔ renderer)
+================================================================================
+
+Electron's context isolation prevents the renderer from accessing Node.js
+directly. All privileged operations go through a contextBridge in preload.js.
+
+preload.js exposes window.wan = {
+  selectImage()          → ipcRenderer.invoke('wan:selectImage')
+  copyToInput(path)      → ipcRenderer.invoke('wan:copyToInput', path)
+  getComfyStatus()       → ipcRenderer.invoke('wan:getComfyStatus')
+  getHomedir()           → ipcRenderer.invoke('wan:getHomedir')
+  loadWorkflow(name)     → ipcRenderer.invoke('wan:loadWorkflow', name)
+  toFileURL(path)        → ipcRenderer.invoke('wan:toFileURL', path)
+  queuePrompt(payload)   → ipcRenderer.invoke('wan:queuePrompt', payload)
+  log(msg)               → ipcRenderer.send('wan:log', msg)
+}
+
+IPC handler implementations in main.js:
+
+wan:selectImage
+  Opens native file picker (dialog.showOpenDialog)
+  Filters: jpg, jpeg, png, webp
+  Returns: file path string or null if canceled
+
+wan:copyToInput
+  Validates sourcePath:
+    - Must be non-empty string
+    - Extension must be in Set(['.jpg', '.jpeg', '.png', '.webp'])
+    - lstatSync() — symlinks rejected (isFile() check, not stat follow-through)
+    - Size must be < 50MB (MAX_IMAGE_BYTES)
+  Copies file to ~/Desktop/ComfyUI/input/ (creates dir if absent)
+  Returns: filename (not full path)
+
+wan:getComfyStatus
+  HTTP GET http://127.0.0.1:8188/system_stats (127.0.0.1, not localhost)
+  2s timeout
+  Returns: { alive: boolean }
+
+wan:getHomedir
+  Returns: os.homedir() string
+
+wan:loadWorkflow
+  Validates name against allowlist regex: /^[a-zA-Z0-9_-]{1,64}$/
+  Resolves full path: __dirname/workflows/{name}.json
+  Checks path.resolve result starts with workflowsDir + path.sep
+  Calls fs.realpathSync on both file and base dir (symlink escape guard)
+  Confirms realPath starts with realBase + path.sep
+  Reads and JSON.parses the file
+  Returns: parsed workflow object
+
+wan:toFileURL
+  Converts absolute file path to file:// URL using pathToFileURL()
+  Handles spaces and unicode in path via proper URL encoding
+  Returns: file:// URL string
+
+wan:queuePrompt
+  Routes POST /prompt through Node.js http.request (not fetch)
+  REASON: ComfyUI 0.3+ blocks fetch() from file:// renderers with HTTP 403
+  because the Origin header is null. Node.js http.request carries no Origin
+  header and is unconditionally accepted.
+  Sends: JSON payload with { prompt: injectedWorkflow, client_id: uuid }
+  Returns: { status: httpStatusCode, body: responseBodyString }
+
+wan:log (one-way, no reply)
+  Writes to /tmp/wan_booth_debug.log and process.stdout
+  Prefixes with ISO timestamp and "[RENDERER]"
+
+
+PART 5 — GENERATION FLOW (end-to-end)
+================================================================================
+
+Step 1: User drops image onto drop zone (or clicks to open picker)
+
+  renderer.js drop handler:
+  - Gets file.path from DataTransfer (file.path works on Electron 28;
+    removed in Electron 32 — webUtils.getPathForFile() is renderer-only
+    in Electron 28 and can't be bridged from preload)
+  - Validates extension against local allowedExts array
+  - Calls loadImage(filePath):
+    * window.wan.copyToInput(filePath) → IPC → main.js validates + copies
+    * Returns filename (e.g. "my_image.png")
+    * Stores as selectedImageFilename
+    * Sets drop zone to "IMAGE LOADED" state
+
+Step 2: User writes motion prompt, adjusts LoRA sliders, clicks GENERATE
+
+Step 3: startGeneration(seed, prompt) fires
+
+  State updates:
+  - isGenerating = true
+  - goBtn disabled, text → "RUNNING..."
+  - videoPlayer hidden
+  - setProgress(0)
+  - setStatus('QUEUED — awaiting ComfyUI slot', 'generating')
+  - startClock() — stores generationStartTime, sets dataset.generating=""
+    on mainPanel, starts 1s interval updating elapsed display
+  - logOutput.innerHTML = '' (clears previous run log)
+  - openLog() (makes log panel visible)
+  - Reads getLoraValues() from slider DOM
+
+  Calls window.ComfyClient.generate({
+    imagePath:    selectedImageFilename,
+    prompt:       prompt string,
+    seed:         integer (random or user-specified),
+    workflowName: 'i2v_14B_2stage',
+    loraValues:   { stage1: {...}, stage2: {...} },
+    onProgress:   (percent, label) → updates progress bar + status text + ETA
+    onComplete:   (outputFilename) → builds file:// URL, sets video src, plays
+    onError:      (msg) → shows error, resets UI
+    onLog:        (type, msg) → appendLog (updates in-app log panel)
+  })
+
+Step 4: comfy.js generate() executes
+
+  a. generateClientId() → crypto.randomUUID()
+  b. window.wan.loadWorkflow('i2v_14B_2stage') → loads workflow JSON via IPC
+  c. Scans workflow to build nodeMap (id → class_type) and find VHS_VideoCombine
+     node dynamically (stores as videoOutputNode)
+  d. injectPlaceholders(workflow, imagePath, prompt, seed):
+     - AST-based injection (not string replace):
+       * Walks all node.inputs objects
+       * Replaces inputs.image === '{{IMAGE_PATH}}' with imagePath
+       * Replaces inputs.text === '{{PROMPT}}' with prompt
+       * Replaces inputs.noise_seed === '{{SEED}}' with parseInt(seed)
+     - Cross-contamination impossible: each field only matches its own key name
+  e. Constructs WebSocket URL:
+     new URL('/ws', 'ws://localhost:8188') + searchParams.set('clientId', uuid)
+  f. Opens WebSocket, waits for onopen (5s timeout)
+  g. Sets up ws.onmessage handler to process ComfyUI protocol messages
+  h. Calls window.wan.queuePrompt({ prompt: injectedWorkflow, client_id: uuid })
+     → IPC → main.js → Node.js http.request → POST http://127.0.0.1:8188/prompt
+  i. Parses response for prompt_id (terminates if missing)
+  j. Stores promptId for message filtering
+
+Step 5: WebSocket message loop
+
+  ComfyUI sends these message types over the WebSocket:
+
+  "progress"
+    data.value = current step number
+    data.max = total step count
+    percent = round((value / max) * 100)
+    → onProgress(percent, 'step N/M · X%')
+    → updateEta(percent) — extrapolates remaining time from elapsed ratio
+
+  "executing"
+    data.node = node ID being executed
+    → looks up class_type in nodeMap → looks up human label in NODE_LABELS
+    → onProgress(null, label)
+    Labels defined in comfy.js NODE_LABELS:
+      UNETLoader           → 'Loading model weights'
+      CLIPLoader           → 'Loading text encoder'
+      VAELoader            → 'Loading VAE'
+      LoadImage            → 'Loading input image'
+      CLIPTextEncode       → 'Encoding prompt'
+      ModelSamplingSD3     → 'Configuring sampler'
+      WanImageToVideo      → 'Conditioning image→video'
+      KSamplerAdvanced     → 'Denoising latents'
+      VAEDecodeTiled       → 'Decoding latents → frames (tiled)'
+      VHS_VideoCombine     → 'Encoding video file'
+      LoraLoader           → 'Loading LoRA weights'
+      LoraLoaderModelOnly  → 'Loading LoRA (model only)'
+
+  "executed" (when data.node === videoOutputNode)
+    output.gifs || output.videos || output.images → takes files[0].filename
+    → onComplete(filename)
+    → terminate(null) — closes WebSocket, marks terminated=true
+
+  "execution_error"
+    → terminate(exception_message)
+
+  "execution_interrupted"
+    → terminate('Generation interrupted')
+
+  ws.onclose (unexpected)
+    → if not already terminated: terminate('WebSocket closed unexpectedly')
+
+Step 6: onComplete fires
+
+  renderer.js:
+  - setProgress(100)
+  - setStatus('COMPLETE — video ready', 'done')
+  - stopClock() — clears elapsed interval, removes dataset.generating
+  - Builds output path: homedir + '/Desktop/ComfyUI/output/' + outputFilename
+  - window.wan.toFileURL(outputPath) → IPC → pathToFileURL() → file:// URL
+  - videoPlayer.src = fileURL
+  - videoPlayer.style.display = 'block'
+  - videoPlayer.play()
+  - resetGenerateBtn() — re-enables GENERATE button
+
+
+PART 6 — LORA SLIDER SYSTEM
+================================================================================
+
+The UI exposes 8 sliders across 2 collapsible stage cards.
+
+Stage 1 — HIGH DETAIL PASS:
+  s1-dr34mlay-str    range 0.0–2.0, default 0.80, step 0.01  (DR34ML4Y strength)
+  s1-k3nk-str        range 0.0–2.0, default 0.60, step 0.01  (k3nk/ultydeepthroat)
+  s1-steps           range 1–100,   default 20,   step 1      (denoising steps Stage1)
+  s1-cfg             range 1–20,    default 3.5,  step 0.1    (CFG scale Stage1)
+
+Stage 2 — REFINEMENT PASS:
+  s2-dr34mlay-str    range 0.0–2.0, default 0.80, step 0.01
+  s2-k3nk-str        range 0.0–2.0, default 0.60, step 0.01
+  s2-steps           range 1–100,   default 31,   step 1
+  s2-cfg             range 1–20,    default 6.0,  step 0.1
+
+Each slider has a live readout <span> that updates on the 'input' event.
+DR34ML4Y and k3nk values display 2 decimal places.
+Steps displays as integer. CFG displays 1 decimal place.
+
+getLoraValues() returns a structured object read by startGeneration():
+  {
+    stage1: { dr34mlayStr, k3nkStr, steps, cfg },
+    stage2: { dr34mlayStr, k3nkStr, steps, cfg }
+  }
+
+NOTE: As of S258, loraValues is read and passed to ComfyClient.generate()
+but comfy.js injectPlaceholders() does NOT yet inject these values into the
+workflow. The workflow JSON uses hard-coded values. Backend wiring is the
+next phase of development.
+
+Stage cards collapse/expand via:
+  CSS :has(.lora-toggle:checked) — checkbox targeting, no JavaScript
+  max-height: 0 (closed) → 160px (open)
+  transition: max-height cubic-bezier(0.87, 0, 0.13, 1) 320ms
+
+
+PART 7 — ETA / ELAPSED DISPLAY
+================================================================================
+
+The ETA row (ELAPSED | ETA) is hidden until #main-panel[data-generating]
+is set. This attribute is added by startClock() and removed by stopClock().
+
+startClock():
+  - Records generationStartTime = Date.now()
+  - Sets mainPanel.dataset.generating = ''
+  - Starts 1-second interval updating elapsedValue via formatElapsed()
+  - Resets etaValue to '—'
+
+formatElapsed(ms): returns HH:MM:SS string
+
+updateEta(percent):
+  Called on every 'progress' WebSocket message when percent > 0
+  elapsed = Date.now() - generationStartTime
+  totalEstimate = (elapsed / percent) * 100
+  remaining = totalEstimate - elapsed
+  → formatEta(remaining)
+
+formatEta(remainingMs):
+  Displays as: ~Xh MMm remaining, ~Mm SSs remaining, or ~Ss remaining
+
+stopClock():
+  Clears the elapsed interval
+  Removes mainPanel.dataset.generating attribute (hides ETA row)
+
+
+PART 8 — WORKFLOW: i2v_14B_2stage.json
+================================================================================
+
+The primary production workflow. Wan 2.2 14B 2-stage Mixture-of-Experts.
+19 nodes. Two separate UNETLoader instances (high-noise and low-noise models).
+
+NODE GRAPH (exact as of S258):
+
+Node 1: UNETLoader
+  unet_name: "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"
+  weight_dtype: "default"
+  Role: loads the high-noise specialization of the 14B i2v model
+
+Node 2: UNETLoader
+  unet_name: "wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors"
+  weight_dtype: "default"
+  Role: loads the low-noise specialization (refinement expert)
+
+Node 3: CLIPLoader
+  clip_name: "umt5_xxl_fp8_e4m3fn_scaled.safetensors"
+  type: "wan"
+  device: "default"
+  Role: loads the UMT5-XXL text encoder used by Wan 2.2
+
+Node 4: VAELoader
+  vae_name: "wan_2.1_vae.safetensors"
+  Role: loads the Wan 2.1 VAE (14B uses 2.1 VAE, NOT the 2.2 VAE)
+  CRITICAL: wan2.2_vae.safetensors is wrong for 14B models
+
+Node 5: LoadImage
+  image: "{{IMAGE_PATH}}"  ← injected at runtime
+  Role: loads the user's source image from ComfyUI's input/ directory
+
+Node 6: LoraLoader (HIGH noise LoRA, DR34ML4Y)
+  model: [1, 0]  ← high-noise UNET
+  clip: [3, 0]   ← CLIPLoader output
+  lora_name: "DR34ML4Y_I2V_14B_HIGH-20250908202326.safetensors"
+  strength_model: 0.8
+  strength_clip: 0.8
+  Role: applies DR34ML4Y LoRA to both model and CLIP text encoder
+  NOTE: LoraLoader (not ModelOnly) because CLIP flows through this path
+
+Node 7: LoraLoaderModelOnly (LOW noise LoRA, DR34ML4Y)
+  model: [2, 0]  ← low-noise UNET
+  lora_name: "DR34ML4Y_I2V_14B_LOW-20250908202331.safetensors"
+  strength_model: 0.8
+  Role: applies DR34ML4Y LOW LoRA to model only
+  NOTE: ModelOnly because CLIP is already handled by the high-noise path
+
+Node 18: LoraLoader (HIGH noise, k3nk / ultimatedeepthroat)
+  model: [6, 0]  ← DR34ML4Y-modified high-noise model
+  clip: [6, 1]   ← DR34ML4Y-modified CLIP
+  lora_name: "wan22-ultimatedeepthroat-I2V-34epoc-high-k3nk.safetensors"
+  strength_model: 0.8
+  strength_clip: 0.8
+  Role: stacks k3nk LoRA on top of DR34ML4Y in the high-noise chain
+
+Node 19: LoraLoaderModelOnly (LOW noise, k3nk)
+  model: [7, 0]  ← DR34ML4Y-modified low-noise model
+  lora_name: "wan22-ultimatedeepthroat-I2V-16epoc-low-k3nk.safetensors"
+  strength_model: 0.8
+  Role: stacks k3nk LOW LoRA in the low-noise chain
+
+Node 8: CLIPTextEncode (positive conditioning)
+  text: "{{PROMPT}}"  ← injected at runtime
+  clip: [18, 1]  ← CLIP from final LoraLoader(high) chain output 1
+  Role: encodes user prompt into CLIP embeddings
+
+Node 9: CLIPTextEncode (negative conditioning)
+  text: "色调艳丽，过曝，静态，细节模糊不清，字幕，风格，作品，画作，画面，静止，整体发灰，
+         最差质量，低质量，丑陋的，残缺的，畸形的，毁容的，静止不动的画面，杂乱的背景"
+  clip: [18, 1]  ← same CLIP output
+  Role: Wan 2.2 official negative prompt (Chinese text, provided by Wan AI)
+  Translation: Oversaturated, overexposed, static, blurry details, subtitles,
+  style, artwork, painting, still, overall grayish, worst quality, low quality,
+  ugly, incomplete, deformed, disfigured, motionless frames, cluttered background
+
+Node 10: WanImageToVideo
+  positive: [8, 0]    ← CLIPTextEncode positive
+  negative: [9, 0]    ← CLIPTextEncode negative
+  vae: [4, 0]         ← VAELoader
+  start_image: [5, 0] ← LoadImage
+  width: 832
+  height: 480
+  length: 81          ← 4n+1 rule: 81 = 4×20+1; produces 5.0625s @ 16fps
+  batch_size: 1
+  Role: Wan 2.2 14B image-to-video conditioning node
+  Outputs: [positive_conditioning, negative_conditioning, encoded_latent]
+  CRITICAL: This is WanImageToVideo (14B-compatible, multi-output).
+  NOT Wan22ImageToVideoLatent (which is 5B-only, 48-channel, single output).
+  The 14B model uses WanImageToVideo because it produces the 3-tuple
+  (positive, negative, encoded latent) needed for the 2-stage sampler chain.
+
+Node 11: ModelSamplingSD3 (high-noise stage)
+  model: [18, 0]  ← model from final LoraLoader(high) chain
+  shift: 8.0
+  Role: adjusts SD3-style shift parameter for the high-noise model
+  CRITICAL: shift=8.0 MUST be identical between stages. Different values
+  break the sigma schedule continuity at the stage hand-off point.
+
+Node 12: ModelSamplingSD3 (low-noise stage)
+  model: [19, 0]  ← model from final LoraLoaderModelOnly(low) chain
+  shift: 8.0      ← identical to node 11
+  Role: adjusts SD3 shift for the low-noise/refinement model
+
+Node 13: KSamplerAdvanced (Stage 1 — High Detail Pass)
+  model: [11, 0]           ← ModelSamplingSD3 (high) output
+  add_noise: "enable"      ← Stage 1 introduces noise
+  noise_seed: "{{SEED}}"  ← injected at runtime
+  steps: 51                ← total step budget for the full sigma schedule
+  cfg: 3.5                 ← lower CFG for structural pass
+  sampler_name: "euler"
+  scheduler: "beta"
+  positive: [10, 0]        ← WanImageToVideo positive conditioning
+  negative: [10, 1]        ← WanImageToVideo negative conditioning
+  latent_image: [10, 2]    ← WanImageToVideo encoded start frame latent
+  start_at_step: 0         ← runs steps 0 through 19
+  end_at_step: 20
+  return_with_leftover_noise: "enable"  ← passes partial result to Stage 2
+
+Stage 1 runs steps 0–19 on the high-noise model (the first 20 of 51 steps).
+"return_with_leftover_noise: enable" means the sampled latent retains the
+residual noise appropriate for the Stage 2 starting point. This is the
+mechanism of the serial latent hand-off.
+
+Node 14: KSamplerAdvanced (Stage 2 — Refinement Pass)
+  model: [12, 0]           ← ModelSamplingSD3 (low) output
+  add_noise: "disable"     ← Stage 2 must not re-add noise
+  noise_seed: 0            ← ignored (add_noise=disable)
+  steps: 51                ← same total step count (sigma schedule continuity)
+  cfg: 6.0                 ← higher CFG for refinement detail
+  sampler_name: "euler"
+  scheduler: "beta"
+  positive: [10, 0]        ← same conditioning as Stage 1
+  negative: [10, 1]
+  latent_image: [13, 0]    ← Stage 1 output (the latent hand-off)
+  start_at_step: 20        ← resumes from step 20
+  end_at_step: 10000       ← effectively "run to completion"
+  return_with_leftover_noise: "disable"
+
+Stage 2 runs steps 20–50 on the low-noise model (the refinement expert).
+It receives the partially denoised latent from Stage 1 as its starting point.
+"add_noise: disable" is critical — re-adding noise at this point would destroy
+the structural work done by Stage 1.
+
+Node 15: VAEDecodeTiled
+  samples: [14, 0]  ← Stage 2 fully denoised latent
+  vae: [4, 0]       ← VAELoader
+  tile_size: 512
+  overlap: 64
+  temporal_size: 64
+  temporal_overlap: 8
+  Role: decodes latent tensor into pixel frames using tiled VAE decoding
+  CRITICAL: Standard VAEDecode crashes on Mac with 81 frames at 480p due to
+  MPS memory limits. VAEDecodeTiled processes in spatial and temporal chunks
+  to stay within memory bounds. This is mandatory on Apple Silicon.
+
+Node 17: VHS_VideoCombine
+  images: [15, 0]    ← VAEDecodeTiled decoded frames
+  frame_rate: 16     ← 14B native FPS (NOT 24 — 14B was trained at 16fps)
+  loop_count: 0
+  filename_prefix: "wan_i2v_14b"
+  format: "video/h264-mp4"
+  pingpong: false
+  save_output: true
+  Role: encodes frames into H.264 MP4, saves to ComfyUI/output/
+  CRITICAL: frame_rate must be 16, not 24. Setting 24 makes the 5-second
+  video play at 1.5× speed.
+
+NODE WIRING DIAGRAM (data flow summary):
+
+UNETLoader(1) ─────────────────────────── HIGH model
+CLIPLoader(3) ────────────────────────── text encoder
+VAELoader(4) ────────────────────────── VAE decoder
+LoadImage(5) ───────────────────────── start frame
+
+HIGH chain: UNETLoader(1) → LoraLoader[DR34ML4Y-HIGH](6) → LoraLoader[k3nk-HIGH](18)
+LOW chain:  UNETLoader(2) → LoraLoaderModelOnly[DR34ML4Y-LOW](7) → LoraLoaderModelOnly[k3nk-LOW](19)
+CLIP chain: CLIPLoader(3) → LoraLoader[DR34ML4Y-HIGH](6) → LoraLoader[k3nk-HIGH](18)
+
+CLIPTextEncode[pos](8) ← CLIP from node 18 output 1 + user {{PROMPT}}
+CLIPTextEncode[neg](9) ← CLIP from node 18 output 1 + Chinese neg prompt
+
+WanImageToVideo(10):
+  ← pos/neg conditioning from nodes 8,9
+  ← VAE from node 4
+  ← start image from node 5
+  → output 0 = positive conditioning
+  → output 1 = negative conditioning
+  → output 2 = encoded start frame latent
+
+ModelSamplingSD3(11) ← HIGH model (node 18 output 0), shift=8.0
+ModelSamplingSD3(12) ← LOW model (node 19 output 0), shift=8.0
+
+KSamplerAdvanced Stage1(13):
+  ← model from node 11
+  ← pos/neg from node 10 outputs 0,1
+  ← latent from node 10 output 2
+  ← steps 0→20, add_noise=enable, return_with_leftover_noise=enable
+  → partially denoised latent with leftover noise
+
+KSamplerAdvanced Stage2(14):
+  ← model from node 12
+  ← pos/neg from node 10 outputs 0,1 (same conditioning)
+  ← latent from node 13 output 0 (Stage1 result)
+  ← steps 20→end, add_noise=disable
+  → fully denoised latent
+
+VAEDecodeTiled(15) ← latent from node 14, VAE from node 4 → pixel frames
+VHS_VideoCombine(17) ← frames from node 15 → MP4 file at 16fps
+
+
+PART 9 — WORKFLOW: i2v_5B.json
+================================================================================
+
+The original scaffold workflow used to validate the Electron + IPC +
+WebSocket stack end-to-end. Still in the codebase but deprioritized.
+
+13 nodes. Single-pass generation. Uses the Wan 2.2 TI2V-5B model.
+
+Key structural differences from 14B:
+
+- Node 10: Wan22ImageToVideoLatent (5B-only, NOT WanImageToVideo)
+  The 5B model uses a different conditioning node with 48-channel latents.
+  WanImageToVideo (the 14B node) is architecturally incompatible with 5B.
+
+- No LoRA nodes (5B workflow has no LoRA loading)
+
+- Single sampler: SamplerCustomAdvanced (not KSamplerAdvanced)
+  Uses CFGGuider + RandomNoise + BasicScheduler + KSamplerSelect chain.
+  More verbose than KSamplerAdvanced but equivalent functionality.
+
+- Standard VAEDecode (not tiled) — 5B at 480p fits in MPS memory.
+  At the 14B 2-stage resolution and latent size, standard VAEDecode crashes.
+
+- Different VAE: wan2.2_vae.safetensors (NOT wan_2.1_vae.safetensors)
+  5B uses Wan 2.2 VAE. 14B uses Wan 2.1 VAE. These are not interchangeable.
+
+- FPS=16, frames=81 (same as 14B)
+
+Node summary: UNETLoader(1) → CLIPLoader(2) → VAELoader(3) → LoadImage(4)
+CLIPTextEncode pos(7) + neg(8) → Wan22ImageToVideoLatent(10) → RandomNoise(11)
+BasicScheduler(12) + KSamplerSelect(13) → CFGGuider(15)
+→ SamplerCustomAdvanced(14) → VAEDecode(16) → VHS_VideoCombine(17)
+
+History: The 5B workflow originally used WanImageToVideo (Wan 2.1 node).
+This produced pure teal/grey noise because the 5B Wan 2.2 model expects
+48-channel latents but WanImageToVideo produces 16-channel latents.
+Fixed in S253 by replacing node 10 with Wan22ImageToVideoLatent.
+
+
+PART 10 — SECURITY HARDENING (RF patches, S253/S257)
+================================================================================
+
+RF-01 / B-04: Workflow path traversal prevention
+  main.js ALLOWED_WORKFLOW_NAME regex: /^[a-zA-Z0-9_-]{1,64}$/
+  Rejects: ../secret, workflows/evil, foo\x00bar, any path separators
+  Additionally: path.resolve check + fs.realpathSync on both file and base dir
+  Confirms realPath starts with realBase + path.sep after symlink resolution
+
+RF-02: Image input validation
+  Extension allowlist: Set(['.jpg', '.jpeg', '.png', '.webp'])
+  Size cap: 50MB (MAX_IMAGE_BYTES)
+  lstatSync (not statSync) — sees symlinks as symlinks, not their targets
+  isFile() check on lstat result — rejects directories and symlinks
+
+RF-03: WebSocket timer cleanup
+  const timer = setTimeout(..., 5000) captured before assignment
+  clearTimeout(timer) called on ws.onopen
+  Prevents stale reject firing after successful connection
+
+RF-04: Prompt ID correlation
+  promptId gated by: if (promptId && msg.data && msg.data.prompt_id)
+  Ignores messages from different jobs on the same WebSocket connection
+
+RF-05 / RF-I: Dynamic video output node detection
+  VIDEO_OUTPUT_NODE_FALLBACK = '17' (used if scan fails)
+  On workflow load: scans all nodes for class_type === 'VHS_VideoCombine'
+  Stores as videoOutputNode — not hardcoded to a specific node ID
+
+RF-06: Terminal state handling
+  terminate() function: single-exit point with terminated=true guard
+  ws.onclose handler: catches unexpected socket drops
+  execution_interrupted handler: unblocks UI on OOM or manual cancel
+
+RF-07: ComfyUI spawn safety
+  --listen 127.0.0.1 (loopback only — not 0.0.0.0, not localhost)
+  isComfyUIRunning() check before spawning (no blind duplicate)
+  comfyOwnedByApp flag gates the on-quit kill logic
+
+RF-08: pathToFileURL for video source
+  Video output path → window.wan.toFileURL(path) → IPC → pathToFileURL()
+  Handles spaces and unicode in home directory path (e.g. "User Name")
+
+RF-09: Drag-drop extension validation
+  Renderer validates extension against local allowedExts array
+  Does not rely solely on MIME type (easily spoofed by renaming)
+  file.path || '' guard for missing path (Electron 28 behavior)
+
+RF-10: Content Security Policy
+  meta tag in index.html:
+    default-src 'self'
+    script-src 'self'
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com
+    font-src https://fonts.gstatic.com
+    connect-src 'self' http://localhost:8188 ws://localhost:8188
+              http://127.0.0.1:8188 ws://127.0.0.1:8188
+    img-src 'self' blob: data:
+    media-src 'self' blob: file:
+
+RF-D: PYTORCH_MPS_HIGH_WATERMARK_RATIO
+  Set to 0.7 (not 0.0). 0.0 removes the safety floor entirely.
+  0.7 gives MPS headroom without letting the allocator allocate infinitely.
+
+RF-F: Consistent localhost binding
+  getComfyStatus uses http://127.0.0.1:8188 (not localhost)
+  On some systems, localhost resolves to ::1 (IPv6) while ComfyUI binds
+  to 127.0.0.1 (IPv4) — the two are different sockets.
+
+RF-G: lstatSync vs statSync in copyToInput
+  Symlinks to regular files pass statSync.isFile() — the check follows
+  the symlink and sees the target. lstatSync sees the link itself,
+  correctly rejecting it.
+
+RF-H: CSP connect-src includes both localhost and 127.0.0.1
+  ComfyUI WebSocket connections use localhost; HTTP status checks use
+  127.0.0.1. Both must be in the allowlist.
+
+RF-J: DevTools gated on NODE_ENV
+  mainWindow.webContents.openDevTools() wrapped in:
+  if (process.env.NODE_ENV !== 'production')
+
+B-01: AST injection (injectPlaceholders)
+  Walks the parsed JSON object and replaces matching field values.
+  Cross-contamination is impossible: image='{{SEED}}' does not affect
+  noise_seed injection because they're different field names.
+  No string template replacement anywhere in the codebase.
+
+B-02: crypto.randomUUID() for client ID
+  Not Math.random() — produces cryptographically random RFC 4122 UUID
+
+B-03: Null prompt_id guard
+  If ComfyUI response lacks prompt_id field, terminate() is called
+  with an error message and generation does not proceed.
+
+Note on RF-A (webUtils.getPathForFile):
+  webUtils.getPathForFile() is the Electron 28+ replacement for file.path
+  in drop event handlers, but it is renderer-only — it cannot be accessed
+  from preload.js on Electron 28. file.path still works in Electron 28.
+  This requires revisiting when upgrading to Electron 32+.
+
+
+PART 11 — MAC-SPECIFIC CONFIGURATION
+================================================================================
+
+The Mac (Apple Silicon M3 Max) requires two launch flags not needed on CUDA:
+
+--bf16-unet
+  Instructs ComfyUI to cast FP8 model weights (Float8_e4m3fn) to BF16 at
+  load time. PyTorch's MPS backend does not support Float8 operations.
+  The model files on disk are FP8 (smaller, faster download, same quality on
+  CUDA) but must be upcast to BF16 before MPS can use them.
+  Result: each 14B model loads as ~14GB BF16. Both stages together = ~28GB.
+  With 64GB unified memory, both stages fit simultaneously.
+
+PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7
+  MPS by default uses a memory "watermark" to prevent allocation past a
+  threshold. Setting to 0.7 raises the ceiling without removing the floor.
+  Without this, ComfyUI's large VAE decode phase can trigger a fake OOM
+  ("MPS backend out of memory") even when physical memory is available.
+
+ComfyUI path (Mac):
+  ~/Desktop/ComfyUI/ (cloned manually)
+  Python: ~/Desktop/ComfyUI/venv/bin/python
+  Models: ~/Desktop/ComfyUI/models/
+  Input: ~/Desktop/ComfyUI/input/
+  Output: ~/Desktop/ComfyUI/output/
+
+Mac generation time: 45–90 minutes per 5-second video (81 frames, 480p, 51 steps)
+
+PC-SPECIFIC CONFIGURATION NOTES (RTX 3090 Ti, 24GB GDDR6X, CUDA)
+
+Remove --bf16-unet: FP8 runs natively on CUDA. No upcast needed.
+Remove PYTORCH_MPS_HIGH_WATERMARK_RATIO: MPS-specific, no-op on CUDA.
+ComfyUI spawn reduces to: python main.py --listen 127.0.0.1 --port 8188
+Model format: same FP8 safetensors files as Mac (no GGUF needed at 24GB VRAM)
+PC generation time: estimated 5–15 minutes per video
+
+
+PART 12 — MODEL FILES
+================================================================================
+
+For the primary 14B 2-stage workflow (i2v_14B_2stage.json):
+
+DIFFUSION MODELS (in ComfyUI/models/diffusion_models/):
+  wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors   (~14GB)
+    High-noise specialization — runs Stage 1 (structural pass, steps 0–19)
+  wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors    (~14GB)
+    Low-noise specialization — runs Stage 2 (refinement pass, steps 20–50)
+
+TEXT ENCODER (in ComfyUI/models/text_encoders/):
+  umt5_xxl_fp8_e4m3fn_scaled.safetensors             (~5GB)
+    UMT5-XXL: Wan 2.2's text encoder. Shared by both stages.
+    Encodes prompts into conditioning embeddings.
+
+VAE (in ComfyUI/models/vae/):
+  wan_2.1_vae.safetensors                            (~400MB)
+    CRITICAL: This is the 2.1 VAE, not the 2.2 VAE.
+    The 14B model architecture uses the Wan 2.1 VAE.
+    Using wan2.2_vae.safetensors with 14B models produces corrupt output.
+
+LORAS (in ComfyUI/models/loras/):
+  DR34ML4Y_I2V_14B_HIGH-20250908202326.safetensors
+    High-noise LoRA for DR34ML4Y style, applied via LoraLoader (affects CLIP)
+  DR34ML4Y_I2V_14B_LOW-20250908202331.safetensors
+    Low-noise LoRA for DR34ML4Y style, applied via LoraLoaderModelOnly
+  wan22-ultimatedeepthroat-I2V-34epoc-high-k3nk.safetensors
+    k3nk high-noise LoRA (34 epochs), stacks with DR34ML4Y HIGH chain
+  wan22-ultimatedeepthroat-I2V-16epoc-low-k3nk.safetensors
+    k3nk low-noise LoRA (16 epochs), stacks with DR34ML4Y LOW chain
+  sfbehind_v2.1_high_noise.safetensors
+  sfbehind_v2.1_low_noise.safetensors
+  Wan22_CumV2_Low.safetensors
+    Additional LoRA library available by swapping workflow JSON references
+
+For the 5B scaffold workflow (i2v_5B.json):
+  wan2.2_ti2v_5B_fp16.safetensors (in models/diffusion_models/)
+  umt5_xxl_fp8_e4m3fn_scaled.safetensors (shared with 14B)
+  wan2.2_vae.safetensors (5B uses 2.2 VAE — different from 14B)
+
+
+PART 13 — LORA ARCHITECTURE IN THE WORKFLOW
+================================================================================
+
+The 14B workflow uses a 4-LoRA stacked chain, split across two model paths.
+
+WHY TWO SEPARATE MODEL PATHS?
+
+The 14B Wan 2.2 i2v is a Mixture-of-Experts architecture with two
+specialization branches:
+- high_noise: designed to work at high noise levels (early denoising steps)
+- low_noise: designed to work at low noise levels (late refinement steps)
+
+Running both in a single pass would dilute the specialization. The 2-stage
+pattern runs each expert in its correct noise regime.
+
+LORA SPLIT RATIONALE:
+
+High-noise LoRAs (LoraLoader, full):
+  Applied to UNETLoader(1) which feeds Stage 1 (steps 0-19, high noise).
+  Uses LoraLoader (not ModelOnly) because CLIP also flows through this path.
+  CLIPTextEncode for both positive and negative prompts takes CLIP from
+  the output of the final LoraLoader(high) chain (node 18, output 1).
+  This means the text conditioning is also aware of the LoRA's style.
+
+Low-noise LoRAs (LoraLoaderModelOnly, model only):
+  Applied to UNETLoader(2) which feeds Stage 2 (steps 20-50, low noise).
+  Uses LoraLoaderModelOnly because CLIP encoding happens only once (shared).
+  The low-noise path only needs to affect model weights, not text encoding.
+
+STACKING ORDER:
+
+HIGH chain: UNETLoader(1) → LoraLoader[DR34ML4Y-HIGH](6) → LoraLoader[k3nk-HIGH](18)
+  DR34ML4Y is applied first (strength_model=0.8, strength_clip=0.8)
+  k3nk chains onto DR34ML4Y output (strength_model=0.8, strength_clip=0.8)
+
+LOW chain: UNETLoader(2) → LoraLoaderModelOnly[DR34ML4Y-LOW](7) → LoraLoaderModelOnly[k3nk-LOW](19)
+  DR34ML4Y LOW first, k3nk LOW chains onto it
+
+CLIP ROUTING:
+  CLIPLoader(3) → LoraLoader[DR34ML4Y-HIGH](6) → LoraLoader[k3nk-HIGH](18)
+  Both CLIPTextEncode nodes (positive and negative) take CLIP from
+  node 18 output 1 — the CLIP output of the last high-noise LoraLoader.
+
+
+PART 14 — THE 2-STAGE SAMPLER PROTOCOL
+================================================================================
+
+The 2-stage sampling is a specific technique for the Wan 2.2 14B MoE model.
+It's not a generic "run two samplers" — it requires precise configuration
+to function correctly.
+
+Total step budget: 51 steps
+Stage 1 runs: steps 0–19 (20 steps, high-noise expert)
+Stage 2 runs: steps 20–50 (31 steps, low-noise expert)
+
+Both KSamplerAdvanced nodes declare steps=51. This is intentional.
+Both see the same total sigma schedule. Stage 1 runs the first 20 steps
+of that schedule. Stage 2 runs steps 20 through the end of that schedule.
+The sigma schedule is computed identically on both sides — consistency
+of the schedule is what makes the hand-off work.
+
+The hand-off mechanism:
+  Stage 1: return_with_leftover_noise = "enable"
+    The sampler runs steps 0-19 and stops, returning the latent with the
+    residual noise appropriate for that point in the schedule. It does NOT
+    finish denoising to completion.
+  Stage 2: add_noise = "disable"
+    Stage 2 receives the partially denoised latent and continues from
+    step 20, using the low-noise model. It does not re-add noise (which
+    would destroy Stage 1's structural work).
+
+CFG values:
+  Stage 1: cfg=3.5 (lower CFG for broad structure — allows creative variation)
+  Stage 2: cfg=6.0 (higher CFG for refinement detail — tightens adherence)
+
+shift=8.0 on both ModelSamplingSD3 nodes:
+  SD3-style shift adjusts the noise schedule. Both stages MUST use the same
+  shift value. Mismatched shift values cause the sigma schedule to be
+  inconsistent at the hand-off point, producing corrupted output.
+
+Conditioning flow:
+  Both Stage 1 and Stage 2 use the same positive/negative conditioning
+  from WanImageToVideo outputs 0 and 1. The conditioning is not changed
+  between stages. Only the latent advances.
+
+
+PART 15 — ComfyUI API PROTOCOL
+================================================================================
+
+ComfyUI headless exposes three endpoints used by WAN BOOTH:
+
+POST http://127.0.0.1:8188/prompt
+  Payload: { prompt: <workflow object>, client_id: <uuid> }
+  Response: { prompt_id: <uuid> } on success
+  Error: HTTP 403 if Origin header is null (blocked from file:// renderer)
+  Solution: route through main.js IPC using Node.js http.request (no Origin)
+
+GET ws://localhost:8188/ws?clientId=<uuid>
+  WebSocket for real-time progress during generation
+  Messages comfy.js handles:
+    { type: "progress", data: { value, max, prompt_id } }
+    { type: "executing", data: { node, prompt_id } }
+    { type: "executed", data: { node, output, prompt_id } }
+    { type: "execution_error", data: { exception_message } }
+    { type: "execution_interrupted" }
+  Note: "executed" fires for every node that completes.
+  WAN BOOTH only acts on the "executed" message from the VHS_VideoCombine
+  node (dynamically detected) — that's the signal that the video file exists.
+
+GET http://127.0.0.1:8188/system_stats
+  Status check — returns 200 if ComfyUI is running and ready
+  Used by isComfyUIRunning() and getComfyStatus()
+
+GET http://localhost:8188/view?filename=<name>
+  Fetches output file — not used by WAN BOOTH
+  Instead, WAN BOOTH constructs the output path directly:
+  homedir + '/Desktop/ComfyUI/output/' + outputFilename
+  Converts to file:// URL via wan:toFileURL IPC → pathToFileURL()
+
+
+PART 16 — UI VISUAL SYSTEM
+================================================================================
+
+color-tokens.css — OKLCH color system, "Bad Candy Arcade" palette
+
+Background:
+  --ws-bg:          oklch(0.095 0.010 285)  — near-black, violet undertone
+  --ws-bg-elevated: oklch(0.138 0.013 285)  — elevated panels, same hue
+
+Foreground:
+  --ws-fg:          oklch(0.930 0.018 225)  — CRT phosphor blue-white
+  --ws-fg-muted:    oklch(0.580 0.016 225)  — secondary labels, 4.83:1 contrast
+
+Primary accent (hot magenta):
+  --ws-pink:        oklch(0.650 0.290 338)  — neon tube at 3am, H=338° LOCKED
+  --ws-pink-glow:   oklch(0.550 0.220 338)  — diffused halo
+
+Secondary accent (electric cyan):
+  --ws-cyan:        oklch(0.760 0.165 196)  — cathode ray, transaction complete
+  --ws-cyan-glow:   oklch(0.660 0.130 196)
+
+Borders:
+  --ws-border:        oklch(0.230 0.018 285)  — default, void-material
+  --ws-border-active: oklch(0.650 0.290 338)  — active/focus, matches pink
+
+State colors (used by progress bar and status text):
+  --ws-state-idle:         oklch(0.520 0.055 265)  — machine breathing
+  --ws-state-generating:   oklch(0.650 0.290 338)  — same as pink (alive)
+  --ws-state-done:         oklch(0.760 0.165 196)  — same as cyan (confirmed)
+  --ws-state-error:        oklch(0.610 0.230 22)   — hot red-orange (coin rejected)
+  --ws-state-disconnected: oklch(0.400 0.018 265)  — near-gray (screen off)
+
+Backward-compat aliases:
+  --ws-amber      = var(--ws-pink)        (deprecated)
+  --ws-amber-glow = var(--ws-pink-glow)   (deprecated)
+  --ws-neon       = var(--ws-cyan)        (deprecated)
+
+type-tokens.css — VT323 + Press Start 2P
+
+Fonts:
+  --ws-font-display: 'Press Start 2P', monospace  — hero nameplate ONLY (88px)
+  --ws-font-ui:      'VT323', monospace            — all readable interface text
+  --ws-font-mono:    'VT323', monospace            — log panels (semantic alias)
+  --ws-font-stamp:   'Press Start 2P', monospace   — micro-texture ONLY (6px)
+
+Sizes (fixed px — no clamp() for bitmap-origin fonts):
+  --ws-type-display: 88px   (PS2P only, nameplate — steps to 48px@600px, 32px@360px)
+  --ws-type-stage:   32px   (section headers)
+  --ws-type-button:  24px   (GENERATE button)
+  --ws-type-value:   24px   (slider readouts)
+  --ws-type-label:   20px   (UI workhorse — labels, status)
+  --ws-type-body:    20px   (prompt textarea)
+  --ws-type-small:   16px   (log entries, ETA, seed label)
+  --ws-type-stamp:    6px   (PS2P micro-texture only)
+
+Weights: 400 only (both VT323 and PS2P are single-weight bitmap fonts;
+  font-weight:700 triggers faux-bold which smears the pixel matrix)
+
+Tracking:
+  --ws-tracking-display: -0.05em  (PS2P 88px, close pixel rivers)
+  --ws-tracking-stage:    0.05em  (VT323 32px, arcade panel label)
+  --ws-tracking-ui:       0em     (VT323, trust the bitmap grid)
+
+Leading:
+  --ws-leading-ui:      1.2
+  --ws-leading-prompt:  1.5
+  --ws-leading-log:     1.6
+
+
+PART 17 — REGRESSION TEST SUITE
+================================================================================
+
+Location: test/regression.js
+Run: node test/regression.js
+Exit 0 = all pass, Exit 1 = failures
+
+As of S258: 87 tests, 0 failures
+
+Test groups:
+
+RF-01/B-04 — loadWorkflow allowlist + symlink guard (6 tests)
+RF-02 — copyToInput extension allowlist + size cap (6 tests)
+RF-03 — WebSocket timer cleared on open (2 tests)
+RF-04 — prompt_id message filtering (2 tests)
+RF-05 — VHS_VideoCombine dynamic detection (4 tests)
+RF-06 — terminal state handling (4 tests)
+RF-07 — ComfyUI spawn safety (3 tests)
+RF-08 — pathToFileURL via IPC (4 tests)
+RF-09 — drag-drop extension validation (2 tests)
+RF-10 — CSP + NaN seed guard (5 tests)
+B-01 — AST injection resistance (4 tests)
+B-02 — crypto.randomUUID() client ID (2 tests)
+B-03 — null promptId guard (1 test)
+B-04/B-06 — __dirname loadFile + URL constructor (2 tests)
+Workflow structure: 5B (8 tests)
+AC-13 — Mac FP8 flags (3 tests)
+AC-09/10/11/12 — 14B node graph + hyperparams (30 tests)
+
+The tests are source-code-reading tests (fs.readFileSync + assert.ok/strictEqual).
+They read the actual source and JSON files — they're not mocks.
+B-01 AST injection tests instantiate the actual injectPlaceholders logic inline.
+
+
+PART 18 — OPEN ITEMS (as of S258)
+================================================================================
+
+AC-16 IN PROGRESS: End-to-end generation test on Mac — one real video from
+  a real image, playing in-app. Generation queued and running.
+
+BACKEND WIRING PENDING: The LoRA slider values (loraValues object from
+  getLoraValues()) are read in renderer.js and passed to ComfyClient.generate()
+  but comfy.js does NOT yet inject them into the workflow. The workflow uses
+  hard-coded LoRA strength values (0.8). The injection path is:
+    getLoraValues() → startGeneration() → ComfyClient.generate({ loraValues })
+    → comfy.js needs to inject these values into the workflow nodes
+  This requires:
+    - injectPlaceholders() to accept a loraValues argument
+    - Workflow JSON to use placeholder strings for strength values
+    - OR: direct node modification for LoRA strength fields
+
+KNOWN ISSUE — webUtils.getPathForFile():
+  The correct Electron 28+ API for getting file paths from drop events is
+  webUtils.getPathForFile(file). However, webUtils is renderer-only and
+  cannot be bridged from preload.js on Electron 28. The current code uses
+  file.path which still works in Electron 28 but is removed in Electron 32.
+  Must be addressed before upgrading to Electron 32+.
+
+PC TRANSFER NEEDED:
+  Remove --bf16-unet flag from main.js ComfyUI spawn args (CUDA runs FP8 natively)
+  Remove PYTORCH_MPS_HIGH_WATERMARK_RATIO from spawn environment
+  A platform check (process.platform === 'darwin') would allow a single codebase
+  to conditionally apply Mac-only flags.
+
+DEFERRED FROM OBSIDIAN AUDIT (next session):
+  --ws-fg-muted L=0.580 is at 4.83:1 contrast — above 4.5:1 floor but marginal
+  given OKLab approximation uncertainty. Raise to L=0.600 for margin.
+  Bundle fonts locally via @font-face (CDN blocks first render offline).
+  font-synthesis: none globally to prevent faux-bold on bitmap fonts.
+
+
+================================================================================
+END OF DOCUMENT
+Source files read: main.js, preload.js, comfy.js, renderer.js, index.html,
+  color-tokens.css, type-tokens.css, i2v_14B_2stage.json, i2v_5B.json,
+  regression.js, NORTH_STAR.md
+No information fabricated. Every value sourced from actual code.
+================================================================================
