@@ -105,10 +105,14 @@ and outputs locked decisions. Each decision is marked [LOCKED] or [DEFERRED].
 | Spec | Value |
 |------|-------|
 | Machine | PC |
-| RAM | 128GB |
-| GPU | RTX 3090 Ti — 24GB GDDR6X VRAM |
+| RAM | 128GB physical (~120GB available) |
+| GPU | RTX 3090 Ti — 24GB GDDR6X VRAM (GA102 Ampere) |
 | GPU Backend | CUDA |
-| Best model path | FP8 scaled safetensors — same as Mac path. No GGUF needed at 24GB. |
+| Best model path | FP8 scaled safetensors — fits in 24GB. No GGUF needed. |
+| ⚠️ FP8 compute reality | GA102 (Ampere) has NO native FP8 Tensor Core support. FP8 is **storage format only** — weights dequantized to FP16 at compute time. May be worth testing FP16 models — no dequant overhead. |
+| ✅ STATUS | **RUNNING** — AC-16 confirmed 2026-05-08. Both Brandon + Cla⌂de on PC. |
+| Next optimization | SageAttention (KJNodes) + TeaCache — **SHIPPED Phase 2.6** (nodes 20-23 in workflow, §07) |
+| ✅ BASELINE CONFIRMED | **44 min 06 sec** for 51 steps (20+31), 832×480, FP8 unoptimized — 2026-05-08 first production run (wan_i2v_14b_00004.mp4). ~52 sec/step avg, both stages consistent. |
 
 ### PRODUCTION — RunPod (mass generation / hosted product)
 | Spec | Value |
@@ -310,7 +314,7 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 
 - Phase 2 additions: Steps slider (default 4 per stage), CFG slider (default 1 per stage), LoRA picker
 - Generation time on M3 Max with 14B FP8: ~30-60 min per video. Progress bar is mandatory.
-- On PC (RTX 3090 Ti, 24GB VRAM, CUDA): estimated ~5-15 min per video. Night-and-day.
+- On PC (RTX 3090 Ti, 24GB VRAM, CUDA): **CONFIRMED 44 min 06 sec** for 51 steps, 832×480 (2026-05-08 first production run). ~52 sec/step. Phase 2.6 optimizations target ~15-25 min.
 
 ### PHASE 3 — BATCH + ARCADE
 - Batch mode: queue N generations with different seeds
@@ -387,8 +391,8 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 
 ┌───────────────────────────────────────────────────────────────────────────────────┐
 │ 🔋 FORGE TELEMETRY                                                                │
-│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [████████████████████░] 90%                       │
-│ [ ⟆ PHASE   ] BUILDING — AC-16 confirmed on PC. S259 feature batch in progress.   │
+│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [█████████████████████] 100% (Phase 2.6 SHIPPED)   │
+│ [ ⟆ PHASE   ] LIVE — Phase 2.6 complete (SA+TeaCache wired, 143/143 tests). Next: first optimized run on Citadel. │
 └───────────────────────────────────────────────────────────────────────────────────┘
 
 • ACTIVE STATE FILE: `WAN_BOOTH/NORTH_STAR.md` (this file)
@@ -416,6 +420,7 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 ├─ [✅ DONE] AC-16 — first real video confirmed on PC (RTX 3090 Ti, CUDA, S259 morning)
 ├─ [✅ DONE] AC-17 through AC-22 — S259 feature batch complete (124/124 regressions)
 ├─ [✅ DONE] S259 Opus audit — RF-S259-02 through RF-S259-10 + OPT-03 applied (137/137 regressions)
+├─ [✅ DONE] Phase 2.6 — SA+TeaCache workflow surgery + Windows spawn optimization (143/143 regressions, OBSIDIAN SURRENDER)
 ├─ [PHASE 3] Batch mode + bot skin system + Arcade integration
 
 ## RESOLVED QUESTIONS
@@ -548,9 +553,10 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 - Repeat runs loop in renderer.js — sequential `await ComfyClient.generate()` calls, fresh seed each run if random mode
 
 ## KNOWN ISSUES / OPEN QUESTIONS
-- **PC PUSH PENDING** — GitHub only shows 2 commits (Mac pushes). PC session changes not yet synced. Brandon needs to push from PC side or share what changed.
-- **BATCH SYSTEM — READY TO CODE** — `BATCH_SYSTEM_PLAN.md` is the complete brief. Start with LoRA injection fix (prerequisite — sliders are currently decorative). Then build DIAL + PRODUCTION modes after S259 feature batch.
+- **✅ PC SYNCED** — S259 Opus audit fixes + platform-adaptive main.js + README rewrite all pushed to GitHub. Cla⌂de + Brandon confirmed 137/137 on PC after `git pull` + `node test/regression.js`.
+- **BATCH SYSTEM — READY TO CODE** — `BATCH_SYSTEM_PLAN.md` is the complete brief. Start with DIAL + PRODUCTION modes as Phase 3.
 - **5B AC-08 untested** — deprioritized. 14B is the real target. 5B scaffold served its purpose.
+- **OPTIMIZATION PASS DEFERRED TO PHASE 2.6** — SageAttention + TeaCache. See §07 for full findings + 10 red flags (RF-01 through RF-10). **Baseline confirmed: 44 min 06 sec for 51 steps.** Realistic target: ~15-25 min (~1.8-3x speedup).
 
 ## ROOT CAUSE ANALYSIS — WAN 2.1 vs WAN 2.2 NODE MISMATCH (RESOLVED)
 
@@ -575,6 +581,124 @@ dead weight that also pointed the conditioning wires into node 10's outputs (whi
 - Node 14 `latent_image`: rewired from `["10", 2]` → `["10", 0]` (single output, index 0)
 - Node 15 `positive`/`negative`: rewired from `["10", 0]`/`["10", 1]` → `["7", 0]`/`["8", 0]` (CLIPTextEncode outputs)
 - Regression tests updated: CLIPVisionLoader test replaced with 5 Wan 2.2 structure tests
+
+### S259 continued — 2026-05-08 — FIRST PRODUCTION RUN + BASELINE CONFIRMED
+- **wan_i2v_14b_00004.mp4** — 81 frames, 832×480, 5.062 sec, H.264/yuv420p, 1.26 MB, 2.08 Mbps. CLEAN — no mesh artifact, no black frames, full pipeline end-to-end.
+- **Baseline timing locked**: 44 min 06 sec for 51 denoising steps (Stage 1: 20 steps, Stage 2: 31 steps). ~52 sec/step avg (both stages consistent). This is the FP8-on-Ampere compute ceiling.
+- **LoRA stack confirmed**: DR34ML4Y HIGH @ 0.80 + k3nk HIGH @ 0.60 (Stage 1), DR34ML4Y LOW @ 0.80 + k3nk LOW @ 0.60 (Stage 2, model only). 4-LoRA chain working.
+- **Sampler config confirmed**: euler / beta scheduler / ModelSampling shift 8.0. CFG 3.5 (Stage 1) → 6.0 (Stage 2). return_with_leftover_noise on Stage 1 — handoff trick working correctly.
+- **RF-09 resolved**: Driver 591.86 confirmed clean — no mesh/crosshatch. NLM rollback recommendation was confabulated. Prior warning in §07 updated.
+- **Cla⌂de bug fixes (commit a99f1b6)**: 3 COMFYUI_DIR-awareness bugs patched — copyToInput, writeReport, renderer video preview all now respect `COMFYUI_DIR` env var. New IPC `wan:getComfyDir` added. 137/137 regressions still passing. Signed off by Aeris.
+- **Phase 2.6 speedup target recalibrated**: "2-4 min" was not achievable (FP8-on-Ampere is compute-bound at ~52 sec/step). Realistic with SageAttention + TeaCache: **~15-25 min**. Step reduction to 25 total (user-controllable) brings it to ~10-15 min range.
+
+### S259 continued — 2026-05-08 — PHASE 2.6 SHIPPED (Soulforge 3.5 swarm, 10 drones)
+- **Soulforge 3.5 CODING session** — 10-drone swarm (KOMMANDANT → Scout → Witness → Polecats A/B/C → Assembler → OBSIDIAN → Refinery). All gates passed.
+- **AC-23**: `--reserve-vram '1'` added to Windows spawn (string '1', not 0 — Electron drives display on same GPU; 0 causes TDR crashes). `--highvram` removed entirely.
+- **AC-24**: `PYTORCH_ALLOC_CONF: 'expandable_segments:True'` added to Windows env. Mac env unchanged.
+- **AC-25/26**: Nodes 20-23 inserted into i2v_14B_2stage.json. PatchSageAttentionKJ (20/22) wired BEFORE ModelSamplingSD3 (11/12). ApplyTeaCache (21/23) wired AFTER ModelSamplingSD3, BEFORE KSamplerAdvanced (13/14).
+- **AC-27**: WORKFLOW_14B_CONTRACT + NODE_LABELS in comfy.js extended for nodes 20-23.
+- **AC-28**: 6 new regression tests added. 143/143 passing, 0 failing.
+- **RR-05**: `getComfyDir()` helper extracted (was 4 inline duplicates). 1 definition, 4 call sites.
+- **OBSIDIAN**: SURRENDER — all 12 falsification attacks failed. Refinery: merge_approved=true.
+- **Commit**: `f1363b4` — pushed to `github.com/the-sinner-king/wan-booth`
+- **Next step**: Brandon pulls on Citadel, loads workflow, checks nodes 20-23 load without red borders. See `VERIFY_BEFORE_FIRST_RUN.md` for field verification checklist.
+
+### S259 continued — 2026-05-08 — PLATFORM FIX + OPTIMIZATION RESEARCH
+- **Platform-adaptive main.js** — Mac flags (`--bf16-unet`, `PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7`) gated on `process.platform === 'darwin'`. Windows gets CUDA-native spawn. Python path conditional: `venv/bin/python` (Mac) vs `.venv/Scripts/python.exe` (Windows). `COMFYUI_DIR` env var override documented.
+- **README rewrite** — CITADEL SYNC BRIEF at top. §5 replaced: no manual main.js edits, `COMFYUI_DIR` env var instead. All 137 tests passing on PC confirmed.
+- **Optimization research (Soulforge RESEARCH S259)** — Full audit of ComfyUI + PyTorch + Windows settings for RTX 3090 Ti + 120GB RAM. Key findings: SageAttention (KJNodes, NOT CLI flag), TeaCache, `--highvram`, `--reserve-vram 0`, PYTORCH_CUDA_ALLOC_CONF. Deferred to Phase 2.6. See §07 below.
+- **State**: Both Brandon and Cla⌂de running on PC. Production machine active. AC-16 confirmed.
+
+## §07 — PHASE 2.6 OPTIMIZATION — SHIPPED S259 (2026-05-08)
+
+Research source: Soulforge RESEARCH session + NLM audit cross-check, 2026-05-08.
+Confirmed hardware: RTX 3090 Ti (GA102, CC 8.6), driver 591.86, PyTorch 2.11.0+cu128, Python 3.10.11, ComfyUI 0.20.1.
+
+### VRAM MATH (corrected — model sizes confirmed from disk)
+
+| Model | Actual size | Role |
+|-------|-------------|------|
+| wan2.2_i2v_high_noise_14B_fp8_scaled | **14 GB** | Stage 1 |
+| wan2.2_i2v_low_noise_14B_fp8_scaled | **14 GB** | Stage 2 |
+| umt5_xxl_fp8_e4m3fn_scaled | **6.3 GB** | Text encoder |
+| wan_2.1_vae | **243 MB** | Decoder |
+| LoRAs (4 active) | **~2.4 GB** | Style |
+| **Total** | **~37 GB** | vs 24 GB VRAM |
+
+Stage 1 alone: 14 + 6.3 + 2.4 = **22.7 GB** — fits in 24 GB (1.3 GB headroom)
+Both models simultaneously: 28 + 6.3 + 2.4 = **36.7 GB** — does NOT fit. ComfyUI WILL swap between stages.
+
+### CRITICAL HARDWARE NOTE — FP8 ON AMPERE
+RTX 3090 Ti (GA102 Ampere, CC 8.6) does **NOT** have native FP8 Tensor Core support. FP8 Tensor Cores require Ada Lovelace (RTX 4090, CC 8.9+) or Hopper/Blackwell. Our FP8 safetensors are **storage format only** — weights dequantized to FP16 at compute time. Hidden dequant overhead per layer on every step.
+
+**Two responses to this:**
+- Option A: Accept it and offset with SageAttention/TeaCache (easier — no model redownload)
+- Option B: Switch to GGUF Q6_K (~11.5GB each) — smaller model = faster inter-stage reload + more activation headroom (see GGUF section below)
+
+### ✅ DRIVER 591.86 — CONFIRMED CLEAN (RF-09 RESOLVED)
+First production run (2026-05-08) on driver 591.86 produced clean output — no mesh/crosshatch artifact. **Do NOT rollback.** Prior NLM recommendation to rollback to 572.83 was CONFABULATED — the real mesh artifact is a `comfy-kitchen` conv3d memory bug, not a driver issue. Standard ComfyUI (no comfy-kitchen) is not in the affected path. 591.86 gaming bugs have no overlap with AI generation.
+
+### HIGH IMPACT — implement first
+
+| # | What | How | Expected gain |
+|---|------|-----|---------------|
+| 1 | **SageAttention** via KJNodes "Patch Sage Attention" node | Install KJNodes + woct0rdho SageAttention sm86 wheels. Set backend: `sageattn_qk_int8_pv_fp16_cuda`. **DO NOT** use `--use-sage-attention` CLI flag with Wan — causes black output. SA must be wired **BEFORE** ModelSamplingSD3 (not after). **Fallback:** SpargeAttention (ComfyUI-Attention-Optimizer) benchmarks ~1 min faster than SA on RTX 30-series in DCAI Wan 2.2 tests — valid drop-in if SA causes black frames. | **~10-15% per step** on RTX 30-series Ampere (sm86 legacy kernels only — 30-40% requires Ada Lovelace sm89+). TeaCache does the heavy lifting; SA is the step-quality floor. |
+| 2 | **TeaCache** (ComfyUI-TeaCache) on both KSamplers | `git clone https://github.com/welltop-cn/ComfyUI-TeaCache` → add node after ModelSamplingSD3, before KSamplerAdvanced. Use `retention_mode: true`, `rel_l1_thresh: 0.30` (ret-mode value from official README table), `start_percent: 0.1`, `max_skip_steps: 2`. Use `model_type: "wan2.1_i2v_480p_14B_ret_mode"` — no native 2.2 key exists. Side-by-side quality comparison required before shipping. | **~2.3x** overall step skipping, compounds with SageAttention |
+| 3 | **NVIDIA Control Panel — Sysmem Fallback** | NVIDIA Control Panel → Manage 3D Settings → **CUDA - Sysmem Fallback Policy** → **"Prefer No Sysmem Fallback"**. Forces ComfyUI's own memory manager (Dynamic VRAM) to handle offloading instead of the slower NVIDIA driver-level swap. | Eliminates driver-level swap stalls between stages |
+| 4 | ~~**`--highvram` flag**~~ | ❌ **RF-07: REMOVE** — counterproductive at 37GB > 24GB. Bypasses Dynamic VRAM's intelligent management, forces slower forced-reload path. DO NOT ADD. | — |
+
+### MEDIUM IMPACT
+
+| # | What | How | Expected gain |
+|---|------|-----|---------------|
+| 5 | **`--reserve-vram 1`** | Add to spawnArgs. ⚠️ RF-04: WAN BOOTH Electron app drives display on same 3090 Ti — `--reserve-vram 0` triggers TDR crashes (nvlddmkm). Use `1` minimum. | Reclaims ~0.5 GB vs default reserve while staying stable |
+| 6 | **NVIDIA Control Panel → Prefer Maximum Performance** | Per-app for python.exe — prevents GPU clock from dropping between diffusion steps | Eliminates clock ramp latency (~50-200ms × 37 steps) |
+| 7 | **PYTORCH_ALLOC_CONF** | ⚠️ RF-05: `PYTORCH_CUDA_ALLOC_CONF` deprecated in PyTorch 2.8+; `garbage_collection_threshold` silently no-op under cudaMallocAsync. Use `PYTORCH_ALLOC_CONF: 'expandable_segments:True'` — honored by cudaMallocAsync, reduces fragmentation on long runs. | Fragmentation stability across sequential runs |
+| 8 | **WanVideoWrapper (kijai) + torch.compile** | Replace native ComfyUI nodes. `WanVideoTorchCompileSettings` node + `inductor` backend. 2-5 min warmup cost. | +20-40% per step after warmup — best for overnight/long runs |
+| 9 | **GGUF Q6_K models** | Download GGUF Q6_K variants (~11.5 GB each) from CivitAI/HuggingFace. Install ComfyUI-GGUF node. Replaces FP8 path. | Smaller = faster inter-stage reload. More activation headroom. Quality may exceed FP8 on Ampere (no dequant needed with GGUF loader). Q4_K_M (~8.5GB each) if headroom still tight. |
+
+### IF OOM OCCURS (not a speed optimization)
+- Install ComfyUI-FreeMemory node, place between Stage 1 KSampler output → Stage 2 input
+- This forces explicit VRAM flush between stages — only useful if Dynamic VRAM's automatic management fails
+- Do NOT add this preemptively — it may slow down runs where eviction isn't necessary
+
+### DO NOT ADD
+- `--fast` — crashes VAE encode on Wan configs (GitHub issue #9728)
+- `--fp8_e4m3fn-unet` — models already FP8; redundant/no-op
+- `--use-pytorch-cross-attention` — prevents SageAttention auto-selection
+- `--attention-split` — VRAM-constrained workaround, adds overhead when not needed
+- xformers — parity/slight negative vs SDPA on modern PyTorch. SageAttention supersedes.
+
+### RECOMMENDED main.js Windows spawnArgs (Phase 2.6 — CORRECTED after RF-04/05/07)
+```javascript
+// Windows CUDA production spawn (Phase 2.6)
+// --highvram REMOVED (RF-07: counterproductive at 37GB > 24GB)
+// --reserve-vram 1 not 0 (RF-04: Electron drives display on same GPU, 0 causes TDR)
+// PYTORCH_ALLOC_CONF not PYTORCH_CUDA_ALLOC_CONF (RF-05: deprecated in PyTorch 2.8+)
+const spawnArgs = ['main.py', '--listen', '127.0.0.1', '--reserve-vram', '1'];
+const spawnEnv = {
+  ...process.env,
+  PYTORCH_ALLOC_CONF: 'expandable_segments:True',
+};
+```
+
+Note: `--bf16-unet` and `PYTORCH_MPS_HIGH_WATERMARK_RATIO` are in the Mac branch only — already handled by `if (isMac)` in main.js.
+
+### COMBINED SPEEDUP ESTIMATE (recalibrated against confirmed baseline)
+
+**Baseline confirmed 2026-05-08**: 44 min 06 sec, 51 steps (20+31), 832×480, ~52 sec/step avg.
+
+| Scenario | Expected time | Notes |
+|---|---|---|
+| SageAttention alone | ~38-42 min | ~10-15% per step (Ampere sm86 legacy kernels — no Tensor Core FP8) |
+| TeaCache alone (skip_steps=2, thresh=0.30, ret-mode) | ~22-27 min | ~2.3x official speedup at ret-mode settings |
+| **SageAttention + TeaCache + Sysmem Fallback** | **~18-24 min** | Combined ~1.8-2.4x speedup — realistic target. SA gives 10-15%, TeaCache gives ~2.3x on top of that. |
+| Same + step count reduced to 25 (10+15) | **~10-15 min** | User controls steps via sliders — no code change needed |
+| + GGUF Q6_K models | Marginal (~1-2 min saved) | Stage swap is ~20 sec of 44 min total — not the bottleneck |
+
+⚠️ "sub-2 min" was not achievable — FP8-on-Ampere ceiling is ~52 sec/step, compute bound.
+Per-step time can only be reduced by SageAttention (~10-15% on sm86) + TeaCache step skipping (~2.3x multiplier) + shorter steps — not by memory tricks.
+⚠️ SA speedup ceiling on Ampere: RTX 3000-series uses legacy sm86 kernels only (10-15%). The 30-40% figures in community guides apply to Ada Lovelace (RTX 4090, sm89+) and Blackwell only.
 
 ## FILE INVENTORY (current)
 ```
