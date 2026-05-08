@@ -57,13 +57,16 @@ function injectPlaceholders(w, imagePath, prompt, seed, loraValues, width, heigh
     }
     if (loraValues) {
       const lv = loraValues;
-      const totalSteps = lv.stage1.steps + lv.stage2.steps;
+      const s1 = Math.max(1, Math.min(100, Math.round(lv.stage1.steps)));
+      const s2 = Math.max(1, Math.min(100, Math.round(lv.stage2.steps)));
+      const totalSteps = s1 + s2;
       if (nodeId === '6')  { node.inputs.strength_model = lv.stage1.dr34mlayStr; node.inputs.strength_clip = lv.stage1.dr34mlayStr; }
       if (nodeId === '7')  { node.inputs.strength_model = lv.stage2.dr34mlayStr; }
       if (nodeId === '18') { node.inputs.strength_model = lv.stage1.k3nkStr; node.inputs.strength_clip = lv.stage1.k3nkStr; }
       if (nodeId === '19') { node.inputs.strength_model = lv.stage2.k3nkStr; }
-      if (nodeId === '13') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage1.cfg; node.inputs.end_at_step = lv.stage1.steps; }
-      if (nodeId === '14') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage2.cfg; node.inputs.start_at_step = lv.stage1.steps; node.inputs.end_at_step = totalSteps; }
+      if (nodeId === '13') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage1.cfg; node.inputs.end_at_step = s1; }
+      if (nodeId === '14') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage2.cfg; node.inputs.start_at_step = s1; }
+      // end_at_step intentionally NOT set on node 14 — preserve workflow's 10000 sentinel (RF-S259-02)
     }
   }
   return clone;
@@ -576,9 +579,10 @@ test('AC-17: node 14 start_at_step = stage1.steps (hand-off invariant)', () => {
   const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
   assert.strictEqual(r['14'].inputs.start_at_step, 20, 'Stage2 starts where Stage1 ends — invariant');
 });
-test('AC-17: node 14 end_at_step = totalSteps (51)', () => {
+test('AC-17: node 14 end_at_step NOT overwritten — 10000 sentinel preserved (RF-S259-02)', () => {
   const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
-  assert.strictEqual(r['14'].inputs.end_at_step, 51);
+  // RF-S259-02: injection must NOT override end_at_step — ComfyUI sentinel (10000 = run to end) must remain
+  assert.strictEqual(r['14'].inputs.end_at_step, 10000, 'workflow sentinel must be preserved, not overwritten with totalSteps');
 });
 test('AC-17: node 14 gets stage2 CFG', () => {
   const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
@@ -652,9 +656,9 @@ test('AC-20: main.js registers wan:writeReport IPC handler', () => {
   assert.ok(mainSrc.includes("'wan:writeReport'"),
     'wan:writeReport IPC channel must be registered in main.js');
 });
-test('AC-20: main.js writeReport restricts path to ComfyUI output dir', () => {
-  assert.ok(mainSrc.includes("outputDir + path.sep"),
-    'writeReport must validate path starts with ComfyUI output dir + sep');
+test('AC-20: main.js writeReport validates filename token (RF-S259-04)', () => {
+  assert.ok(mainSrc.includes('/^[A-Za-z0-9._\\-]{1,200}$/') || mainSrc.includes("/^[A-Za-z0-9._\\-]{1,200}$/"),
+    'writeReport must use filename allowlist regex — not full-path traversal check');
 });
 test('AC-20: preload.js exposes writeReport method', () => {
   const preloadSrc = fs.readFileSync(path.join(APP_DIR, 'preload.js'), 'utf8');
@@ -722,6 +726,78 @@ test('AC-22: main.js imports nativeImage from electron', () => {
 test('AC-22: copyToInput returns {filename, width, height} object', () => {
   assert.ok(mainSrc.includes('return { filename, width, height }'),
     'copyToInput must return object with filename, width, height');
+});
+
+// ── OPT-03: workflow contract validator ──────────────────────────────────────
+console.log('\nOPT-03 — validateWorkflow14b: contract check before LoRA injection');
+
+test('OPT-03: WORKFLOW_14B_CONTRACT constant is defined in comfy.js', () => {
+  assert.ok(combSrc.includes('WORKFLOW_14B_CONTRACT'),
+    'contract constant must exist');
+});
+test('OPT-03: validateWorkflow14b function is defined in comfy.js', () => {
+  assert.ok(combSrc.includes('function validateWorkflow14b'),
+    'validator function must exist');
+});
+test('OPT-03: injectPlaceholders calls validateWorkflow14b when loraValues provided', () => {
+  assert.ok(combSrc.includes('if (loraValues) validateWorkflow14b(w)'),
+    'validator must be called before injection when loraValues is present');
+});
+
+// ── RF-S259-02/03: step clamping + sentinel preservation ─────────────────────
+console.log('\nRF-S259-02/03 — step clamping + end_at_step sentinel');
+
+test('RF-S259-03: steps below 1 are clamped to 1', () => {
+  const lvBad = { stage1: { dr34mlayStr: 0.5, k3nkStr: 0.5, steps: 0, cfg: 3.5 }, stage2: { dr34mlayStr: 0.5, k3nkStr: 0.5, steps: 0, cfg: 6.0 } };
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lvBad);
+  assert.strictEqual(r['13'].inputs.end_at_step, 1, 'stage1 steps clamped to 1 → end_at_step = 1');
+  assert.strictEqual(r['13'].inputs.steps, 2, 'totalSteps = 1+1 = 2');
+});
+test('RF-S259-03: steps above 100 are clamped to 100', () => {
+  const lvBig = { stage1: { dr34mlayStr: 0.5, k3nkStr: 0.5, steps: 200, cfg: 3.5 }, stage2: { dr34mlayStr: 0.5, k3nkStr: 0.5, steps: 150, cfg: 6.0 } };
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lvBig);
+  assert.strictEqual(r['13'].inputs.end_at_step, 100, 'stage1 steps clamped to 100');
+  assert.strictEqual(r['13'].inputs.steps, 200, 'totalSteps = 100+100 = 200');
+});
+test('RF-S259-03: normal steps (20+31) pass through unclamped', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['13'].inputs.end_at_step, 20, 's1=20 within [1,100]');
+  assert.strictEqual(r['14'].inputs.start_at_step, 20, 'start_at_step = s1 = 20');
+});
+
+// ── RF-S259-04/05: writeReport filename token ─────────────────────────────────
+console.log('\nRF-S259-04/05 — writeReport filename token + renderer basename');
+
+test('RF-S259-05: renderer.js strips directory separators from outputFilename', () => {
+  assert.ok(renderSrc.includes('outputFilename.split') && renderSrc.includes(".pop()"),
+    'renderer.js must take basename of outputFilename before building report filename');
+});
+test('RF-S259-04: preload.js passes filename (not filePath) to writeReport IPC', () => {
+  const preloadSrc = fs.readFileSync(path.join(APP_DIR, 'preload.js'), 'utf8');
+  assert.ok(preloadSrc.includes("{ filename, content }"),
+    'preload.js must send filename token, not full filePath');
+});
+test('RF-S259-07: main.js pipes ComfyUI stdio (not ignore)', () => {
+  assert.ok(mainSrc.includes("['ignore', 'pipe', 'pipe']"),
+    "ComfyUI spawn stdio must be ['ignore','pipe','pipe'] — not 'ignore' — for crash visibility");
+});
+test('RF-S259-08: comfy.js guards executed handler against null promptId', () => {
+  assert.ok(combSrc.includes('if (!promptId) return;'),
+    'executed handler must bail out if promptId is not yet set');
+});
+test('RF-S259-09: renderer.js runAllJobs never breaks on failure', () => {
+  assert.ok(!renderSrc.includes('if (!ok) break'),
+    'runAllJobs must not break on individual run failure — all runs must attempt');
+  assert.ok(renderSrc.includes("if (ok) succeeded++; else failed++"),
+    'runAllJobs must track succeeded/failed counts');
+});
+test('RF-S259-10: CSP includes object-src none', () => {
+  assert.ok(indexHtml.includes("object-src 'none'"),
+    "CSP must include object-src 'none'");
+});
+test('RF-S259-10: CSP includes base-uri none', () => {
+  assert.ok(indexHtml.includes("base-uri 'none'"),
+    "CSP must include base-uri 'none'");
 });
 
 // ── Summary ──────────────────────────────────────────────────────────────────

@@ -374,6 +374,7 @@ goBtn.addEventListener('click', () => {
 });
 
 async function runAllJobs(baseSeed, prompt) {
+  let succeeded = 0, failed = 0;
   for (let i = 0; i < totalRunCount; i++) {
     currentRun = i + 1;
     const seed = (baseSeed === null)
@@ -381,7 +382,11 @@ async function runAllJobs(baseSeed, prompt) {
       : baseSeed;
 
     const ok = await startGeneration(seed, prompt, currentRun, totalRunCount);
-    if (!ok) break;
+    if (ok) succeeded++; else failed++; // RF-S259-09: continue on failure — never break
+  }
+  if (totalRunCount > 1) {
+    const msg = succeeded + '/' + totalRunCount + ' runs completed' + (failed ? ' (' + failed + ' failed)' : '');
+    appendLog('info', msg);
   }
   resetGenerateBtn();
 }
@@ -428,10 +433,11 @@ function startGeneration(seed, prompt, runNum, totalRuns) {
         // Write export report alongside the video
         try {
           const report    = buildReport({ outputFilename, seed, prompt, runNum, totalRuns, duration, lora, resolution, fps });
-          const stem      = outputFilename.replace(/\.[^.]+$/, '');
-          const rptPath   = homedir + '/Desktop/ComfyUI/output/' + stem + '_report.txt';
-          await window.wan.writeReport(rptPath, report);
-          appendLog('complete', 'Report → ' + stem + '_report.txt');
+          const safeName  = outputFilename.split(/[/\\]/).pop() || 'output'; // RF-S259-05: basename only
+          const stem      = safeName.replace(/\.[^.]+$/, '');
+          const rptFile   = stem + '_report.txt';
+          await window.wan.writeReport(rptFile, report); // RF-S259-04: filename token, not full path
+          appendLog('complete', 'Report → ' + rptFile);
         } catch (err) {
           appendLog('error', 'Report write failed: ' + (err.message || err));
         }

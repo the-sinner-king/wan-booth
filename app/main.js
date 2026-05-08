@@ -60,10 +60,13 @@ async function startComfyUI() {
   comfyProcess = spawn(pythonPath, ['main.py', '--listen', '127.0.0.1', '--bf16-unet'], {
     cwd: comfyDir,
     env: { ...process.env, PYTORCH_MPS_HIGH_WATERMARK_RATIO: '0.7' }, // raise MPS ceiling without removing safety floor
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'], // RF-S259-07: pipe stdout/stderr so crashes are visible in debug log
     detached: false,
   });
   comfyOwnedByApp = true;
+  comfyProcess.stdout.on('data', d => dbg('ComfyUI: ' + d.toString().trimEnd()));
+  comfyProcess.stderr.on('data', d => dbg('ComfyUI stderr: ' + d.toString().trimEnd()));
+  comfyProcess.on('exit', (code, signal) => dbg('ComfyUI exited code=' + code + ' signal=' + signal));
   comfyProcess.on('error', () => { comfyOwnedByApp = false; });
 }
 
@@ -168,16 +171,15 @@ ipcMain.handle('wan:toFileURL', async (event, filePath) => {
   return pathToFileURL(filePath).href;
 });
 
-ipcMain.handle('wan:writeReport', async (event, { filePath, content }) => {
-  dbg('writeReport: ' + filePath);
-  if (typeof filePath !== 'string' || !filePath) throw new Error('Invalid report path');
+// RF-S259-04/05: accept filename token only — main.js constructs full path (no traversal possible)
+ipcMain.handle('wan:writeReport', async (event, { filename, content }) => {
+  if (typeof filename !== 'string' || !/^[A-Za-z0-9._\-]{1,200}$/.test(filename)) throw new Error('Invalid report filename');
   if (typeof content !== 'string') throw new Error('Invalid report content');
-  // Restrict writes to ComfyUI output directory
   const outputDir = path.join(os.homedir(), 'Desktop', 'ComfyUI', 'output');
-  const resolvedPath = path.resolve(filePath);
-  if (!resolvedPath.startsWith(outputDir + path.sep)) throw new Error('Report path not in ComfyUI output dir');
-  fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
-  fs.writeFileSync(resolvedPath, content, 'utf8');
+  fs.mkdirSync(outputDir, { recursive: true });
+  const filePath = path.join(outputDir, filename);
+  dbg('writeReport: ' + filePath);
+  fs.writeFileSync(filePath, content, 'utf8');
   return { ok: true };
 });
 

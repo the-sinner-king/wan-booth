@@ -5,6 +5,32 @@
   const COMFY_WS               = 'ws://localhost:8188';
   const VIDEO_OUTPUT_NODE_FALLBACK = '17'; // RF-I: used only if workflow has no VHS_VideoCombine node
 
+  // OPT-03: node-ID contract for i2v_14B_2stage workflow — validated before LoRA injection.
+  // Throws a loud error if workflow was re-exported from ComfyUI and IDs were renumbered,
+  // converting the "silent decorative slider" failure class into an immediate startup error.
+  const WORKFLOW_14B_CONTRACT = {
+    '6':  'LoraLoader',
+    '7':  'LoraLoaderModelOnly',
+    '13': 'KSamplerAdvanced',
+    '14': 'KSamplerAdvanced',
+    '17': 'VHS_VideoCombine',
+    '18': 'LoraLoader',
+    '19': 'LoraLoaderModelOnly',
+  };
+
+  function validateWorkflow14b(workflow) {
+    for (const [id, expected] of Object.entries(WORKFLOW_14B_CONTRACT)) {
+      const node = workflow[id];
+      if (!node || node.class_type !== expected) {
+        throw new Error(
+          'Workflow contract violation: node ' + id +
+          ' expected ' + expected + ', got ' + (node ? node.class_type : 'missing') +
+          '. Node IDs may have changed since workflow was last exported from ComfyUI.'
+        );
+      }
+    }
+  }
+
   // Human-readable labels for every node type we expect to see
   const NODE_LABELS = {
     'UNETLoader':            'Loading model weights',
@@ -45,6 +71,7 @@
 
   function injectPlaceholders(workflow, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix) {
     const w = JSON.parse(JSON.stringify(workflow));
+    if (loraValues) validateWorkflow14b(w);
     for (const [nodeId, node] of Object.entries(w)) {
       if (!node.inputs) continue;
 
@@ -68,15 +95,18 @@
       // LoRA strengths + CFG + step split — by node ID (14B 2-stage workflow-specific)
       if (loraValues) {
         const lv = loraValues;
-        const totalSteps = lv.stage1.steps + lv.stage2.steps;
+        const s1 = Math.max(1, Math.min(100, Math.round(lv.stage1.steps)));  // RF-S259-03: clamp to [1,100]
+        const s2 = Math.max(1, Math.min(100, Math.round(lv.stage2.steps)));
+        const totalSteps = s1 + s2;
         if (nodeId === '6')  { node.inputs.strength_model = lv.stage1.dr34mlayStr; node.inputs.strength_clip = lv.stage1.dr34mlayStr; }
         if (nodeId === '7')  { node.inputs.strength_model = lv.stage2.dr34mlayStr; }
         if (nodeId === '18') { node.inputs.strength_model = lv.stage1.k3nkStr; node.inputs.strength_clip = lv.stage1.k3nkStr; }
         if (nodeId === '19') { node.inputs.strength_model = lv.stage2.k3nkStr; }
-        // Stage 1 KSampler: inject total steps + CFG + split point (end_at_step = stage1.steps)
-        if (nodeId === '13') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage1.cfg; node.inputs.end_at_step = lv.stage1.steps; }
-        // Stage 2 KSampler: inject total steps + CFG + hand-off point (start_at_step must equal stage1.steps — invariant)
-        if (nodeId === '14') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage2.cfg; node.inputs.start_at_step = lv.stage1.steps; node.inputs.end_at_step = totalSteps; }
+        // Stage 1 KSampler: inject total steps + CFG + split point (end_at_step = s1)
+        if (nodeId === '13') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage1.cfg; node.inputs.end_at_step = s1; }
+        // Stage 2 KSampler: inject total steps + CFG + hand-off (start_at_step = s1)
+        // end_at_step intentionally NOT set — preserve workflow's 10000 sentinel (RF-S259-02)
+        if (nodeId === '14') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage2.cfg; node.inputs.start_at_step = s1; }
       }
     }
     return w;
@@ -155,6 +185,7 @@
         }
 
         if (msg.type === 'executed' && msg.data.node === videoOutputNode) {
+          if (!promptId) return; // RF-S259-08: ignore stray executed events before our job is queued
           const output = msg.data.output;
           if (output) {
             const files = output.gifs || output.videos || output.images || [];
