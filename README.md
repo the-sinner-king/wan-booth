@@ -144,35 +144,21 @@ cd C:\Users\YourName\Desktop\WAN_BOOTH\app
 npm install
 ```
 
-### 5. PC-specific edits to main.js
+### 5. Set ComfyUI path (if not at Desktop\ComfyUI)
 
-Open `app/main.js` and make these two changes:
+`main.js` auto-detects platform — no manual edits needed. Mac flags (`--bf16-unet`, `PYTORCH_MPS_HIGH_WATERMARK_RATIO`) are applied automatically on Darwin only. Python path is also platform-adaptive (`venv/bin/python` on Mac, `.venv/Scripts/python.exe` on Windows).
 
-**Change 1 — ComfyUI path** (line ~56):
+If your ComfyUI is NOT at `%USERPROFILE%\Desktop\ComfyUI`, set the `COMFYUI_DIR` environment variable:
 
-```js
-// Current (Mac default):
-const comfyDir = path.join(os.homedir(), 'Desktop', 'ComfyUI');
+```bash
+# PowerShell (per-session):
+$env:COMFYUI_DIR = "D:\COMFYUI_FOR_WAN_BOOTH"
+npm start
 
-// Change to your PC path if different, e.g.:
-const comfyDir = 'C:\\Users\\YourName\\Desktop\\ComfyUI';
+# Or set it permanently in System → Environment Variables
+# Variable name: COMFYUI_DIR
+# Variable value: D:\COMFYUI_FOR_WAN_BOOTH
 ```
-
-**Change 2 — Remove Mac-only spawn flags** (line ~60):
-
-```js
-// Current (Mac flags included):
-comfyProcess = spawn(pythonPath, ['main.py', '--listen', '127.0.0.1', '--bf16-unet'], {
-  cwd: comfyDir,
-  env: { ...process.env, PYTORCH_MPS_HIGH_WATERMARK_RATIO: '0.7' },
-
-// Change to (PC — no Mac flags):
-comfyProcess = spawn(pythonPath, ['main.py', '--listen', '127.0.0.1'], {
-  cwd: comfyDir,
-  env: { ...process.env },
-```
-
-> **Why remove the Mac flags:** `--bf16-unet` casts FP8 → BF16 at load to work around MPS's lack of FP8 support. CUDA supports FP8 natively — this flag wastes VRAM and is unnecessary on PC. `PYTORCH_MPS_HIGH_WATERMARK_RATIO` is a Mac-only tuning env var that has no effect on CUDA.
 
 ### 6. Launch
 
