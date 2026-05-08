@@ -815,17 +815,17 @@ test('AC-24: Windows env contains PYTORCH_ALLOC_CONF', () => {
 });
 test('AC-27: WORKFLOW_14B_CONTRACT includes nodes 20-23', () => {
   assert.ok(combSrc.includes("'20': 'PathchSageAttentionKJ'"), 'node 20 missing from contract');
-  assert.ok(combSrc.includes("'21': 'ApplyTeaCache'"),        'node 21 missing from contract');
+  assert.ok(combSrc.includes("'21': 'TeaCache'"),        'node 21 missing from contract');
   assert.ok(combSrc.includes("'22': 'PathchSageAttentionKJ'"), 'node 22 missing from contract');
-  assert.ok(combSrc.includes("'23': 'ApplyTeaCache'"),        'node 23 missing from contract');
+  assert.ok(combSrc.includes("'23': 'TeaCache'"),        'node 23 missing from contract');
 });
 test('AC-27: NODE_LABELS contains PatchSageAttentionKJ entry', () => {
   assert.ok(combSrc.includes("'PathchSageAttentionKJ': 'Patching SageAttention'"),
     'NODE_LABELS must contain PathchSageAttentionKJ label');
 });
-test('AC-27: NODE_LABELS contains ApplyTeaCache entry', () => {
-  assert.ok(combSrc.includes("'ApplyTeaCache':        'Applying TeaCache'"),
-    'NODE_LABELS must contain ApplyTeaCache label');
+test('AC-27: NODE_LABELS contains TeaCache entry', () => {
+  assert.ok(combSrc.includes("'TeaCache':              'Applying TeaCache'"),
+    'NODE_LABELS must contain TeaCache label');
 });
 
 // ── Summary ──────────────────────────────────────────────────────────────────

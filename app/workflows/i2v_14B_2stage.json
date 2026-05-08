@@ -255,17 +255,16 @@
     }
   },
   "21": {
-    "class_type": "ApplyTeaCache",
+    "class_type": "TeaCache",
     "inputs": {
       "model": [
         "11",
         0
       ],
       "cache_device": "cuda",
-      "retention_mode": true,
       "rel_l1_thresh": 0.3,
       "start_percent": 0.1,
-      "max_skip_steps": 2,
+      "end_percent": 1.0,
       "model_type": "wan2.1_i2v_480p_14B_ret_mode"
     }
   },
@@ -280,17 +279,16 @@
     }
   },
   "23": {
-    "class_type": "ApplyTeaCache",
+    "class_type": "TeaCache",
     "inputs": {
       "model": [
         "12",
         0
       ],
       "cache_device": "cuda",
-      "retention_mode": true,
       "rel_l1_thresh": 0.3,
       "start_percent": 0.1,
-      "max_skip_steps": 2,
+      "end_percent": 1.0,
       "model_type": "wan2.1_i2v_480p_14B_ret_mode"
     }
   }

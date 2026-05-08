@@ -17,9 +17,9 @@
     '18': 'LoraLoader',
     '19': 'LoraLoaderModelOnly',
     '20': 'PathchSageAttentionKJ',
-    '21': 'ApplyTeaCache',
+    '21': 'TeaCache',
     '22': 'PathchSageAttentionKJ',
-    '23': 'ApplyTeaCache',
+    '23': 'TeaCache',
   };
 
   function validateWorkflow14b(workflow) {
@@ -59,7 +59,7 @@
     'LoraLoader':            'Loading LoRA weights',
     'LoraLoaderModelOnly':   'Loading LoRA (model only)',
     'PathchSageAttentionKJ': 'Patching SageAttention',
-    'ApplyTeaCache':        'Applying TeaCache',
+    'TeaCache':              'Applying TeaCache',
   };
 
   function dbg(msg) {
