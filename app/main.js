@@ -53,13 +53,24 @@ async function startComfyUI() {
   const already = await isComfyUIRunning();
   if (already) return; // user's own ComfyUI is running — don't spawn a duplicate
 
-  const comfyDir = path.join(os.homedir(), 'Desktop', 'ComfyUI');
-  const pythonPath = path.join(comfyDir, 'venv', 'bin', 'python');
-  // RF-07: bind to loopback only — never expose ComfyUI to the LAN
-  // --bf16-unet: MPS doesn't support Float8_e4m3fn — casts FP8 model weights to BF16 at load
-  comfyProcess = spawn(pythonPath, ['main.py', '--listen', '127.0.0.1', '--bf16-unet'], {
+  const isMac    = process.platform === 'darwin';
+  // COMFYUI_DIR env var overrides default — set it on Windows if ComfyUI isn't at Desktop/ComfyUI
+  const comfyDir = process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+  // Platform-specific venv layout: Mac = venv/bin/python, Windows = .venv/Scripts/python.exe
+  const pythonPath = isMac
+    ? path.join(comfyDir, 'venv', 'bin', 'python')
+    : path.join(comfyDir, '.venv', 'Scripts', 'python.exe');
+  // --bf16-unet: Mac MPS only — casts FP8 model weights to BF16 (MPS doesn't support Float8_e4m3fn)
+  // CUDA supports FP8 natively — flag is unnecessary and wasteful on PC
+  const spawnArgs = ['main.py', '--listen', '127.0.0.1'];
+  if (isMac) spawnArgs.push('--bf16-unet');
+  comfyProcess = spawn(pythonPath, spawnArgs, {
     cwd: comfyDir,
-    env: { ...process.env, PYTORCH_MPS_HIGH_WATERMARK_RATIO: '0.7' }, // raise MPS ceiling without removing safety floor
+    env: {
+      ...process.env,
+      // PYTORCH_MPS_HIGH_WATERMARK_RATIO: Mac MPS only — raise MPS ceiling without removing safety floor
+      ...(isMac ? { PYTORCH_MPS_HIGH_WATERMARK_RATIO: '0.7' } : {}),
+    },
     stdio: ['ignore', 'pipe', 'pipe'], // RF-S259-07: pipe stdout/stderr so crashes are visible in debug log
     detached: false,
   });
