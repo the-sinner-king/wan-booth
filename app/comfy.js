@@ -16,9 +16,9 @@
     '17': 'VHS_VideoCombine',
     '18': 'LoraLoader',
     '19': 'LoraLoaderModelOnly',
-    '20': 'PatchSageAttentionKJ',
+    '20': 'PathchSageAttentionKJ',
     '21': 'ApplyTeaCache',
-    '22': 'PatchSageAttentionKJ',
+    '22': 'PathchSageAttentionKJ',
     '23': 'ApplyTeaCache',
   };
 
@@ -58,7 +58,7 @@
     'VHS_VideoCombine':      'Encoding video file',
     'LoraLoader':            'Loading LoRA weights',
     'LoraLoaderModelOnly':   'Loading LoRA (model only)',
-    'PatchSageAttentionKJ': 'Patching SageAttention',
+    'PathchSageAttentionKJ': 'Patching SageAttention',
     'ApplyTeaCache':        'Applying TeaCache',
   };
 

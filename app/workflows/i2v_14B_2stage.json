@@ -245,13 +245,13 @@
     }
   },
   "20": {
-    "class_type": "PatchSageAttentionKJ",
+    "class_type": "PathchSageAttentionKJ",
     "inputs": {
       "model": [
         "18",
         0
       ],
-      "sageattn_type": "sageattn_qk_int8_pv_fp16_cuda"
+      "sage_attention": "sageattn_qk_int8_pv_fp16_cuda"
     }
   },
   "21": {
@@ -270,13 +270,13 @@
     }
   },
   "22": {
-    "class_type": "PatchSageAttentionKJ",
+    "class_type": "PathchSageAttentionKJ",
     "inputs": {
       "model": [
         "19",
         0
       ],
-      "sageattn_type": "sageattn_qk_int8_pv_fp16_cuda"
+      "sage_attention": "sageattn_qk_int8_pv_fp16_cuda"
     }
   },
   "23": {

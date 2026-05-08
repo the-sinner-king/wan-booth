@@ -814,14 +814,14 @@ test('AC-24: Windows env contains PYTORCH_ALLOC_CONF', () => {
   assert.ok(mainSrc.includes('expandable_segments:True'), 'missing expandable_segments:True value');
 });
 test('AC-27: WORKFLOW_14B_CONTRACT includes nodes 20-23', () => {
-  assert.ok(combSrc.includes("'20': 'PatchSageAttentionKJ'"), 'node 20 missing from contract');
-  assert.ok(combSrc.includes("'21': 'ApplyTeaCache'"),       'node 21 missing from contract');
-  assert.ok(combSrc.includes("'22': 'PatchSageAttentionKJ'"), 'node 22 missing from contract');
-  assert.ok(combSrc.includes("'23': 'ApplyTeaCache'"),       'node 23 missing from contract');
+  assert.ok(combSrc.includes("'20': 'PathchSageAttentionKJ'"), 'node 20 missing from contract');
+  assert.ok(combSrc.includes("'21': 'ApplyTeaCache'"),        'node 21 missing from contract');
+  assert.ok(combSrc.includes("'22': 'PathchSageAttentionKJ'"), 'node 22 missing from contract');
+  assert.ok(combSrc.includes("'23': 'ApplyTeaCache'"),        'node 23 missing from contract');
 });
 test('AC-27: NODE_LABELS contains PatchSageAttentionKJ entry', () => {
-  assert.ok(combSrc.includes("'PatchSageAttentionKJ': 'Patching SageAttention'"),
-    'NODE_LABELS must contain PatchSageAttentionKJ label');
+  assert.ok(combSrc.includes("'PathchSageAttentionKJ': 'Patching SageAttention'"),
+    'NODE_LABELS must contain PathchSageAttentionKJ label');
 });
 test('AC-27: NODE_LABELS contains ApplyTeaCache entry', () => {
   assert.ok(combSrc.includes("'ApplyTeaCache':        'Applying TeaCache'"),
