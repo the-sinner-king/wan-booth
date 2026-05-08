@@ -14,6 +14,10 @@ function dbg(msg) {
   process.stdout.write(line);
 }
 
+function getComfyDir() {
+  return process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+}
+
 // RF-01: allowlist for workflow names — no path traversal via IPC
 const ALLOWED_WORKFLOW_NAME = /^[a-zA-Z0-9_-]{1,64}$/;
 // RF-02: allowed image extensions + size cap
@@ -55,7 +59,7 @@ async function startComfyUI() {
 
   const isMac    = process.platform === 'darwin';
   // COMFYUI_DIR env var overrides default — set it on Windows if ComfyUI isn't at Desktop/ComfyUI
-  const comfyDir = process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+  const comfyDir = getComfyDir();
   // Platform-specific venv layout: Mac = venv/bin/python, Windows = .venv/Scripts/python.exe
   const pythonPath = isMac
     ? path.join(comfyDir, 'venv', 'bin', 'python')
@@ -63,13 +67,20 @@ async function startComfyUI() {
   // --bf16-unet: Mac MPS only — casts FP8 model weights to BF16 (MPS doesn't support Float8_e4m3fn)
   // CUDA supports FP8 natively — flag is unnecessary and wasteful on PC
   const spawnArgs = ['main.py', '--listen', '127.0.0.1'];
-  if (isMac) spawnArgs.push('--bf16-unet');
+  if (isMac) {
+    spawnArgs.push('--bf16-unet');
+  } else {
+    spawnArgs.push('--reserve-vram', '1');
+  }
   comfyProcess = spawn(pythonPath, spawnArgs, {
     cwd: comfyDir,
     env: {
       ...process.env,
       // PYTORCH_MPS_HIGH_WATERMARK_RATIO: Mac MPS only — raise MPS ceiling without removing safety floor
-      ...(isMac ? { PYTORCH_MPS_HIGH_WATERMARK_RATIO: '0.7' } : {}),
+      ...(isMac
+        ? { PYTORCH_MPS_HIGH_WATERMARK_RATIO: '0.7' }
+        : { PYTORCH_ALLOC_CONF: 'expandable_segments:True' }
+      ),
     },
     stdio: ['ignore', 'pipe', 'pipe'], // RF-S259-07: pipe stdout/stderr so crashes are visible in debug log
     detached: false,
@@ -126,7 +137,7 @@ ipcMain.handle('wan:copyToInput', async (event, sourcePath) => {
   if (stat.size > MAX_IMAGE_BYTES) throw new Error('Image exceeds 50 MB size limit');
 
   // Mirror startComfyUI's COMFYUI_DIR override — was hardcoded to Mac default, broke PC where ComfyUI lives elsewhere
-  const comfyDir = process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+  const comfyDir = getComfyDir();
   const comfyInputDir = path.join(comfyDir, 'input');
   fs.mkdirSync(comfyInputDir, { recursive: true });
   const filename = path.basename(sourcePath);
@@ -163,7 +174,7 @@ ipcMain.handle('wan:getHomedir', async () => {
 });
 
 ipcMain.handle('wan:getComfyDir', async () => {
-  return process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+  return getComfyDir();
 });
 
 ipcMain.handle('wan:loadWorkflow', async (event, workflowName) => {
@@ -193,7 +204,7 @@ ipcMain.handle('wan:writeReport', async (event, { filename, content }) => {
   if (typeof filename !== 'string' || !/^[A-Za-z0-9._\-]{1,200}$/.test(filename)) throw new Error('Invalid report filename');
   if (typeof content !== 'string') throw new Error('Invalid report content');
   // Mirror startComfyUI's COMFYUI_DIR override — was hardcoded to Mac default
-  const comfyDir = process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+  const comfyDir = getComfyDir();
   const outputDir = path.join(comfyDir, 'output');
   fs.mkdirSync(outputDir, { recursive: true });
   const filePath = path.join(outputDir, filename);

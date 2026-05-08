@@ -16,6 +16,10 @@
     '17': 'VHS_VideoCombine',
     '18': 'LoraLoader',
     '19': 'LoraLoaderModelOnly',
+    '20': 'PatchSageAttentionKJ',
+    '21': 'ApplyTeaCache',
+    '22': 'PatchSageAttentionKJ',
+    '23': 'ApplyTeaCache',
   };
 
   function validateWorkflow14b(workflow) {
@@ -54,6 +58,8 @@
     'VHS_VideoCombine':      'Encoding video file',
     'LoraLoader':            'Loading LoRA weights',
     'LoraLoaderModelOnly':   'Loading LoRA (model only)',
+    'PatchSageAttentionKJ': 'Patching SageAttention',
+    'ApplyTeaCache':        'Applying TeaCache',
   };
 
   function dbg(msg) {

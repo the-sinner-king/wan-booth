@@ -462,15 +462,15 @@ test('14B: node 11 ModelSamplingSD3 (high) shift=8.0', () => {
   assert.strictEqual(workflow14b['11'].class_type, 'ModelSamplingSD3');
   assert.strictEqual(workflow14b['11'].inputs.shift, 8.0,
     'SD3 shift must be 8.0 — mismatch between stages causes catastrophic output');
-  assert.deepStrictEqual(workflow14b['11'].inputs.model, ['18', 0],
-    'High-stage ModelSamplingSD3 must take model from final LoraLoader(high) chain (node 18)');
+  assert.deepStrictEqual(workflow14b['11'].inputs.model, ['20', 0],
+    'High-stage ModelSamplingSD3 must take model from PatchSageAttentionKJ(20) [SA patch of LoraLoader(18)] — Phase 2.6 wiring');
 });
 test('14B: node 12 ModelSamplingSD3 (low) shift=8.0 — identical to Stage 1', () => {
   assert.strictEqual(workflow14b['12'].class_type, 'ModelSamplingSD3');
   assert.strictEqual(workflow14b['12'].inputs.shift, 8.0,
     'Both stages MUST use identical shift — different values break the sigma hand-off');
-  assert.deepStrictEqual(workflow14b['12'].inputs.model, ['19', 0],
-    'Low-stage ModelSamplingSD3 must take model from final LoraLoaderModelOnly(low) chain (node 19)');
+  assert.deepStrictEqual(workflow14b['12'].inputs.model, ['22', 0],
+    'Low-stage ModelSamplingSD3 must take model from PatchSageAttentionKJ(22) [SA patch of LoraLoaderModelOnly(19)] — Phase 2.6 wiring');
 });
 test('14B: node 13 KSamplerAdvanced Stage1 — correct init', () => {
   assert.strictEqual(workflow14b['13'].class_type, 'KSamplerAdvanced');
@@ -798,6 +798,34 @@ test('RF-S259-10: CSP includes object-src none', () => {
 test('RF-S259-10: CSP includes base-uri none', () => {
   assert.ok(indexHtml.includes("base-uri 'none'"),
     "CSP must include base-uri 'none'");
+});
+
+// ── AC-23/24/27/28: Windows spawn flags + WORKFLOW_14B_CONTRACT nodes 20-23 ──
+console.log('\nAC-23/24/27/28 — Windows spawn flags + contract nodes 20-23');
+
+test('AC-23a: Windows spawnArgs contains --reserve-vram 1', () => {
+  assert.ok(mainSrc.includes("'--reserve-vram', '1'"), 'missing --reserve-vram 1 in Windows branch');
+});
+test('AC-23b: --highvram absent from main.js', () => {
+  assert.ok(!mainSrc.includes('--highvram'), '--highvram found in main.js — must not be present');
+});
+test('AC-24: Windows env contains PYTORCH_ALLOC_CONF', () => {
+  assert.ok(mainSrc.includes('PYTORCH_ALLOC_CONF'), 'missing PYTORCH_ALLOC_CONF in main.js');
+  assert.ok(mainSrc.includes('expandable_segments:True'), 'missing expandable_segments:True value');
+});
+test('AC-27: WORKFLOW_14B_CONTRACT includes nodes 20-23', () => {
+  assert.ok(combSrc.includes("'20': 'PatchSageAttentionKJ'"), 'node 20 missing from contract');
+  assert.ok(combSrc.includes("'21': 'ApplyTeaCache'"),       'node 21 missing from contract');
+  assert.ok(combSrc.includes("'22': 'PatchSageAttentionKJ'"), 'node 22 missing from contract');
+  assert.ok(combSrc.includes("'23': 'ApplyTeaCache'"),       'node 23 missing from contract');
+});
+test('AC-27: NODE_LABELS contains PatchSageAttentionKJ entry', () => {
+  assert.ok(combSrc.includes("'PatchSageAttentionKJ': 'Patching SageAttention'"),
+    'NODE_LABELS must contain PatchSageAttentionKJ label');
+});
+test('AC-27: NODE_LABELS contains ApplyTeaCache entry', () => {
+  assert.ok(combSrc.includes("'ApplyTeaCache':        'Applying TeaCache'"),
+    'NODE_LABELS must contain ApplyTeaCache label');
 });
 
 // ── Summary ──────────────────────────────────────────────────────────────────
