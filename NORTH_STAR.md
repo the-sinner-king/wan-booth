@@ -415,6 +415,7 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 ├─ [✅ DONE] 84/84 regression tests passing — 30 new 14B structure tests added (S255)
 ├─ [✅ DONE] AC-16 — first real video confirmed on PC (RTX 3090 Ti, CUDA, S259 morning)
 ├─ [✅ DONE] AC-17 through AC-22 — S259 feature batch complete (124/124 regressions)
+├─ [✅ DONE] S259 Opus audit — RF-S259-02 through RF-S259-10 + OPT-03 applied (137/137 regressions)
 ├─ [PHASE 3] Batch mode + bot skin system + Arcade integration
 
 ## RESOLVED QUESTIONS
@@ -523,6 +524,18 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 - North Star updated: 0.0→0.7, 84/84→87/87, 17→18 nodes
 - WAN BOOTH launched with fresh ComfyUI (post-pull code)
 
+### S259 continued — 2026-05-08 — OPUS AUDIT FIX PASS
+- RF-S259-02: Stage 2 `end_at_step=10000` sentinel preserved — was incorrectly overwritten with `totalSteps`
+- RF-S259-03: Step values clamped to [1, 100] before `totalSteps` computation — prevents ComfyUI panic on edge values
+- RF-S259-04/05: `writeReport` IPC redesigned — accepts filename token only (regex allowlist); renderer takes `outputFilename.split().pop()` basename
+- RF-S259-07: ComfyUI spawn `stdio:'ignore'` → `['ignore','pipe','pipe']`; stdout/stderr piped to debug log
+- RF-S259-08: `executed` WS handler guards against `!promptId` — stray events before job queued can't fire `onComplete`
+- RF-S259-09: `runAllJobs` no longer breaks on failure — continues all N runs, surfaces succeeded/failed summary
+- RF-S259-10: CSP gains `object-src 'none'` + `base-uri 'none'`
+- OPT-03: `validateWorkflow14b()` call wired into `injectPlaceholders()` before LoRA injection
+- Tests: 124 → 137 (13 new tests, 2 updated for corrected behavior)
+- README fully rewritten — CITADEL SYNC BRIEF at top, corrected PC setup (no phantom COMFYUI_DIR constant, exact lines to edit)
+
 ### S259 — 2026-05-08 — FEATURE BATCH (resolution, FPS, report, repeat, polish)
 - AC-16 CONFIRMED: Cla⌂de + Brandon on PC ran first real generation. RTX 3090 Ti, CUDA. It worked. PC is production machine.
 - GitHub PC push still pending (only 2 commits on remote — `main` branch). Working from local codebase.
@@ -585,7 +598,7 @@ WAN_BOOTH/
 │   │   ├── i2v_5B.json         (Wan 2.2 TI2V-5B — Wan22ImageToVideoLatent, 15 nodes)
 │   │   └── i2v_14B_2stage.json (Wan 2.2 I2V-14B — 2-stage MoE, WanImageToVideo, dual-LoRA chain, serial KSamplerAdvanced, VAEDecodeTiled, 18 nodes)
 │   └── test/
-│       └── regression.js  (87 regression tests — all passing)
+│       └── regression.js  (137 regression tests — all passing)
 └── GitHub: https://github.com/the-sinner-king/wan-booth
 ```
 
