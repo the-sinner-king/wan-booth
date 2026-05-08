@@ -1,11 +1,14 @@
 'use strict';
 
 // ─── STATE ────────────────────────────────────────────────────────────────────
-let selectedImagePath     = null;
-let selectedImageFilename = null;
-let seedMode              = 'random'; // 'random' | 'fixed'
-let isGenerating          = false;
-let homedir               = null;
+let selectedImagePath       = null;
+let selectedImageFilename   = null;
+let selectedImageDimensions = null; // { width, height } from nativeImage after copyToInput
+let seedMode                = 'random'; // 'random' | 'fixed'
+let isGenerating            = false;
+let homedir                 = null;
+let totalRunCount           = 1;
+let currentRun              = 0;
 
 // ETA/elapsed clock state
 let generationStartTime   = null;
@@ -26,8 +29,11 @@ const videoPlayer  = document.getElementById('video-player');
 const logToggle    = document.getElementById('log-toggle');
 const logPanel     = document.getElementById('log-panel');
 const logOutput    = document.getElementById('log-output');
-const elapsedValue = document.getElementById('elapsed-value');
-const etaValue     = document.getElementById('eta-value');
+const elapsedValue     = document.getElementById('elapsed-value');
+const etaValue         = document.getElementById('eta-value');
+const resolutionSelect = document.getElementById('resolution-select');
+const fpsSelect        = document.getElementById('fps-select');
+const runsSelect       = document.getElementById('runs-select');
 
 // ─── LORA SLIDER REFS ─────────────────────────────────────────────────────────
 // Each slider paired with its live readout <span>
@@ -223,16 +229,32 @@ dropZone.addEventListener('click', async () => {
 // ─── IMAGE LOAD ───────────────────────────────────────────────────────────────
 async function loadImage(filePath) {
   try {
-    selectedImagePath     = filePath;
-    selectedImageFilename = await window.wan.copyToInput(filePath);
+    const result            = await window.wan.copyToInput(filePath);
+    selectedImagePath       = filePath;
+    selectedImageFilename   = result.filename;
+    selectedImageDimensions = (result.width && result.height) ? { width: result.width, height: result.height } : null;
+
+    // Auto-suggest resolution preset based on source image aspect ratio
+    if (selectedImageDimensions) {
+      const { width, height } = selectedImageDimensions;
+      if (width > height) {
+        resolutionSelect.value = '832x480';
+      } else if (height > width) {
+        resolutionSelect.value = '480x832';
+      } else {
+        resolutionSelect.value = '624x624';
+      }
+    }
+
     dropZone.classList.remove('active');
     dropZone.classList.add('loaded');
     dropLabel.textContent = 'IMAGE LOADED';
     setStatus('READY', 'idle');
   } catch (err) {
     setStatus('Failed to load image: ' + (err.message || err), 'error');
-    selectedImagePath     = null;
-    selectedImageFilename = null;
+    selectedImagePath       = null;
+    selectedImageFilename   = null;
+    selectedImageDimensions = null;
   }
 }
 
@@ -249,8 +271,79 @@ seedToggle.addEventListener('click', () => {
   }
 });
 
+// ─── OUTPUT SETTINGS HELPERS ──────────────────────────────────────────────────
+function getResolutionPreset() {
+  const parts = (resolutionSelect.value || '832x480').split('x');
+  return { width: parseInt(parts[0], 10), height: parseInt(parts[1], 10) };
+}
+
+function getFrameRate() {
+  return parseInt(fpsSelect.value, 10) || 16;
+}
+
+function getRunCount() {
+  return Math.max(1, Math.min(10, parseInt(runsSelect.value, 10) || 1));
+}
+
+// ─── EXPORT REPORT ────────────────────────────────────────────────────────────
+function buildReport({ outputFilename, seed, prompt, runNum, totalRuns, duration, lora, resolution, fps }) {
+  const now = new Date().toISOString().replace('T', ' ').split('.')[0];
+  const h = Math.floor(duration / 3600);
+  const m = Math.floor((duration % 3600) / 60);
+  const s = duration % 60;
+  const dur = [h, m, s].map(n => String(n).padStart(2, '0')).join(':');
+  const srcDim = selectedImageDimensions
+    ? `${selectedImageDimensions.width}×${selectedImageDimensions.height} (source)`
+    : 'unknown';
+
+  return [
+    '═══════════════════════════════════════════════════════',
+    '  WAN BOOTH — GENERATION REPORT',
+    '═══════════════════════════════════════════════════════',
+    '',
+    `  DATE/TIME   : ${now}`,
+    `  OUTPUT FILE : ${outputFilename}`,
+    `  DURATION    : ${dur}`,
+    `  RUN         : ${runNum} of ${totalRuns}`,
+    '',
+    '───────────────────────────────────────────────────────',
+    '  INPUT',
+    '───────────────────────────────────────────────────────',
+    `  IMAGE       : ${selectedImageFilename}`,
+    `  DIMENSIONS  : ${srcDim}`,
+    `  PROMPT      : ${prompt}`,
+    `  SEED        : ${seed} (${seedMode})`,
+    '',
+    '───────────────────────────────────────────────────────',
+    '  OUTPUT SETTINGS',
+    '───────────────────────────────────────────────────────',
+    `  RESOLUTION  : ${resolution.width}×${resolution.height}`,
+    `  FRAME RATE  : ${fps} FPS`,
+    `  WORKFLOW    : i2v_14B_2stage`,
+    '',
+    '───────────────────────────────────────────────────────',
+    '  STAGE 1 — HIGH DETAIL PASS',
+    '───────────────────────────────────────────────────────',
+    `  DR34ML4Y    : ${lora.stage1.dr34mlayStr.toFixed(2)}`,
+    `  K3NK        : ${lora.stage1.k3nkStr.toFixed(2)}`,
+    `  CFG         : ${lora.stage1.cfg.toFixed(1)}`,
+    `  STEPS       : ${lora.stage1.steps}  (end_at_step)`,
+    '',
+    '───────────────────────────────────────────────────────',
+    '  STAGE 2 — REFINEMENT PASS',
+    '───────────────────────────────────────────────────────',
+    `  DR34ML4Y    : ${lora.stage2.dr34mlayStr.toFixed(2)}`,
+    `  K3NK        : ${lora.stage2.k3nkStr.toFixed(2)}`,
+    `  CFG         : ${lora.stage2.cfg.toFixed(1)}`,
+    `  STEPS       : ${lora.stage2.steps}  (stage 2 duration)`,
+    `  TOTAL STEPS : ${lora.stage1.steps + lora.stage2.steps}`,
+    '',
+    '═══════════════════════════════════════════════════════',
+  ].join('\n');
+}
+
 // ─── GENERATE ─────────────────────────────────────────────────────────────────
-goBtn.addEventListener('click', async () => {
+goBtn.addEventListener('click', () => {
   if (isGenerating) return;
 
   if (!selectedImageFilename) {
@@ -265,74 +358,109 @@ goBtn.addEventListener('click', async () => {
   }
 
   // RF-10: parseInt returns NaN on empty input — clamp to valid integer
-  const seed = seedMode === 'random'
-    ? Math.floor(Math.random() * 9999999999)
-    : (() => {
-        const v = parseInt(seedValue.value, 10);
-        return Number.isNaN(v) ? 42 : v;
-      })();
+  const baseSeed = seedMode === 'fixed'
+    ? (() => { const v = parseInt(seedValue.value, 10); return Number.isNaN(v) ? 42 : v; })()
+    : null; // null = generate fresh seed for each run
 
-  startGeneration(seed, prompt);
-});
+  isGenerating    = true;
+  goBtn.disabled  = true;
+  totalRunCount   = getRunCount();
+  currentRun      = 0;
 
-function startGeneration(seed, prompt) {
-  isGenerating = true;
-  goBtn.disabled = true;
-  goBtn.textContent = 'RUNNING...';
-  videoPlayer.style.display = 'none';
-  videoPlayer.src = '';
-  setProgress(0);
-  setStatus('QUEUED — awaiting ComfyUI slot', 'generating');
-
-  // Start the elapsed/ETA instrument display
-  startClock();
-
-  // Clear log and open it for this run
   logOutput.innerHTML = '';
   openLog();
 
-  // Read current LoRA panel values
-  const lora = getLoraValues();
+  runAllJobs(baseSeed, prompt);
+});
 
-  window.ComfyClient.generate({
-    imagePath:    selectedImageFilename,
-    prompt,
-    seed,
-    workflowName: 'i2v_14B_2stage',
-    loraValues:   lora,
-    onProgress: (percent, label) => {
-      if (percent !== null) {
-        setProgress(percent);
-        updateEta(percent);
-      }
-      if (label) setStatus('EXECUTING — ' + label, 'generating');
-    },
-    onComplete: async (outputFilename) => {
-      setProgress(100);
-      setStatus('COMPLETE — video ready', 'done');
-      stopClock();
-      const outputPath = homedir + '/Desktop/ComfyUI/output/' + outputFilename;
-      const videoURL   = await window.wan.toFileURL(outputPath);
-      videoPlayer.src  = videoURL;
-      videoPlayer.style.display = 'block';
-      videoPlayer.play().catch(() => {});
-      resetGenerateBtn();
-    },
-    onError: (msg) => {
-      setStatus(msg, 'error');
-      setProgress(0);
-      stopClock();
-      resetGenerateBtn();
-    },
-    onLog: (type, msg) => appendLog(type, msg),
+async function runAllJobs(baseSeed, prompt) {
+  for (let i = 0; i < totalRunCount; i++) {
+    currentRun = i + 1;
+    const seed = (baseSeed === null)
+      ? Math.floor(Math.random() * 9999999999)
+      : baseSeed;
+
+    const ok = await startGeneration(seed, prompt, currentRun, totalRunCount);
+    if (!ok) break;
+  }
+  resetGenerateBtn();
+}
+
+// Returns a Promise that resolves true (complete) or false (error/abort)
+function startGeneration(seed, prompt, runNum, totalRuns) {
+  return new Promise((resolve) => {
+    const runPrefix = totalRuns > 1 ? `RUN ${runNum}/${totalRuns} — ` : '';
+    const genStart  = Date.now();
+
+    goBtn.textContent = totalRuns > 1 ? `RUN ${runNum}/${totalRuns}...` : 'RUNNING...';
+    videoPlayer.style.display = 'none';
+    videoPlayer.src = '';
+    setProgress(0);
+    setStatus(runPrefix + 'QUEUED — awaiting ComfyUI slot', 'generating');
+    startClock();
+
+    const lora       = getLoraValues();
+    const resolution = getResolutionPreset();
+    const fps        = getFrameRate();
+
+    window.ComfyClient.generate({
+      imagePath:      selectedImageFilename,
+      prompt,
+      seed,
+      workflowName:   'i2v_14B_2stage',
+      loraValues:     lora,
+      width:          resolution.width,
+      height:         resolution.height,
+      frameRate:      fps,
+      onProgress: (percent, label) => {
+        if (percent !== null) {
+          setProgress(percent);
+          updateEta(percent);
+        }
+        if (label) setStatus(runPrefix + 'EXECUTING — ' + label, 'generating');
+      },
+      onComplete: async (outputFilename) => {
+        const duration = Math.floor((Date.now() - genStart) / 1000);
+        setProgress(100);
+        setStatus(runPrefix + 'COMPLETE — video ready', 'done');
+        stopClock();
+
+        // Write export report alongside the video
+        try {
+          const report    = buildReport({ outputFilename, seed, prompt, runNum, totalRuns, duration, lora, resolution, fps });
+          const stem      = outputFilename.replace(/\.[^.]+$/, '');
+          const rptPath   = homedir + '/Desktop/ComfyUI/output/' + stem + '_report.txt';
+          await window.wan.writeReport(rptPath, report);
+          appendLog('complete', 'Report → ' + stem + '_report.txt');
+        } catch (err) {
+          appendLog('error', 'Report write failed: ' + (err.message || err));
+        }
+
+        const outputPath = homedir + '/Desktop/ComfyUI/output/' + outputFilename;
+        const videoURL   = await window.wan.toFileURL(outputPath);
+        videoPlayer.src  = videoURL;
+        videoPlayer.style.display = 'block';
+        videoPlayer.play().catch(() => {});
+
+        resolve(true);
+      },
+      onError: (msg) => {
+        setStatus(runPrefix + msg, 'error');
+        setProgress(0);
+        stopClock();
+        resolve(false);
+      },
+      onLog: (type, msg) => appendLog(type, msg),
+    });
   });
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function resetGenerateBtn() {
-  isGenerating = false;
+  isGenerating  = false;
   goBtn.disabled = false;
   goBtn.textContent = 'GENERATE';
+  currentRun = 0;
 }
 
 function setProgress(pct) {

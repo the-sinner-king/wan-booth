@@ -9,6 +9,7 @@ contextBridge.exposeInMainWorld('wan', {
   toFileURL:      (filePath) => ipcRenderer.invoke('wan:toFileURL', filePath),
   queuePrompt:    (payload) => ipcRenderer.invoke('wan:queuePrompt', payload),
   log:            (msg) => ipcRenderer.send('wan:log', msg),
+  writeReport:    (filePath, content) => ipcRenderer.invoke('wan:writeReport', { filePath, content }),
   // NOTE: webUtils.getPathForFile() (Electron 28+ replacement for file.path) is renderer-only —
   // it cannot be bridged from preload on Electron 28. Revisit when upgrading to Electron 32+.
 });

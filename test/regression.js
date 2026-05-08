@@ -3,6 +3,7 @@
  * WAN BOOTH — Regression Tests
  * S253 DEBUGGING: RF-01–10, B-01–06 patches (5B workflow + app hardening)
  * S255 CODING: AC-09–15 (14B 2-stage MoE workflow, Mac launch flags)
+ * S259 CODING: AC-17–22 (LoRA injection fix, resolution/FPS/repeat runs/export report)
  * Run: node test/regression.js  |  Exit 0 = all pass. Exit 1 = failures.
  */
 'use strict';
@@ -38,14 +39,32 @@ const indexHtml   = fs.readFileSync(path.join(APP_DIR, 'index.html'),  'utf8');
 const workflow    = JSON.parse(fs.readFileSync(path.join(WORKFLOW_DIR, 'i2v_5B.json'),       'utf8'));
 const workflow14b = JSON.parse(fs.readFileSync(path.join(WORKFLOW_DIR, 'i2v_14B_2stage.json'), 'utf8'));
 
-// Inline the current injectPlaceholders logic for black-box testing
-function injectPlaceholders(w, imagePath, prompt, seed) {
+// Inline the current injectPlaceholders logic for black-box testing (mirrors comfy.js)
+function injectPlaceholders(w, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix) {
   const clone = JSON.parse(JSON.stringify(w));
-  for (const node of Object.values(clone)) {
+  for (const [nodeId, node] of Object.entries(clone)) {
     if (!node.inputs) continue;
     if (node.inputs.image      === '{{IMAGE_PATH}}') node.inputs.image      = imagePath;
     if (node.inputs.text       === '{{PROMPT}}')     node.inputs.text       = prompt;
-    if (node.inputs.noise_seed === '{{SEED}}')        node.inputs.noise_seed = parseInt(seed, 10);
+    if (node.inputs.noise_seed === '{{SEED}}')       node.inputs.noise_seed = parseInt(seed, 10);
+    if (width && height && (node.class_type === 'WanImageToVideo' || node.class_type === 'Wan22ImageToVideoLatent')) {
+      node.inputs.width  = width;
+      node.inputs.height = height;
+    }
+    if (node.class_type === 'VHS_VideoCombine') {
+      if (frameRate !== undefined && frameRate !== null) node.inputs.frame_rate      = frameRate;
+      if (filenamePrefix)                                node.inputs.filename_prefix = filenamePrefix;
+    }
+    if (loraValues) {
+      const lv = loraValues;
+      const totalSteps = lv.stage1.steps + lv.stage2.steps;
+      if (nodeId === '6')  { node.inputs.strength_model = lv.stage1.dr34mlayStr; node.inputs.strength_clip = lv.stage1.dr34mlayStr; }
+      if (nodeId === '7')  { node.inputs.strength_model = lv.stage2.dr34mlayStr; }
+      if (nodeId === '18') { node.inputs.strength_model = lv.stage1.k3nkStr; node.inputs.strength_clip = lv.stage1.k3nkStr; }
+      if (nodeId === '19') { node.inputs.strength_model = lv.stage2.k3nkStr; }
+      if (nodeId === '13') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage1.cfg; node.inputs.end_at_step = lv.stage1.steps; }
+      if (nodeId === '14') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage2.cfg; node.inputs.start_at_step = lv.stage1.steps; node.inputs.end_at_step = totalSteps; }
+    }
   }
   return clone;
 }
@@ -514,6 +533,195 @@ test('14B: AC-14 comfy.js has VAEDecodeTiled in NODE_LABELS', () => {
   const combSrc = fs.readFileSync(path.join(APP_DIR, 'comfy.js'), 'utf8');
   assert.ok(combSrc.includes("'VAEDecodeTiled'"),
     'VAEDecodeTiled must be in NODE_LABELS for progress display');
+});
+
+// ── AC-17: LoRA injection + CFG/step split ────────────────────────────────────
+console.log('\nAC-17 — injectPlaceholders: LoRA strengths + CFG + step split (14B)');
+
+const lv = { stage1: { dr34mlayStr: 0.75, k3nkStr: 0.5, steps: 20, cfg: 3.5 }, stage2: { dr34mlayStr: 0.9, k3nkStr: 0.65, steps: 31, cfg: 6.0 } };
+
+test('AC-17: node 6 gets stage1 DR34MLAY strength on both strength_model + strength_clip', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['6'].inputs.strength_model, 0.75);
+  assert.strictEqual(r['6'].inputs.strength_clip,  0.75);
+});
+test('AC-17: node 7 gets stage2 DR34MLAY strength (model only — no clip)', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['7'].inputs.strength_model, 0.9);
+  assert.ok(!('strength_clip' in r['7'].inputs) || r['7'].inputs.strength_clip === undefined || r['7'].inputs.strength_clip === r['7']._orig_clip,
+    'node 7 is ModelOnly — strength_clip should not be set by injection');
+});
+test('AC-17: node 18 gets stage1 K3NK strength on both model + clip', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['18'].inputs.strength_model, 0.5);
+  assert.strictEqual(r['18'].inputs.strength_clip,  0.5);
+});
+test('AC-17: node 19 gets stage2 K3NK strength (model only)', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['19'].inputs.strength_model, 0.65);
+});
+test('AC-17: node 13 gets total steps = stage1.steps + stage2.steps', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['13'].inputs.steps, 51, 'total steps must be 20+31=51');
+});
+test('AC-17: node 13 gets stage1 CFG', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['13'].inputs.cfg, 3.5);
+});
+test('AC-17: node 13 end_at_step = stage1.steps (split point)', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['13'].inputs.end_at_step, 20, 'Stage1 ends at its own step count');
+});
+test('AC-17: node 14 start_at_step = stage1.steps (hand-off invariant)', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['14'].inputs.start_at_step, 20, 'Stage2 starts where Stage1 ends — invariant');
+});
+test('AC-17: node 14 end_at_step = totalSteps (51)', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['14'].inputs.end_at_step, 51);
+});
+test('AC-17: node 14 gets stage2 CFG', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv);
+  assert.strictEqual(r['14'].inputs.cfg, 6.0);
+});
+test('AC-17: comfy.js generate() accepts loraValues parameter', () => {
+  assert.ok(combSrc.includes('loraValues'),
+    'generate() signature must include loraValues');
+});
+test('AC-17: comfy.js injectPlaceholders accepts loraValues', () => {
+  assert.ok(combSrc.includes('function injectPlaceholders') && combSrc.includes('loraValues'),
+    'injectPlaceholders must accept loraValues');
+});
+
+// ── AC-18: Resolution preset + auto-detect ────────────────────────────────────
+console.log('\nAC-18 — resolution preset dropdown + auto-detect');
+
+test('AC-18: injectPlaceholders injects width+height into WanImageToVideo node', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, null, 1280, 720);
+  assert.strictEqual(r['10'].inputs.width,  1280, 'WanImageToVideo node 10 must get injected width');
+  assert.strictEqual(r['10'].inputs.height, 720,  'WanImageToVideo node 10 must get injected height');
+});
+test('AC-18: resolution injection also works for Wan22ImageToVideoLatent (5B)', () => {
+  const r = injectPlaceholders(workflow, 'a.png', 'b', 1, null, 480, 832);
+  const latentNode = Object.values(r).find(n => n.class_type === 'Wan22ImageToVideoLatent');
+  assert.ok(latentNode, '5B workflow must have Wan22ImageToVideoLatent');
+  assert.strictEqual(latentNode.inputs.width,  480);
+  assert.strictEqual(latentNode.inputs.height, 832);
+});
+test('AC-18: index.html has #resolution-select with 5 presets', () => {
+  const matches = (indexHtml.match(/value="[0-9]+x[0-9]+"/g) || []);
+  assert.ok(matches.length >= 5, 'must have at least 5 resolution presets');
+});
+test('AC-18: 832x480 is default resolution preset', () => {
+  assert.ok(indexHtml.includes('value="832x480" selected') || indexHtml.includes('value="832x480"'),
+    '832x480 must be in the resolution select');
+});
+test('AC-18: renderer.js has getResolutionPreset function', () => {
+  assert.ok(renderSrc.includes('function getResolutionPreset'),
+    'getResolutionPreset() must exist in renderer.js');
+});
+test('AC-18: renderer.js auto-suggests portrait preset for portrait images', () => {
+  assert.ok(renderSrc.includes("'480x832'"),
+    'renderer.js must set 480x832 for portrait images in auto-detect');
+});
+
+// ── AC-19: FPS dropdown ───────────────────────────────────────────────────────
+console.log('\nAC-19 — FPS dropdown');
+
+test('AC-19: injectPlaceholders injects frame_rate into VHS_VideoCombine', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, null, null, null, 24);
+  assert.strictEqual(r['17'].inputs.frame_rate, 24, 'VHS_VideoCombine must get injected frame_rate');
+});
+test('AC-19: index.html has #fps-select with 16fps as default', () => {
+  assert.ok(indexHtml.includes('value="16" selected') || indexHtml.includes("value=\"16\" selected"),
+    '16fps must be the selected default in fps-select');
+});
+test('AC-19: renderer.js has getFrameRate function', () => {
+  assert.ok(renderSrc.includes('function getFrameRate'),
+    'getFrameRate() must exist in renderer.js');
+});
+test('AC-19: comfy.js generate() accepts frameRate parameter', () => {
+  assert.ok(combSrc.includes('frameRate'),
+    'generate() must accept frameRate');
+});
+
+// ── AC-20: Export report ──────────────────────────────────────────────────────
+console.log('\nAC-20 — export report (.txt alongside video)');
+
+test('AC-20: main.js registers wan:writeReport IPC handler', () => {
+  assert.ok(mainSrc.includes("'wan:writeReport'"),
+    'wan:writeReport IPC channel must be registered in main.js');
+});
+test('AC-20: main.js writeReport restricts path to ComfyUI output dir', () => {
+  assert.ok(mainSrc.includes("outputDir + path.sep"),
+    'writeReport must validate path starts with ComfyUI output dir + sep');
+});
+test('AC-20: preload.js exposes writeReport method', () => {
+  const preloadSrc = fs.readFileSync(path.join(APP_DIR, 'preload.js'), 'utf8');
+  assert.ok(preloadSrc.includes('writeReport'),
+    'preload.js must expose writeReport via contextBridge');
+});
+test('AC-20: renderer.js has buildReport function', () => {
+  assert.ok(renderSrc.includes('function buildReport'),
+    'buildReport() must exist in renderer.js');
+});
+test('AC-20: renderer.js calls window.wan.writeReport in onComplete', () => {
+  assert.ok(renderSrc.includes('window.wan.writeReport'),
+    'writeReport must be called in completion handler');
+});
+test('AC-20: buildReport includes seed, prompt, resolution, fps', () => {
+  assert.ok(renderSrc.includes("'  SEED'") || renderSrc.includes("SEED        :"),
+    'report must include seed');
+  assert.ok(renderSrc.includes("'  PROMPT'") || renderSrc.includes("PROMPT      :"),
+    'report must include prompt');
+  assert.ok(renderSrc.includes("RESOLUTION") || renderSrc.includes("resolution"),
+    'report must include resolution');
+});
+
+// ── AC-21: Repeat runs ────────────────────────────────────────────────────────
+console.log('\nAC-21 — repeat runs dropdown');
+
+test('AC-21: index.html has #runs-select with default 1', () => {
+  assert.ok(indexHtml.includes('id="runs-select"'),
+    '#runs-select must exist in HTML');
+  assert.ok(indexHtml.includes('value="1" selected'),
+    '1 must be the default run count');
+});
+test('AC-21: renderer.js has getRunCount function', () => {
+  assert.ok(renderSrc.includes('function getRunCount'),
+    'getRunCount() must exist in renderer.js');
+});
+test('AC-21: renderer.js has runAllJobs function', () => {
+  assert.ok(renderSrc.includes('async function runAllJobs'),
+    'runAllJobs() must exist and be async');
+});
+test('AC-21: runAllJobs loops based on totalRunCount', () => {
+  assert.ok(renderSrc.includes('totalRunCount'),
+    'totalRunCount must be used to control the run loop');
+});
+test('AC-21: fresh seed generated per run in random mode', () => {
+  assert.ok(renderSrc.includes('baseSeed === null'),
+    'null baseSeed must trigger fresh random seed per run');
+});
+
+// ── AC-22: UI/debug pass ──────────────────────────────────────────────────────
+console.log('\nAC-22 — UI/debug pass');
+
+test('AC-22: goBtn shows RUN X/N format during multi-run', () => {
+  assert.ok(renderSrc.includes('RUN ${runNum}/${totalRuns}'),
+    'button text must show RUN X/Y during multi-run execution');
+});
+test('AC-22: status text includes run prefix during multi-run', () => {
+  assert.ok(renderSrc.includes('runPrefix'),
+    'status text must be prefixed with run info during multi-run');
+});
+test('AC-22: main.js imports nativeImage from electron', () => {
+  assert.ok(mainSrc.includes('nativeImage') && mainSrc.includes("require('electron')"),
+    'nativeImage must be imported from electron for image dimension detection');
+});
+test('AC-22: copyToInput returns {filename, width, height} object', () => {
+  assert.ok(mainSrc.includes('return { filename, width, height }'),
+    'copyToInput must return object with filename, width, height');
 });
 
 // ── Summary ──────────────────────────────────────────────────────────────────

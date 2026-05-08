@@ -27,7 +27,7 @@ CREATED.....: 2026-05-06 (S252)
 ╰────────────────────────────────────────────╯
 
 
-UPDATED.....: 2026-05-07 (S258 — UI redesign complete, architecture .txt written, GitHub repo live, NLM auth fixed)
+UPDATED.....: 2026-05-08 (S259 — AC-16 confirmed on PC, S259 features scoped: LoRA injection fix, resolution/FPS controls, export report, repeat runs, UI pass)
 
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 [ ⛬ 01 ]  T H E   I N V O C A T I O N
@@ -363,7 +363,15 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 [x] AC-13: main.js — `--bf16-unet` + `PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7` in ComfyUI spawn
 [x] AC-14: comfy.js NODE_LABELS — `KSamplerAdvanced` + `VAEDecodeTiled` added
 [x] AC-15: 87/87 regression tests passing (updated for dual-LoRA, CFG 3.5/6.0, 51-step split + S257 RF patches)
-[ ] AC-16: End-to-end test on Mac — one real dirty video generated and plays in-app (MORNING TEST)
+[x] AC-16: End-to-end confirmed on PC (RTX 3090 Ti, CUDA) — one real video generated and plays in-app. Mac was zombie-queued (OOM). PC is the production machine.
+
+## PHASE 2.5 — S259 FEATURE BATCH (resolution, FPS, report, repeat, polish)
+[x] AC-17: LoRA injection fix — `injectPlaceholders()` rewritten to accept `loraValues` and inject into nodes 6/7/18/19 (LoRA strengths) and 13/14 (CFG + step split) by node ID. Sliders are no longer decorative.
+[x] AC-18: Resolution preset dropdown — 5 presets: 832×480 LANDSCAPE 480P (default), 480×832 PORTRAIT 480P, 624×624 SQUARE, 1280×720 LANDSCAPE 720P, 720×1280 PORTRAIT 720P. Auto-detect from dropped image: compare aspect ratio to suggest matching preset, UI shows suggestion.
+[x] AC-19: FPS dropdown — 8 / 12 / 16 (default, native training FPS) / 24. Injected into VHS_VideoCombine node by class_type detection.
+[x] AC-20: Export report (.txt) — written alongside video on completion. Fields: date/time, output filename, duration, image source + original dimensions + selected preset, prompt, seed (mode + value), Stage 1 settings (CFG, steps, end_at_step, LoRA strengths), Stage 2 settings (CFG, steps, start_at_step, LoRA strengths), output resolution, FPS, run X of Y.
+[x] AC-21: Repeat runs — dropdown 1-10 (default 1). Runs the EXACT same job N times sequentially: same image, same prompt, same settings. Seed behavior: if random mode, fresh seed per run; if fixed, same seed each run.
+[x] AC-22: UI/debug pass — run prefix on status + button text during multi-run; per-run elapsed clock; report log entry on completion.
 
 █████████████████████████████████████████████████████████████████████████████████████
 █ ✖ THE ART GATE SHIVER : "IF THIS HAD MY NAME ON IT FOREVER, WOULD I BE PROUD?"    █
@@ -379,8 +387,8 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 
 ┌───────────────────────────────────────────────────────────────────────────────────┐
 │ 🔋 FORGE TELEMETRY                                                                │
-│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [████████████████████░] 85%                       │
-│ [ ⟆ PHASE   ] READY TO TEST — 14B workflow built + audited. Morning test queued.   │
+│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [████████████████████░] 90%                       │
+│ [ ⟆ PHASE   ] BUILDING — AC-16 confirmed on PC. S259 feature batch in progress.   │
 └───────────────────────────────────────────────────────────────────────────────────┘
 
 • ACTIVE STATE FILE: `WAN_BOOTH/NORTH_STAR.md` (this file)
@@ -405,7 +413,8 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 ├─ [✅ DONE] main.js updated — `--bf16-unet` + `PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.0` in ComfyUI spawn
 ├─ [✅ DONE] comfy.js NODE_LABELS updated — KSamplerAdvanced + VAEDecodeTiled + both conditioning nodes
 ├─ [✅ DONE] 84/84 regression tests passing — 30 new 14B structure tests added (S255)
-├─ [⚡ UNDERWAY] AC-16 — one real dirty video, DR34ML4Y LoRAs, plays in-app (S258 launch)
+├─ [✅ DONE] AC-16 — first real video confirmed on PC (RTX 3090 Ti, CUDA, S259 morning)
+├─ [✅ DONE] AC-17 through AC-22 — S259 feature batch complete (124/124 regressions)
 ├─ [PHASE 3] Batch mode + bot skin system + Arcade integration
 
 ## RESOLVED QUESTIONS
@@ -500,7 +509,9 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 - **GitHub repo** — `https://github.com/the-sinner-king/wan-booth` pushed. README with Mac+PC setup, .gitignore for session artifacts. Ready for PC clone.
 - **WAN_BOOTH_ARCHITECTURE.txt** — 18-section full source map written to disk and uploaded to NLM notebook `811bfc8c-fd98-4655-8743-e60dfe638a97`.
 - **NLM auth fix** — `com.kingdom.nlm-refresh` launchd agent installed. Runs `nlm login` every 3 days silently via Chrome CDP at port 9222 (dedicated nlm Chrome profile). Script: `~/.local/bin/nlm-refresh.sh`. No more manual `nlm login` unless Chrome profile signs out of Google.
-- **AC-16 RUNNING** — Job confirmed RUNNING throughout session. Still in progress.
+- **AC-16 STATUS CORRECTED** — Job was NOT running. Fans never spun. Python process only used 463MB RAM. ComfyUI /system_stats VRAM reading was misleading — reflected system Metal allocations, not the process. Actual cause: 56GB of BF16 models couldn't load with Gemini CLI (26GB) + mds_stores (9GB) eating unified memory. First real generation will happen on PC.
+- **BATCH SYSTEM RESEARCH COMPLETE** — `BATCH_SYSTEM_PLAN.md` written. Two modes designed: DIAL (parameter sweep, N×M job matrix) and PRODUCTION (overnight, seed variation). Critical bug found: LoRA sliders are currently decorative — values collected but NOT injected into ComfyUI workflow. Fix documented in plan with exact code.
+- **NLM auth permanently fixed** — `com.kingdom.nlm-refresh` launchd agent installed, runs `nlm login` every 3 days silently.
 
 ### S258 — 2026-05-07 — COMFYUI UPDATE + AC-16 LAUNCH
 - `cd ~/Desktop/ComfyUI && git pull` — 4 files updated: model_patcher.py, nodes_grok.py, requirements.txt
@@ -512,11 +523,21 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 - North Star updated: 0.0→0.7, 84/84→87/87, 17→18 nodes
 - WAN BOOTH launched with fresh ComfyUI (post-pull code)
 
+### S259 — 2026-05-08 — FEATURE BATCH (resolution, FPS, report, repeat, polish)
+- AC-16 CONFIRMED: Cla⌂de + Brandon on PC ran first real generation. RTX 3090 Ti, CUDA. It worked. PC is production machine.
+- GitHub PC push still pending (only 2 commits on remote — `main` branch). Working from local codebase.
+- Feature batch scoped: AC-17 (LoRA injection fix), AC-18 (resolution presets + auto-detect), AC-19 (FPS dropdown), AC-20 (export report .txt), AC-21 (repeat runs dropdown 1-10), AC-22 (UI/debug pass)
+- LoRA injection is prerequisite — all other sliders are currently decorative. Fix first.
+- Resolution injected via class_type detection for WanImageToVideo node (NOT by node ID — workflow-agnostic)
+- FPS and filename_prefix injected via VHS_VideoCombine class_type detection (already exists in RF-I fix)
+- main.js `copyToInput` updated to return `{filename, width, height}` using `nativeImage.createFromPath().getSize()`
+- New `wan:writeReport` IPC handler in main.js + preload.js exposed as `window.wan.writeReport()`
+- Repeat runs loop in renderer.js — sequential `await ComfyClient.generate()` calls, fresh seed each run if random mode
+
 ## KNOWN ISSUES / OPEN QUESTIONS
-- **AC-16 pending (morning test)** — Launch app, run i2v_14B_2stage workflow with DR34ML4Y LoRAs on a real image. Expected ~45-90 min on M3 Max.
-- **First generation will be slow** — ~45-90 min on Mac. Normal. Once it validates, transfer to PC (RTX 3090 Ti) → ~5-8 min.
+- **PC PUSH PENDING** — GitHub only shows 2 commits (Mac pushes). PC session changes not yet synced. Brandon needs to push from PC side or share what changed.
+- **BATCH SYSTEM — READY TO CODE** — `BATCH_SYSTEM_PLAN.md` is the complete brief. Start with LoRA injection fix (prerequisite — sliders are currently decorative). Then build DIAL + PRODUCTION modes after S259 feature batch.
 - **5B AC-08 untested** — deprioritized. 14B is the real target. 5B scaffold served its purpose.
-- **PC transfer** — after Mac test passes, remove `--bf16-unet` from main.js (FP8 runs natively on CUDA). Only change needed.
 
 ## ROOT CAUSE ANALYSIS — WAN 2.1 vs WAN 2.2 NODE MISMATCH (RESOLVED)
 
@@ -549,6 +570,7 @@ WAN_BOOTH/
 ├── README.md              (Mac + PC setup guide — npm install, ComfyUI install, model download paths)
 ├── .gitignore             (node_modules, dist, session artifacts, BLACKBOARD files)
 ├── WAN_BOOTH_ARCHITECTURE.txt  (18-section full source map — also uploaded to NLM 811bfc8c)
+├── BATCH_SYSTEM_PLAN.md   (DIAL MODE + PRODUCTION MODE batch system — complete CODING brief)
 ├── GLITCHSWARM_BLACKBOARD.json (Glitchswarm S258 decisions — color/type/layout locked)
 ├── app/
 │   ├── package.json

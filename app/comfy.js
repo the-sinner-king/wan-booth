@@ -43,18 +43,47 @@
     return window.wan.loadWorkflow(workflowName);
   }
 
-  function injectPlaceholders(workflow, imagePath, prompt, seed) {
+  function injectPlaceholders(workflow, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix) {
     const w = JSON.parse(JSON.stringify(workflow));
-    for (const node of Object.values(w)) {
+    for (const [nodeId, node] of Object.entries(w)) {
       if (!node.inputs) continue;
+
+      // Basic text/seed placeholders
       if (node.inputs.image      === '{{IMAGE_PATH}}') node.inputs.image      = imagePath;
       if (node.inputs.text       === '{{PROMPT}}')     node.inputs.text       = prompt;
       if (node.inputs.noise_seed === '{{SEED}}')       node.inputs.noise_seed = parseInt(seed, 10);
+
+      // Resolution — by class_type (workflow-agnostic, handles both 5B and 14B latent nodes)
+      if (width && height && (node.class_type === 'WanImageToVideo' || node.class_type === 'Wan22ImageToVideoLatent')) {
+        node.inputs.width  = width;
+        node.inputs.height = height;
+      }
+
+      // FPS + filename prefix — by class_type, RF-I pattern
+      if (node.class_type === 'VHS_VideoCombine') {
+        if (frameRate !== undefined && frameRate !== null) node.inputs.frame_rate      = frameRate;
+        if (filenamePrefix)                                node.inputs.filename_prefix = filenamePrefix;
+      }
+
+      // LoRA strengths + CFG + step split — by node ID (14B 2-stage workflow-specific)
+      if (loraValues) {
+        const lv = loraValues;
+        const totalSteps = lv.stage1.steps + lv.stage2.steps;
+        if (nodeId === '6')  { node.inputs.strength_model = lv.stage1.dr34mlayStr; node.inputs.strength_clip = lv.stage1.dr34mlayStr; }
+        if (nodeId === '7')  { node.inputs.strength_model = lv.stage2.dr34mlayStr; }
+        if (nodeId === '18') { node.inputs.strength_model = lv.stage1.k3nkStr; node.inputs.strength_clip = lv.stage1.k3nkStr; }
+        if (nodeId === '19') { node.inputs.strength_model = lv.stage2.k3nkStr; }
+        // Stage 1 KSampler: inject total steps + CFG + split point (end_at_step = stage1.steps)
+        if (nodeId === '13') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage1.cfg; node.inputs.end_at_step = lv.stage1.steps; }
+        // Stage 2 KSampler: inject total steps + CFG + hand-off point (start_at_step must equal stage1.steps — invariant)
+        if (nodeId === '14') { node.inputs.steps = totalSteps; node.inputs.cfg = lv.stage2.cfg; node.inputs.start_at_step = lv.stage1.steps; node.inputs.end_at_step = totalSteps; }
+      }
     }
     return w;
   }
 
-  async function generate({ imagePath, prompt, seed, workflowName = 'i2v_5B',
+  async function generate({ imagePath, prompt, seed, workflowName = 'i2v_14B_2stage',
+                             loraValues, width, height, frameRate, filenamePrefix,
                              onProgress, onComplete, onError, onLog }) {
     const clientId = generateClientId();
     let ws;
@@ -91,7 +120,7 @@
         if (node.class_type === 'VHS_VideoCombine') videoOutputNode = id;
       }
 
-      const injected = injectPlaceholders(workflow, imagePath, prompt, seed);
+      const injected = injectPlaceholders(workflow, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix);
 
       const wsUrl = new URL('/ws', COMFY_WS);
       wsUrl.searchParams.set('clientId', clientId);

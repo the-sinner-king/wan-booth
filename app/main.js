@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -116,7 +116,19 @@ ipcMain.handle('wan:copyToInput', async (event, sourcePath) => {
   const filename = path.basename(sourcePath);
   const destPath = path.join(comfyInputDir, filename);
   fs.copyFileSync(sourcePath, destPath);
-  return filename;
+
+  // Read image dimensions so the renderer can auto-suggest resolution presets
+  let width = null, height = null;
+  try {
+    const img = nativeImage.createFromPath(sourcePath);
+    if (!img.isEmpty()) {
+      const size = img.getSize();
+      width  = size.width  || null;
+      height = size.height || null;
+    }
+  } catch {}
+
+  return { filename, width, height };
 });
 
 ipcMain.handle('wan:getComfyStatus', async () => {
@@ -154,6 +166,19 @@ ipcMain.handle('wan:loadWorkflow', async (event, workflowName) => {
 ipcMain.handle('wan:toFileURL', async (event, filePath) => {
   // RF-08: use pathToFileURL so spaces and unicode in homedir are properly encoded
   return pathToFileURL(filePath).href;
+});
+
+ipcMain.handle('wan:writeReport', async (event, { filePath, content }) => {
+  dbg('writeReport: ' + filePath);
+  if (typeof filePath !== 'string' || !filePath) throw new Error('Invalid report path');
+  if (typeof content !== 'string') throw new Error('Invalid report content');
+  // Restrict writes to ComfyUI output directory
+  const outputDir = path.join(os.homedir(), 'Desktop', 'ComfyUI', 'output');
+  const resolvedPath = path.resolve(filePath);
+  if (!resolvedPath.startsWith(outputDir + path.sep)) throw new Error('Report path not in ComfyUI output dir');
+  fs.mkdirSync(path.dirname(resolvedPath), { recursive: true });
+  fs.writeFileSync(resolvedPath, content, 'utf8');
+  return { ok: true };
 });
 
 // Route POST /prompt through the main process so there is no Origin header.

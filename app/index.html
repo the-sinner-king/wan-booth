@@ -650,6 +650,69 @@
       display: none;
     }
 
+    /* ── OUTPUT SETTINGS CARD ────────────────────────────────────────── */
+    #output-card {
+      border: 1px solid var(--ws-border);
+      background: var(--ws-bg-elevated);
+    }
+
+    #output-card-header {
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--ws-border);
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-fg-muted);
+      text-transform: uppercase;
+      user-select: none;
+    }
+
+    #output-card-body {
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .output-row {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      align-items: center;
+    }
+
+    .output-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-fg-muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .output-select {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-small);
+      background: var(--ws-bg);
+      color: var(--ws-fg);
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      padding: 4px 8px;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      transition: border-color 150ms ease;
+    }
+
+    .output-select:hover,
+    .output-select:focus {
+      border-color: var(--ws-border-active);
+      outline: none;
+    }
+
   </style>
 </head>
 <body>
@@ -812,6 +875,51 @@
       <label id="seed-label">SEED</label>
       <button id="seed-toggle" aria-label="Toggle seed mode">RANDOM</button>
       <input type="number" id="seed-value" value="42" min="0" max="9999999999">
+    </div>
+
+    <!-- Output settings card — resolution, FPS, repeat runs -->
+    <div id="output-card">
+      <div id="output-card-header">OUTPUT SETTINGS</div>
+      <div id="output-card-body">
+
+        <div class="output-row">
+          <label class="output-label" for="resolution-select">RESOLUTION</label>
+          <select id="resolution-select" class="output-select" aria-label="Output resolution preset">
+            <option value="832x480" selected>832×480  —  LANDSCAPE 480P</option>
+            <option value="480x832">480×832  —  PORTRAIT 480P</option>
+            <option value="624x624">624×624  —  SQUARE</option>
+            <option value="1280x720">1280×720  —  LANDSCAPE 720P  (4× slower)</option>
+            <option value="720x1280">720×1280  —  PORTRAIT 720P  (4× slower)</option>
+          </select>
+        </div>
+
+        <div class="output-row">
+          <label class="output-label" for="fps-select">FRAME RATE</label>
+          <select id="fps-select" class="output-select" aria-label="Output frame rate">
+            <option value="8">8 FPS  —  minimum</option>
+            <option value="12">12 FPS  —  slow</option>
+            <option value="16" selected>16 FPS  —  native (default)</option>
+            <option value="24">24 FPS  —  smooth</option>
+          </select>
+        </div>
+
+        <div class="output-row">
+          <label class="output-label" for="runs-select">RUNS</label>
+          <select id="runs-select" class="output-select" aria-label="Number of repeat runs">
+            <option value="1" selected>1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+            <option value="6">6</option>
+            <option value="7">7</option>
+            <option value="8">8</option>
+            <option value="9">9</option>
+            <option value="10">10</option>
+          </select>
+        </div>
+
+      </div>
     </div>
 
     <!-- Generate button -->
