@@ -442,7 +442,8 @@ function startGeneration(seed, prompt, runNum, totalRuns) {
           appendLog('error', 'Report write failed: ' + (err.message || err));
         }
 
-        const outputPath = homedir + '/Desktop/ComfyUI/output/' + outputFilename;
+        const comfyDir   = await window.wan.getComfyDir();
+        const outputPath = comfyDir + '/output/' + outputFilename;
         const videoURL   = await window.wan.toFileURL(outputPath);
         videoPlayer.src  = videoURL;
         videoPlayer.style.display = 'block';

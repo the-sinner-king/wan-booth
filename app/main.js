@@ -125,7 +125,9 @@ ipcMain.handle('wan:copyToInput', async (event, sourcePath) => {
   if (!stat.isFile()) throw new Error('Source path is not a regular file (symlinks not allowed)');
   if (stat.size > MAX_IMAGE_BYTES) throw new Error('Image exceeds 50 MB size limit');
 
-  const comfyInputDir = path.join(os.homedir(), 'Desktop', 'ComfyUI', 'input');
+  // Mirror startComfyUI's COMFYUI_DIR override — was hardcoded to Mac default, broke PC where ComfyUI lives elsewhere
+  const comfyDir = process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+  const comfyInputDir = path.join(comfyDir, 'input');
   fs.mkdirSync(comfyInputDir, { recursive: true });
   const filename = path.basename(sourcePath);
   const destPath = path.join(comfyInputDir, filename);
@@ -160,6 +162,10 @@ ipcMain.handle('wan:getHomedir', async () => {
   return os.homedir();
 });
 
+ipcMain.handle('wan:getComfyDir', async () => {
+  return process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+});
+
 ipcMain.handle('wan:loadWorkflow', async (event, workflowName) => {
   dbg('loadWorkflow: ' + workflowName);
   // RF-01/B04: allowlist name + dereference symlinks before prefix check
@@ -186,7 +192,9 @@ ipcMain.handle('wan:toFileURL', async (event, filePath) => {
 ipcMain.handle('wan:writeReport', async (event, { filename, content }) => {
   if (typeof filename !== 'string' || !/^[A-Za-z0-9._\-]{1,200}$/.test(filename)) throw new Error('Invalid report filename');
   if (typeof content !== 'string') throw new Error('Invalid report content');
-  const outputDir = path.join(os.homedir(), 'Desktop', 'ComfyUI', 'output');
+  // Mirror startComfyUI's COMFYUI_DIR override — was hardcoded to Mac default
+  const comfyDir = process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');
+  const outputDir = path.join(comfyDir, 'output');
   fs.mkdirSync(outputDir, { recursive: true });
   const filePath = path.join(outputDir, filename);
   dbg('writeReport: ' + filePath);
