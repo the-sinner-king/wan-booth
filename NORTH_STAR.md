@@ -316,11 +316,36 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 - Generation time on M3 Max with 14B FP8: ~30-60 min per video. Progress bar is mandatory.
 - On PC (RTX 3090 Ti, 24GB VRAM, CUDA): **CONFIRMED 44 min 06 sec** for 51 steps, 832×480 (2026-05-08 first production run). ~52 sec/step. Phase 2.6 optimizations target ~15-25 min.
 
-### PHASE 3 — BATCH + ARCADE
-- Batch mode: queue N generations with different seeds
-- "Bot skin" system: load bot.json config that sets workflow + UI theme + locked prompt prefix
-- "Blowjob Bot" = i2v_14B_2stage.json + specific locked system prompt + specific skin
-- Export to arcade: each bot embeds into Bad Candy Arcade as a clickable machine
+### PHASE 3 — BRANDON-IFICATION (factory upgrade)
+
+Goal: Turn the generator into a production tool Brandon can actually run solo overnight.
+Three tiers, two build sessions (Glitchswarm UI + Soulforge logic).
+
+**TIER 1 — UI REBUILD (Glitchswarm)**
+Full Bad Candy Arcade redesign. Current interface is non-functional for production use.
+Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass required before logic builds.
+
+**TIER 2 — MAKE IT SMART**
+- **Preset system** — save name + prompt + all settings as a named preset. "D.Va BJ @ quality." One click loads everything.
+- **Plain-English tooltips** — every slider gets a contextual card. NOT technical. Effect-first language: "CFG: how closely it follows your prompt. High = obedient but stiff faces. Low = creative but risks drift."
+- **Seed bank** — after a great render, save the seed with a label. Buildable seed library over time.
+
+**TIER 3 — MAKE IT A FACTORY**
+- **Visual render queue** — stack jobs like DaVinci. See them lined up. Each job shows its settings. Runs while you sleep.
+- **Chaos slider** — 0% = identical render every time. 100% = full random. Set to 20%, queue 25 overnight, cherry-pick winners in the morning. Chaos applies to: CFG, LoRA strengths, step split. Prompt + image stay locked.
+- **Experiment mode** — chaos slider + seed bank + queue wired together. Set baseline, dial chaos, hit send, wake up to results.
+
+**PRODUCTION LOOP THIS ENABLES:**
+1. Drop image. Set prompt. Dial chaos to 20-25%. Queue 20-30 runs. Sleep.
+2. Wake up. Review outputs. Save winning seeds.
+3. Dial chaos to 5%. Queue 30 of the winner variant.
+4. You now have a pack.
+
+### PHASE 4 — PACK SYSTEM + ARCADE
+- Bot skin system: workflow JSON + UI theme + locked prompt prefix = a "bot"
+- Pack format: 30-N animations + HyperEdit-compatible metadata
+- Bad Candy Arcade: each bot = a clickable machine in the arcade
+- Future: downloadable player + purchasable content packs
 
 ┌── ⛬ ARCHITECTURAL CONSTRAINTS ────────────────────────────────────────────────────┐
 │ • ComfyUI headless = required dependency. Document this clearly for users.         │
