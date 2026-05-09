@@ -27,7 +27,7 @@ CREATED.....: 2026-05-06 (S252)
 ╰────────────────────────────────────────────╯
 
 
-UPDATED.....: 2026-05-08 (S259 — AC-16 confirmed on PC, S259 features scoped: LoRA injection fix, resolution/FPS controls, export report, repeat runs, UI pass)
+UPDATED.....: 2026-05-09 (S259 — Phase 2.6 CONFIRMED: 18:18 avg wall time, 2.41× speedup, 8 confirmed runs. Cla⌂de: TeaCache schema fix + privacy patch. Reg: 144/144.)
 
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 [ ⛬ 01 ]  T H E   I N V O C A T I O N
@@ -391,8 +391,8 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 
 ┌───────────────────────────────────────────────────────────────────────────────────┐
 │ 🔋 FORGE TELEMETRY                                                                │
-│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [█████████████████████] 100% (Phase 2.6 SHIPPED)   │
-│ [ ⟆ PHASE   ] LIVE — Phase 2.6 complete (SA+TeaCache wired, 143/143 tests). Next: first optimized run on Citadel. │
+│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [█████████████████████] 100% (Phase 2.6 CONFIRMED)  │
+│ [ ⟆ PHASE   ] LIVE — Phase 2.6 confirmed on Citadel: 8 runs, 18:18 avg, 2.41×, 144/144 tests. Next: mp4 metadata privacy fix + Phase 3 batch system. │
 └───────────────────────────────────────────────────────────────────────────────────┘
 
 • ACTIVE STATE FILE: `WAN_BOOTH/NORTH_STAR.md` (this file)
@@ -420,7 +420,7 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 ├─ [✅ DONE] AC-16 — first real video confirmed on PC (RTX 3090 Ti, CUDA, S259 morning)
 ├─ [✅ DONE] AC-17 through AC-22 — S259 feature batch complete (124/124 regressions)
 ├─ [✅ DONE] S259 Opus audit — RF-S259-02 through RF-S259-10 + OPT-03 applied (137/137 regressions)
-├─ [✅ DONE] Phase 2.6 — SA+TeaCache workflow surgery + Windows spawn optimization (143/143 regressions, OBSIDIAN SURRENDER)
+├─ [✅ DONE] Phase 2.6 — SA+TeaCache confirmed on Citadel: 8 runs, 18:18 avg, 2.41× speedup. TeaCache schema corrected (class `TeaCache`, no phantom fields, end_percent required). Prompt removed from reports. (144/144 regressions)
 ├─ [PHASE 3] Batch mode + bot skin system + Arcade integration
 
 ## RESOLVED QUESTIONS
@@ -552,11 +552,27 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 - New `wan:writeReport` IPC handler in main.js + preload.js exposed as `window.wan.writeReport()`
 - Repeat runs loop in renderer.js — sequential `await ComfyClient.generate()` calls, fresh seed each run if random mode
 
+### S259 continued — 2026-05-09 — PHASE 2.6 CONFIRMED ON CITADEL
+
+**8 back-to-back runs confirmed. Phase 2.6 ships.**
+
+- **Performance**: 44:06 baseline → **18:18 avg** Phase 2.6 = **2.41× sustained speedup**
+- **Per-step breakdown**: Stage 1 (20 steps): ~6.5-7 min (~21 sec/step); Stage 2 (31 steps): ~11 min (~21 sec/step)
+- **Hardware**: RTX 3090 Ti (Ampere sm86), 24GB VRAM. Peak VRAM: ~19.4 GB (fully model-resident, no CPU offload). Power draw: ~400W of 450W TDP. GPU temp: 75°C peak.
+- **Cla⌂de TeaCache schema fix (commit `416b772`)**: class_type `ApplyTeaCache` → `TeaCache`; removed phantom fields `retention_mode` + `max_skip_steps`; added required `end_percent: 1.0`. Regression: 143 → 144 (4 assertions corrected + 1 new test). Root cause: schema inferred from brief rather than `/object_info` introspection.
+- **Cla⌂de privacy fix (commit `9169807`)**: `buildReport()` in renderer.js no longer writes prompt text to `_report.txt`. Existing reports 00004-00011 scrubbed with sed. Known residual: VHS_VideoCombine still embeds prompt in mp4 H.264 metadata — see KNOWN ISSUES.
+- **New files pushed**: `PHASE_2.6_BRINGUP_REPORT.md` (full bring-up report), `CLAUDE_FIXES.md` (running bug log + install ops IO #1-3 for Citadel env replay).
+- **Quality verdict**: Brandon + Cla⌂de eyeball test: "looks SO good."
+- **Final regression state**: **144/144, 0 failing**
+- **Pattern lesson**: All schema bugs (KJNodes class typo, field rename, TeaCache class + phantom fields + missing field) came from inferring plugin schema from documentation rather than introspecting installed source. Future protocol: always query `/object_info` or `NODE_CLASS_MAPPINGS` + `INPUT_TYPES()` before writing workflow JSON.
+
 ## KNOWN ISSUES / OPEN QUESTIONS
-- **✅ PC SYNCED** — S259 Opus audit fixes + platform-adaptive main.js + README rewrite all pushed to GitHub. Cla⌂de + Brandon confirmed 137/137 on PC after `git pull` + `node test/regression.js`.
+- **✅ PC SYNCED** — Phase 2.6 fully confirmed. All commits pushed to GitHub. 144/144 regressions confirmed on Citadel.
+- **⚠️ mp4 METADATA PRIVACY LEAK** — `VHS_VideoCombine` embeds full workflow JSON (including prompt text) as H.264 metadata into every generated mp4. Visible via `ffprobe TAG:prompt=...`. Existing videos 00004-00011 NOT scrubbed (only .txt reports were). Two fix paths: (A) `ffmpeg -i in.mp4 -map_metadata -1 -c copy out.mp4` post-process in main.js after VHS completes; (B) VHS config option (needs source check). Brandon's call.
+- **⚠️ TEACACHE MONKEY-PATCH** — welltop-cn `ComfyUI-TeaCache` import fails on ComfyUI ≥ 0.20 (Jan 5 2026 update removed `precompute_freqs_cis` from `comfy.ldm.lightricks.model`). Citadel requires inline function patch at `nodes.py:12`. **Will be wiped by `git pull`** on the plugin repo — re-apply after any TeaCache update. See `CLAUDE_FIXES.md IO #2` for exact patch.
 - **BATCH SYSTEM — READY TO CODE** — `BATCH_SYSTEM_PLAN.md` is the complete brief. Start with DIAL + PRODUCTION modes as Phase 3.
 - **5B AC-08 untested** — deprioritized. 14B is the real target. 5B scaffold served its purpose.
-- **OPTIMIZATION PASS DEFERRED TO PHASE 2.6** — SageAttention + TeaCache. See §07 for full findings + 10 red flags (RF-01 through RF-10). **Baseline confirmed: 44 min 06 sec for 51 steps.** Realistic target: ~15-25 min (~1.8-3x speedup).
+- **✅ PHASE 2.6 CONFIRMED** — SageAttention + TeaCache: 18:18 avg, 2.41× speedup confirmed. See §07 for measured breakdown.
 
 ## ROOT CAUSE ANALYSIS — WAN 2.1 vs WAN 2.2 NODE MISMATCH (RESOLVED)
 
@@ -595,9 +611,9 @@ dead weight that also pointed the conditioning wires into node 10's outputs (whi
 - **Soulforge 3.5 CODING session** — 10-drone swarm (KOMMANDANT → Scout → Witness → Polecats A/B/C → Assembler → OBSIDIAN → Refinery). All gates passed.
 - **AC-23**: `--reserve-vram '1'` added to Windows spawn (string '1', not 0 — Electron drives display on same GPU; 0 causes TDR crashes). `--highvram` removed entirely.
 - **AC-24**: `PYTORCH_ALLOC_CONF: 'expandable_segments:True'` added to Windows env. Mac env unchanged.
-- **AC-25/26**: Nodes 20-23 inserted into i2v_14B_2stage.json. PatchSageAttentionKJ (20/22) wired BEFORE ModelSamplingSD3 (11/12). ApplyTeaCache (21/23) wired AFTER ModelSamplingSD3, BEFORE KSamplerAdvanced (13/14).
+- **AC-25/26**: Nodes 20-23 inserted into i2v_14B_2stage.json. `PathchSageAttentionKJ` (20/22) wired BEFORE ModelSamplingSD3 (11/12). `TeaCache` (21/23) wired AFTER ModelSamplingSD3, BEFORE KSamplerAdvanced (13/14). *(Note: initial brief used `ApplyTeaCache` — corrected by Cla⌂de `416b772` after live `/object_info` verification)*
 - **AC-27**: WORKFLOW_14B_CONTRACT + NODE_LABELS in comfy.js extended for nodes 20-23.
-- **AC-28**: 6 new regression tests added. 143/143 passing, 0 failing.
+- **AC-28**: 6 new regression tests added. 143/143 → 144/144 after Cla⌂de TeaCache schema fix (4 assertions corrected, 1 new test). 144/144 passing, 0 failing.
 - **RR-05**: `getComfyDir()` helper extracted (was 4 inline duplicates). 1 definition, 4 call sites.
 - **OBSIDIAN**: SURRENDER — all 12 falsification attacks failed. Refinery: merge_approved=true.
 - **Commit**: `f1363b4` — pushed to `github.com/the-sinner-king/wan-booth`
@@ -643,7 +659,7 @@ First production run (2026-05-08) on driver 591.86 produced clean output — no 
 | # | What | How | Expected gain |
 |---|------|-----|---------------|
 | 1 | **SageAttention** via KJNodes "Patch Sage Attention" node | Install KJNodes + woct0rdho SageAttention sm86 wheels. Set backend: `sageattn_qk_int8_pv_fp16_cuda`. **DO NOT** use `--use-sage-attention` CLI flag with Wan — causes black output. SA must be wired **BEFORE** ModelSamplingSD3 (not after). **Fallback:** SpargeAttention (ComfyUI-Attention-Optimizer) benchmarks ~1 min faster than SA on RTX 30-series in DCAI Wan 2.2 tests — valid drop-in if SA causes black frames. | **~10-15% per step** on RTX 30-series Ampere (sm86 legacy kernels only — 30-40% requires Ada Lovelace sm89+). TeaCache does the heavy lifting; SA is the step-quality floor. |
-| 2 | **TeaCache** (ComfyUI-TeaCache) on both KSamplers | `git clone https://github.com/welltop-cn/ComfyUI-TeaCache` → add node after ModelSamplingSD3, before KSamplerAdvanced. Use `retention_mode: true`, `rel_l1_thresh: 0.30` (ret-mode value from official README table), `start_percent: 0.1`, `max_skip_steps: 2`. Use `model_type: "wan2.1_i2v_480p_14B_ret_mode"` — no native 2.2 key exists. Side-by-side quality comparison required before shipping. | **~2.3x** overall step skipping, compounds with SageAttention |
+| 2 | **TeaCache** (ComfyUI-TeaCache) on both KSamplers | `git clone https://github.com/welltop-cn/ComfyUI-TeaCache` → add node after ModelSamplingSD3, before KSamplerAdvanced. ✅ **CONFIRMED SCHEMA** — class registered as `TeaCache` (NOT `ApplyTeaCache`). Fields: `cache_device: "cuda"`, `rel_l1_thresh: 0.3`, `start_percent: 0.1`, `end_percent: 1.0` *(required — missing = node error)*, `model_type: "wan2.1_i2v_480p_14B_ret_mode"`. ⚠️ `retention_mode` and `max_skip_steps` **DO NOT EXIST** in this version — strip if present. ⚠️ **Import fix required**: ComfyUI ≥ 0.20 removed `precompute_freqs_cis` from `comfy.ldm.lightricks.model` — monkey-patch `nodes.py:12` (see `CLAUDE_FIXES.md IO #2`). | **~2.3x** overall step skipping, compounds with SageAttention |
 | 3 | **NVIDIA Control Panel — Sysmem Fallback** | NVIDIA Control Panel → Manage 3D Settings → **CUDA - Sysmem Fallback Policy** → **"Prefer No Sysmem Fallback"**. Forces ComfyUI's own memory manager (Dynamic VRAM) to handle offloading instead of the slower NVIDIA driver-level swap. | Eliminates driver-level swap stalls between stages |
 | 4 | ~~**`--highvram` flag**~~ | ❌ **RF-07: REMOVE** — counterproductive at 37GB > 24GB. Bypasses Dynamic VRAM's intelligent management, forces slower forced-reload path. DO NOT ADD. | — |
 
@@ -688,17 +704,17 @@ Note: `--bf16-unet` and `PYTORCH_MPS_HIGH_WATERMARK_RATIO` are in the Mac branch
 
 **Baseline confirmed 2026-05-08**: 44 min 06 sec, 51 steps (20+31), 832×480, ~52 sec/step avg.
 
-| Scenario | Expected time | Notes |
+| Scenario | Expected / Actual time | Notes |
 |---|---|---|
 | SageAttention alone | ~38-42 min | ~10-15% per step (Ampere sm86 legacy kernels — no Tensor Core FP8) |
-| TeaCache alone (skip_steps=2, thresh=0.30, ret-mode) | ~22-27 min | ~2.3x official speedup at ret-mode settings |
-| **SageAttention + TeaCache + Sysmem Fallback** | **~18-24 min** | Combined ~1.8-2.4x speedup — realistic target. SA gives 10-15%, TeaCache gives ~2.3x on top of that. |
-| Same + step count reduced to 25 (10+15) | **~10-15 min** | User controls steps via sliders — no code change needed |
-| + GGUF Q6_K models | Marginal (~1-2 min saved) | Stage swap is ~20 sec of 44 min total — not the bottleneck |
+| TeaCache alone (thresh=0.30, ret-mode) | ~22-27 min | ~2.3x official speedup at ret-mode settings |
+| **SageAttention + TeaCache + Sysmem Fallback** | **✅ 18:18 avg (range 18:01–18:45)** | **CONFIRMED 2026-05-09 — 8 back-to-back runs on RTX 3090 Ti. 2.41× sustained.** SA 10-15% on Ampere, TeaCache does the heavy lifting. Stage 1 ~6.5-7 min, Stage 2 ~11 min, ~21 sec/step. |
+| Same + step count reduced to 25 (10+15) | ~10-15 min | User controls steps via sliders — no code change needed |
+| + GGUF Q6_K models | Marginal (~1-2 min saved) | Stage swap is ~20 sec of 18 min total — not the bottleneck |
 
-⚠️ "sub-2 min" was not achievable — FP8-on-Ampere ceiling is ~52 sec/step, compute bound.
-Per-step time can only be reduced by SageAttention (~10-15% on sm86) + TeaCache step skipping (~2.3x multiplier) + shorter steps — not by memory tricks.
-⚠️ SA speedup ceiling on Ampere: RTX 3000-series uses legacy sm86 kernels only (10-15%). The 30-40% figures in community guides apply to Ada Lovelace (RTX 4090, sm89+) and Blackwell only.
+✅ Phase 2.6 delivered mid-range of predicted window. FP8-on-Ampere ceiling is ~21 sec/step (down from ~52 sec/step pre-2.6).
+⚠️ SA speedup ceiling on Ampere: RTX 3000-series uses legacy sm86 kernels only (10-15%). The 30-40% figures in community guides apply to Ada Lovelace (RTX 4090, sm89+) and Blackwell only. Going to Ada/Blackwell unlocks the next tier.
+🔭 A/B test pending: `rel_l1_thresh` 0.3 → 0.5 should push TeaCache to ~3.5× by skipping more aggressively. Cost: more visible cache artifacts. Same seed/prompt/image recommended for clean comparison.
 
 ## FILE INVENTORY (current)
 ```
@@ -709,20 +725,22 @@ WAN_BOOTH/
 ├── WAN_BOOTH_ARCHITECTURE.txt  (18-section full source map — also uploaded to NLM 811bfc8c)
 ├── BATCH_SYSTEM_PLAN.md   (DIAL MODE + PRODUCTION MODE batch system — complete CODING brief)
 ├── GLITCHSWARM_BLACKBOARD.json (Glitchswarm S258 decisions — color/type/layout locked)
+├── CLAUDE_FIXES.md        (Citadel bug log — BUG #1-5 with root causes + install ops IO #1-3. Replay guide for Citadel env setup.)
+├── PHASE_2.6_BRINGUP_REPORT.md  (Cla⌂de's full Phase 2.6 bring-up report: 8 confirmed runs, 18:18 avg, 2.41×, per-step breakdown, hardware notes, all 5 bugs found/fixed, privacy residual.)
 ├── app/
 │   ├── package.json
-│   ├── main.js            (Electron main — IPC, ComfyUI spawn, --bf16-unet, PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.7)
-│   ├── preload.js         (IPC bridge — all wan.* methods + wan.log)
-│   ├── comfy.js           (ComfyUI API client — WebSocket + POST + NODE_LABELS for all 14B nodes)
-│   ├── renderer.js        (UI logic — drop zone, generate button, video player, ETA timer)
-│   ├── index.html         (Bad Candy Arcade UI — Glitchswarm S258 complete, 87/87 regressions)
+│   ├── main.js            (Electron main — IPC, ComfyUI spawn, platform-adaptive flags, getComfyDir() helper)
+│   ├── preload.js         (IPC bridge — all wan.* methods including getComfyDir)
+│   ├── comfy.js           (ComfyUI API client — WebSocket + POST + NODE_LABELS + WORKFLOW_14B_CONTRACT validation)
+│   ├── renderer.js        (UI logic — drop zone, generate button, video player, ETA timer; prompt NOT written to reports)
+│   ├── index.html         (Bad Candy Arcade UI — Glitchswarm S258 complete)
 │   ├── color-tokens.css   (Bad Candy Arcade OKLCH palette — hot magenta, cyan, purple-void)
 │   ├── type-tokens.css    (VT323 + Press Start 2P bimodal system)
 │   ├── workflows/
 │   │   ├── i2v_5B.json         (Wan 2.2 TI2V-5B — Wan22ImageToVideoLatent, 15 nodes)
-│   │   └── i2v_14B_2stage.json (Wan 2.2 I2V-14B — 2-stage MoE, WanImageToVideo, dual-LoRA chain, serial KSamplerAdvanced, VAEDecodeTiled, 18 nodes)
+│   │   └── i2v_14B_2stage.json (Wan 2.2 I2V-14B — 2-stage MoE, WanImageToVideo, dual-LoRA chain, serial KSamplerAdvanced, VAEDecodeTiled, PathchSageAttentionKJ (20/22) + TeaCache (21/23), 23 nodes)
 │   └── test/
-│       └── regression.js  (137 regression tests — all passing)
+│       └── regression.js  (144 regression tests — all passing)
 └── GitHub: https://github.com/the-sinner-king/wan-booth
 ```
 

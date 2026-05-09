@@ -83,12 +83,12 @@ Place these in `ComfyUI/models/` at the exact subdirectory paths shown:
 ```
 models/
   diffusion_models/
-    wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors   (~9.5 GB)
-    wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors    (~9.5 GB)
+    wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors   (~14 GB)
+    wan2.2_i2v_low_noise_14B_fp8_scaled.safetensors    (~14 GB)
   text_encoders/
-    umt5_xxl_fp8_e4m3fn_scaled.safetensors             (~5 GB)
+    umt5_xxl_fp8_e4m3fn_scaled.safetensors             (~6.3 GB)
   vae/
-    wan_2.1_vae.safetensors                            (~0.5 GB)
+    wan_2.1_vae.safetensors                            (~243 MB)
   loras/
     DR34ML4Y_I2V_14B_HIGH-20250908202326.safetensors
     DR34ML4Y_I2V_14B_LOW-20250908202331.safetensors
