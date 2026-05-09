@@ -673,13 +673,17 @@ test('AC-20: renderer.js calls window.wan.writeReport in onComplete', () => {
   assert.ok(renderSrc.includes('window.wan.writeReport'),
     'writeReport must be called in completion handler');
 });
-test('AC-20: buildReport includes seed, prompt, resolution, fps', () => {
+test('AC-20: buildReport includes seed + resolution (NOT prompt — privacy)', () => {
   assert.ok(renderSrc.includes("'  SEED'") || renderSrc.includes("SEED        :"),
     'report must include seed');
-  assert.ok(renderSrc.includes("'  PROMPT'") || renderSrc.includes("PROMPT      :"),
-    'report must include prompt');
   assert.ok(renderSrc.includes("RESOLUTION") || renderSrc.includes("resolution"),
     'report must include resolution');
+});
+test('AC-28 (privacy): buildReport must NOT write prompt to disk', () => {
+  // Prompts are sensitive content — they must never land in any saved file.
+  // If you find yourself adding the prompt back to the report, the user said no.
+  assert.ok(!renderSrc.includes("PROMPT      :"),
+    'PROMPT line must not appear in buildReport — prompts are private');
 });
 
 // ── AC-21: Repeat runs ────────────────────────────────────────────────────────

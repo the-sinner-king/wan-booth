@@ -259,3 +259,26 @@ Or, post-restart, query `http://127.0.0.1:8188/object_info` and diff against
 the workflow JSON values. Either way: **the plugin source is the spec, not
 the brief.**
 
+---
+
+## 2026-05-09 AM — Privacy: prompts must not be copied anywhere
+
+### BUG #5 — Report .txt persisted the user prompt to disk
+**Symptom:** Brandon flagged that the per-gen `_report.txt` includes the full
+prompt verbatim. Prompts contain sensitive content and should not land on disk.
+
+**Patch:** removed `prompt` from `buildReport()` in `app/renderer.js` (both
+the destructured signature and the rendered template). Privacy-by-design
+comment added so future maintainers understand the intent.
+
+Existing reports (00004-00011) scrubbed in place via `sed -i '/^  PROMPT/d'`.
+
+**Files changed:** `app/renderer.js`. No regression impact (143/143 still PASS).
+
+### Known residual — not yet fixed
+ComfyUI's `VHS_VideoCombine` embeds the full workflow JSON (including the
+prompt) as H.264 metadata into every generated mp4. `ffprobe` reveals it via
+`TAG:prompt=...`. See `PHASE_2.6_BRINGUP_REPORT.md` for the fix paths
+(ffmpeg post-process or VHS config) — left as Aeris's call since it's a
+pipeline change beyond the renderer.
+

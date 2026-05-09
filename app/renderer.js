@@ -286,7 +286,8 @@ function getRunCount() {
 }
 
 // ─── EXPORT REPORT ────────────────────────────────────────────────────────────
-function buildReport({ outputFilename, seed, prompt, runNum, totalRuns, duration, lora, resolution, fps }) {
+// Privacy: prompt is intentionally NOT included in the report — it never gets written to disk.
+function buildReport({ outputFilename, seed, runNum, totalRuns, duration, lora, resolution, fps }) {
   const now = new Date().toISOString().replace('T', ' ').split('.')[0];
   const h = Math.floor(duration / 3600);
   const m = Math.floor((duration % 3600) / 60);
@@ -311,7 +312,6 @@ function buildReport({ outputFilename, seed, prompt, runNum, totalRuns, duration
     '───────────────────────────────────────────────────────',
     `  IMAGE       : ${selectedImageFilename}`,
     `  DIMENSIONS  : ${srcDim}`,
-    `  PROMPT      : ${prompt}`,
     `  SEED        : ${seed} (${seedMode})`,
     '',
     '───────────────────────────────────────────────────────',
@@ -432,7 +432,7 @@ function startGeneration(seed, prompt, runNum, totalRuns) {
 
         // Write export report alongside the video
         try {
-          const report    = buildReport({ outputFilename, seed, prompt, runNum, totalRuns, duration, lora, resolution, fps });
+          const report    = buildReport({ outputFilename, seed, runNum, totalRuns, duration, lora, resolution, fps });
           const safeName  = outputFilename.split(/[/\\]/).pop() || 'output'; // RF-S259-05: basename only
           const stem      = safeName.replace(/\.[^.]+$/, '');
           const rptFile   = stem + '_report.txt';
