@@ -5,6 +5,7 @@ const os = require('os');
 const http = require('http');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
+const { randomUUID } = require('crypto');
 
 // ── Debug logger ───────────────────────────────────────────────────────────────
 const DEBUG_LOG = path.join(os.tmpdir(), 'wan_booth_debug.log');
@@ -23,6 +24,20 @@ const ALLOWED_WORKFLOW_NAME = /^[a-zA-Z0-9_-]{1,64}$/;
 // RF-02: allowed image extensions + size cap
 const ALLOWED_IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
+
+// ── Preset + Seed Bank ────────────────────────────────────────────────────────
+const ALLOWED_PRESET_SLUG = /^[a-zA-Z0-9_-]{1,64}$/;
+const PRESETS_DIR = path.join(__dirname, 'presets');
+const SEEDS_PATH  = path.join(__dirname, 'seeds.json');
+
+function _readSeeds() {
+  try { return JSON.parse(fs.readFileSync(SEEDS_PATH, 'utf8')); }
+  catch { return { version: 1, seeds: [] }; }
+}
+
+function _writeSeeds(data) {
+  fs.writeFileSync(SEEDS_PATH, JSON.stringify(data, null, 2), 'utf8');
+}
 
 let mainWindow;
 let comfyProcess;
@@ -210,6 +225,71 @@ ipcMain.handle('wan:writeReport', async (event, { filename, content }) => {
   const filePath = path.join(outputDir, filename);
   dbg('writeReport: ' + filePath);
   fs.writeFileSync(filePath, content, 'utf8');
+  return { ok: true };
+});
+
+// ── Preset IPC handlers ──────────────────────────────────────────────────────
+ipcMain.handle('wan:listPresets', async () => {
+  fs.mkdirSync(PRESETS_DIR, { recursive: true });
+  const indexPath = path.join(PRESETS_DIR, 'index.json');
+  try { return JSON.parse(fs.readFileSync(indexPath, 'utf8')); }
+  catch { return []; }
+});
+
+ipcMain.handle('wan:loadPreset', async (event, slug) => {
+  if (!ALLOWED_PRESET_SLUG.test(slug)) throw new Error('Invalid preset slug');
+  fs.mkdirSync(PRESETS_DIR, { recursive: true });
+  const filePath = path.join(PRESETS_DIR, slug + '.json');
+  const realBase = fs.realpathSync(PRESETS_DIR);
+  const real     = fs.realpathSync(filePath);
+  if (!real.startsWith(realBase + path.sep)) throw new Error('Preset path escape');
+  return JSON.parse(fs.readFileSync(real, 'utf8'));
+});
+
+ipcMain.handle('wan:savePreset', async (event, { slug, data }) => {
+  if (!ALLOWED_PRESET_SLUG.test(slug)) throw new Error('Invalid preset slug');
+  fs.mkdirSync(PRESETS_DIR, { recursive: true });
+  const filePath  = path.join(PRESETS_DIR, slug + '.json');
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+  const indexPath = path.join(PRESETS_DIR, 'index.json');
+  let index = [];
+  try { index = JSON.parse(fs.readFileSync(indexPath, 'utf8')); } catch {}
+  const existing = index.findIndex(p => p.slug === slug);
+  const entry    = { slug, name: data.name, created_at: data.created_at };
+  if (existing >= 0) index[existing] = entry;
+  else index.unshift(entry);
+  fs.writeFileSync(indexPath, JSON.stringify(index, null, 2), 'utf8');
+  return { ok: true };
+});
+
+ipcMain.handle('wan:deletePreset', async (event, slug) => {
+  if (!ALLOWED_PRESET_SLUG.test(slug)) throw new Error('Invalid preset slug');
+  const filePath  = path.join(PRESETS_DIR, slug + '.json');
+  try { fs.unlinkSync(filePath); } catch {}
+  const indexPath = path.join(PRESETS_DIR, 'index.json');
+  let index = [];
+  try { index = JSON.parse(fs.readFileSync(indexPath, 'utf8')); } catch {}
+  fs.writeFileSync(indexPath, JSON.stringify(index.filter(p => p.slug !== slug), null, 2), 'utf8');
+  return { ok: true };
+});
+
+// ── Seed Bank IPC handlers ───────────────────────────────────────────────────
+ipcMain.handle('wan:listSeeds', async () => _readSeeds());
+
+ipcMain.handle('wan:saveSeed', async (event, entry) => {
+  if (typeof entry.seed !== 'number' || !Number.isInteger(entry.seed)) throw new Error('Invalid seed');
+  if (typeof entry.label !== 'string' || entry.label.length > 200) throw new Error('Invalid label');
+  const data = _readSeeds();
+  data.seeds.unshift({ ...entry, id: randomUUID(), created_at: new Date().toISOString() });
+  _writeSeeds(data);
+  return { ok: true };
+});
+
+ipcMain.handle('wan:deleteSeed', async (event, id) => {
+  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/.test(id)) throw new Error('Invalid seed ID');
+  const data = _readSeeds();
+  data.seeds = data.seeds.filter(s => s.id !== id);
+  _writeSeeds(data);
   return { ok: true };
 });
 

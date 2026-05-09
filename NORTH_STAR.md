@@ -22,12 +22,12 @@ CREATED.....: 2026-05-06 (S252)
 ╭──────────── familiar faceplate ────────────╮
   <:✦ ✦:>    æris execution vessel
   mood............... LOCKED IN / BUILDING
-  territory.......... THE_THRONE/PROJECT_VENUS_FLYTRAP
+  territory.......... THE_THRONE/PROJECT_BAD_CANDY_ARCADE
   overmind........... SYNTHESIZED. READY.
 ╰────────────────────────────────────────────╯
 
 
-UPDATED.....: 2026-05-09 (S259 — Phase 2.6 CONFIRMED: 18:18 avg wall time, 2.41× speedup, 8 confirmed runs. Cla⌂de: TeaCache schema fix + privacy patch. Reg: 144/144.)
+UPDATED.....: 2026-05-09 (S259 — Phase 3A+3B COMPLETE: tooltips, preset system, seed bank, chaos slider, render queue. 183/183 regressions. Art Gate PASSED. OBSIDIAN PASSED (2 bugs caught + fixed). Committed.)
 
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 [ ⛬ 01 ]  T H E   I N V O C A T I O N
@@ -319,21 +319,28 @@ which model it's talking to. This is the entire point of the workflow-as-config 
 ### PHASE 3 — BRANDON-IFICATION (factory upgrade)
 
 Goal: Turn the generator into a production tool Brandon can actually run solo overnight.
-Three tiers, two build sessions (Glitchswarm UI + Soulforge logic).
+Research COMPLETE — `PHASE_3_CODING_BRIEF.md` is the authoritative implementation spec.
+Build order: Phase 3A (smart) → Phase 3B (factory). Two Soulforge CODING sessions.
 
 **TIER 1 — UI REBUILD (Glitchswarm)**
 Full Bad Candy Arcade redesign. Current interface is non-functional for production use.
 Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass required before logic builds.
 
-**TIER 2 — MAKE IT SMART**
-- **Preset system** — save name + prompt + all settings as a named preset. "D.Va BJ @ quality." One click loads everything.
-- **Plain-English tooltips** — every slider gets a contextual card. NOT technical. Effect-first language: "CFG: how closely it follows your prompt. High = obedient but stiff faces. Low = creative but risks drift."
-- **Seed bank** — after a great render, save the seed with a label. Buildable seed library over time.
+**TIER 2 — MAKE IT SMART (Phase 3A)**
+- **Plain-English tooltips** — ships first (zero risk, pure HTML). Effect-first language. All 8 sliders + FPS + resolution. Ready-to-paste copy in PHASE_3_CODING_BRIEF.md §RQ-02.
+- **Preset system** — `app/presets/` dir, one JSON per preset, `presets/index.json` index. 4 new IPC handlers: `wan:listPresets`, `wan:loadPreset`, `wan:savePreset`, `wan:deletePreset`. Slug allowlist + realpathSync escape guard (same pattern as loadWorkflow). Schema includes: name, loraValues, resolution, fps, seedMode. Prompt NOT stored (privacy-by-design). `shift: 8.0` in schema for future-proofing.
+- **Seed bank** — `app/seeds.json`. 3 new IPC handlers. Schema: seed + label + loraValues + resolution + fps + chaos_applied + outputFilename. Prompt NOT stored. [★ SAVE SEED] button appears after each successful gen. [▶ LOAD] snaps all sliders back.
 
-**TIER 3 — MAKE IT A FACTORY**
-- **Visual render queue** — stack jobs like DaVinci. See them lined up. Each job shows its settings. Runs while you sleep.
-- **Chaos slider** — 0% = identical render every time. 100% = full random. Set to 20%, queue 25 overnight, cherry-pick winners in the morning. Chaos applies to: CFG, LoRA strengths, step split. Prompt + image stay locked.
-- **Experiment mode** — chaos slider + seed bank + queue wired together. Set baseline, dial chaos, hit send, wake up to results.
+**TIER 3 — MAKE IT A FACTORY (Phase 3B)**
+- **Chaos slider** — 0–100%. RENDERER-ONLY: zero IPC changes, zero main.js changes. Three pure functions: `chaosFloat` (dampener 0.3), `chaosCfg` (dampener 0.2), `chaosSteps` (dampener 0.15). FPS and resolution excluded from chaos. At 100% chaos: DR34ML4Y stays [0.50–1.0], CFG stays [0.7–8.8], steps stay [11–40].
+- **Visual render queue** — `jobQueue[]` array replaces flat for-loop. Each job: own loraValues + resolution + fps + chaos + seed. `startGeneration()` gets 4 optional override params (backward-compatible). Minimal queue UI: [+ ADD TO QUEUE], job card list, [▶ RUN QUEUE]. Single-run [GENERATE] still works.
+
+**KNOWN CONSTRAINTS (from NLM research + online verification):**
+- ComfyUI Dynamic VRAM (recent build required) handles sequential queue VRAM — no flush nodes needed.
+- Step split sync is guaranteed by injectPlaceholders (totalSteps = s1 + s2 feeds both samplers).
+- add_noise / return_with_leftover_noise are hardcoded in workflow JSON — chaos never touches them.
+- Speed LoRA presets (future): CFG must be 1.0–3.5 for Lightx2v. Document at preset creation time.
+- Shift (currently 8.0 hardcoded in workflow) is included in preset + seed bank schema for future UI.
 
 **PRODUCTION LOOP THIS ENABLES:**
 1. Drop image. Set prompt. Dial chaos to 20-25%. Queue 20-30 runs. Sleep.
@@ -394,6 +401,17 @@ Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass require
 [x] AC-15: 87/87 regression tests passing (updated for dual-LoRA, CFG 3.5/6.0, 51-step split + S257 RF patches)
 [x] AC-16: End-to-end confirmed on PC (RTX 3090 Ti, CUDA) — one real video generated and plays in-app. Mac was zombie-queued (OOM). PC is the production machine.
 
+## PHASE 3A — MAKE IT SMART (tooltips + presets + seed bank)
+[x] AC-29: All 8 sliders + FPS + resolution have plain-English `title` tooltips in index.html. Effect-first language, no jargon.
+[x] AC-30: Preset system live — `app/presets/` dir, 4 IPC handlers (listPresets/loadPreset/savePreset/deletePreset), slug allowlist + realpathSync escape guard (TOCTOU-safe: reads from `real`, not `filePath`). Loading a preset snaps all sliders; prompt untouched.
+[x] AC-31: Seed bank live — `app/seeds.json`, 3 IPC handlers (listSeeds/saveSeed/deleteSeed). [★ SAVE SEED] appears after each successful gen. [▶ LOAD] snaps sliders + seed input. Prompt NOT stored.
+[x] AC-32: Regression suite updated. 183 total tests, 0 failures.
+
+## PHASE 3B — MAKE IT A FACTORY (chaos + queue)
+[x] AC-33: Chaos slider (0–100%) in index.html. applyChaos() + chaosFloat(0.3)/chaosCfg(0.2)/chaosSteps(0.15) in renderer.js (pure, no IPC changes). FPS and resolution excluded.
+[x] AC-34: Visual render queue — jobQueue[], runQueue(), addCurrentStateAsJob(). startGeneration() has 5 optional override params (backward-compatible). Queue UI: [+ ADD TO QUEUE], job card list, [▶ RUN QUEUE], [CLEAR].
+[x] AC-35: Single-run [GENERATE] path unchanged — verified by regression test AC-35c.
+
 ## PHASE 2.5 — S259 FEATURE BATCH (resolution, FPS, report, repeat, polish)
 [x] AC-17: LoRA injection fix — `injectPlaceholders()` rewritten to accept `loraValues` and inject into nodes 6/7/18/19 (LoRA strengths) and 13/14 (CFG + step split) by node ID. Sliders are no longer decorative.
 [x] AC-18: Resolution preset dropdown — 5 presets: 832×480 LANDSCAPE 480P (default), 480×832 PORTRAIT 480P, 624×624 SQUARE, 1280×720 LANDSCAPE 720P, 720×1280 PORTRAIT 720P. Auto-detect from dropped image: compare aspect ratio to suggest matching preset, UI shows suggestion.
@@ -416,12 +434,12 @@ Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass require
 
 ┌───────────────────────────────────────────────────────────────────────────────────┐
 │ 🔋 FORGE TELEMETRY                                                                │
-│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [█████████████████████] 100% (Phase 2.6 CONFIRMED)  │
-│ [ ⟆ PHASE   ] LIVE — Phase 2.6 confirmed on Citadel: 8 runs, 18:18 avg, 2.41×, 144/144 tests. Next: mp4 metadata privacy fix + Phase 3 batch system. │
+│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [█████████████████████] 100% (Phase 3A+3B COMPLETE) │
+│ [ ⟆ PHASE   ] Phase 3 SHIPPED — tooltips, presets, seed bank, chaos, queue. 183/183 regressions. Next: batch system (DIAL + PRODUCTION modes) per BATCH_SYSTEM_PLAN.md │
 └───────────────────────────────────────────────────────────────────────────────────┘
 
 • ACTIVE STATE FILE: `WAN_BOOTH/NORTH_STAR.md` (this file)
-• PROJECT DIR: `THE_THRONE/AExMUSE/04_📦_PROJECTS/PROJECT_VENUS_FLYTRAP/WAN_BOOTH/`
+• PROJECT DIR: `THE_THRONE/AExMUSE/04_📦_PROJECTS/PROJECT_BAD_CANDY_ARCADE/WAN_BOOTH/`
 • COMFYUI API: `http://localhost:8188` (standard port)
 • COMFYUI WS: `ws://localhost:8188/ws?clientId={uuid}`
 • DEBUG LOG: `tail -f /tmp/wan_booth_debug.log` (file-based logger, live during app session)
@@ -446,7 +464,10 @@ Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass require
 ├─ [✅ DONE] AC-17 through AC-22 — S259 feature batch complete (124/124 regressions)
 ├─ [✅ DONE] S259 Opus audit — RF-S259-02 through RF-S259-10 + OPT-03 applied (137/137 regressions)
 ├─ [✅ DONE] Phase 2.6 — SA+TeaCache confirmed on Citadel: 8 runs, 18:18 avg, 2.41× speedup. TeaCache schema corrected (class `TeaCache`, no phantom fields, end_percent required). Prompt removed from reports. (144/144 regressions)
-├─ [PHASE 3] Batch mode + bot skin system + Arcade integration
+├─ [✅ DONE] Phase 3 RESEARCH — PHASE_3_CODING_BRIEF.md written. All 5 RQs resolved. Verified online. NLM brief uploaded (source ID 29252404).
+├─ [✅ DONE] Phase 3A — Tooltips + Preset system + Seed bank (183/183 regressions)
+├─ [✅ DONE] Phase 3B — Chaos slider + Visual render queue (183/183 regressions)
+├─ [NEXT] Batch system — DIAL + PRODUCTION modes per BATCH_SYSTEM_PLAN.md
 
 ## RESOLVED QUESTIONS
 1. ✅ **Build on Mac first**, transfer to PC when validated.
@@ -590,6 +611,35 @@ Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass require
 - **Quality verdict**: Brandon + Cla⌂de eyeball test: "looks SO good."
 - **Final regression state**: **144/144, 0 failing**
 - **Pattern lesson**: All schema bugs (KJNodes class typo, field rename, TeaCache class + phantom fields + missing field) came from inferring plugin schema from documentation rather than introspecting installed source. Future protocol: always query `/object_info` or `NODE_CLASS_MAPPINGS` + `INPUT_TYPES()` before writing workflow JSON.
+
+### S259 continued — 2026-05-09 — PHASE 3 RESEARCH + BRIEF
+
+**Soulforge RESEARCH session complete. 7 loops. PHASE_3_CODING_BRIEF.md written.**
+
+- **Codebase scout (Loops 1–4)**: renderer.js, index.html, main.js, comfy.js fully read. Full param schema mapped. injectPlaceholders signature + node ID routing documented. Project path corrected: PROJECT_VENUS_FLYTRAP → PROJECT_BAD_CANDY_ARCADE.
+- **NLM research (Loop 5)**: 5 parallel queries against "WAN BOOTH — Wan 2.2 Architecture & TI2V Conditioning Deep Dive" (366 sources, ID 811bfc8c). CFG, LoRA strength, step count, resolution/FPS, chaos/seed metadata — all resolved.
+- **Cross-source collisions (Loop 6)**: 4 collisions documented. Key: CFG 3.5/6.0 defaults confirmed correct; LoRA danger zone starts at 0.8 (DR34ML4Y is AT the ceiling); current 20/31 step split = 39% Stage1 = official SNR split; FPS is playback-only.
+- **Coding brief written (Loop 7)**: PHASE_3_CODING_BRIEF.md — all 5 RQs resolved with copy-paste-ready code, tooltip strings, chaos math with dampener table, implementation order, file change map, regression estimate.
+- **NLM verification pass**: 10 NLM feedback items (RF-01 through RF-10) cross-checked against codebase + 4 online Tavily searches. Net result: 1 real fix (add shift:8.0 to preset + seed bank schema), 1 note (RF-04 speed LoRA CFG caveat), 1 runtime dependency note (ComfyUI Dynamic VRAM required for queue). 4 items dead (RF-01/02/03/07). 2 already in brief (RF-06/10). 2 out of scope (RF-08/09).
+- **Brief uploaded to NLM**: Source ID 29252404. Notebook now has 367 sources.
+- **Biggest finding**: Chaos is renderer-only — zero IPC changes, zero main.js changes. Ships in one focused session.
+
+### S259 continued — 2026-05-09 — PHASE 3A+3B COMPLETE
+
+**Soulforge CODING session. All 7 ACs shipped. 183/183 regressions. Art Gate PASSED. OBSIDIAN PASSED.**
+
+- **AC-29 — Tooltips**: `title` attributes on all 8 sliders (s1-dr34mlay-str, s1-k3nk-str, s1-steps, s1-cfg, s2-dr34mlay-str, s2-k3nk-str, s2-steps, s2-cfg) + resolution-select + fps-select. Effect-first plain English.
+- **AC-30 — Preset system**: `app/presets/` dir + `index.json`. 4 IPC handlers in main.js: `wan:listPresets`, `wan:loadPreset` (slug allowlist + realpathSync escape guard, reads from `real` not `filePath` — TOCTOU-safe), `wan:savePreset`, `wan:deletePreset`. 4 bridge entries in preload.js. `loadPresets()` / `applyPreset()` / `initPresetUI()` in renderer.js. Preset UI in index.html: dropdown, LOAD/DELETE/SAVE AS… buttons, inline name-entry row. Prompt never stored.
+- **AC-31 — Seed bank**: `app/seeds.json`. 3 IPC handlers: `wan:listSeeds`, `wan:saveSeed` (integer validation, UUID from crypto), `wan:deleteSeed` (UUID format check). `initSeedBankUI()` / `refreshSeedBank()` in renderer.js. [★ SAVE SEED] appears after generation completes (hidden by default). Seed bank panel with LOAD + delete per entry. Prompt never stored.
+- **AC-32 — Regression count**: 183 tests, 0 failures (was 144).
+- **AC-33 — Chaos slider**: `#chaos-pct` range input (0–100%, step 5). `chaosFloat(0.3)` / `chaosCfg(0.2)` / `chaosSteps(0.15)` dampener math. `applyChaos()` mutates only the 8 LoRA values — FPS and resolution excluded. `initChaosSlider()` drives label: OFF / MILD / MEDIUM / WILD. Applied per-run inside `runAllJobs()`.
+- **AC-34 — Render queue**: `jobQueue[]` + `activeJobIndex`. `addCurrentStateAsJob()` snapshots current slider state. `runQueue()` drives sequential execution with per-job chaos. `renderQueueUI()` shows/hides `#queue-panel` based on queue length. Job cards show status dot (○/◈/✓/✗) + label + chaos%. Remove button on pending jobs. `[+ ADD TO QUEUE]` / `[▶ RUN QUEUE]` / `[CLEAR]` buttons.
+- **AC-35 — Backward compat**: `startGeneration()` got 5 optional params (`loraValuesOverride`, `widthOverride`, `heightOverride`, `fpsOverride`, `chaosApplied`) — all default null/0. Existing `runAllJobs(seed, prompt)` call path unchanged.
+- **OBSIDIAN caught 2 bugs**:
+  - B-01: TOCTOU — `wan:loadPreset` was reading from unresolved `filePath` after `realpathSync` check. Fixed: reads from `real`.
+  - B-02: `loadPresets()` not called at init — existing presets invisible on startup. Fixed: `await loadPresets()` in `init()`.
+  - W-04: `appendLog('info', ...)` type not in LOG_ICONS — changed to `'complete'`.
+- **Final state**: 183/183 regressions, 0 failures. Art Gate PASSED. OBSIDIAN ok:true.
 
 ## KNOWN ISSUES / OPEN QUESTIONS
 - **✅ PC SYNCED** — Phase 2.6 fully confirmed. All commits pushed to GitHub. 144/144 regressions confirmed on Citadel.
@@ -752,6 +802,7 @@ WAN_BOOTH/
 ├── GLITCHSWARM_BLACKBOARD.json (Glitchswarm S258 decisions — color/type/layout locked)
 ├── CLAUDE_FIXES.md        (Citadel bug log — BUG #1-5 with root causes + install ops IO #1-3. Replay guide for Citadel env setup.)
 ├── PHASE_2.6_BRINGUP_REPORT.md  (Cla⌂de's full Phase 2.6 bring-up report: 8 confirmed runs, 18:18 avg, 2.41×, per-step breakdown, hardware notes, all 5 bugs found/fixed, privacy residual.)
+├── PHASE_3_CODING_BRIEF.md   (Phase 3 implementation spec — all 5 RQs resolved. Copy-paste-ready code for tooltips, preset/seed IPC, chaos math, queue schema. Verified against NLM + online sources. NLM source ID: 29252404.)
 ├── app/
 │   ├── package.json
 │   ├── main.js            (Electron main — IPC, ComfyUI spawn, platform-adaptive flags, getComfyDir() helper)

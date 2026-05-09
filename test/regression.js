@@ -4,6 +4,7 @@
  * S253 DEBUGGING: RF-01–10, B-01–06 patches (5B workflow + app hardening)
  * S255 CODING: AC-09–15 (14B 2-stage MoE workflow, Mac launch flags)
  * S259 CODING: AC-17–22 (LoRA injection fix, resolution/FPS/repeat runs/export report)
+ * S259 CODING: AC-29–35 (Phase 3A+3B: tooltips, preset system, seed bank, chaos, queue)
  * Run: node test/regression.js  |  Exit 0 = all pass. Exit 1 = failures.
  */
 'use strict';
@@ -830,6 +831,202 @@ test('AC-27: NODE_LABELS contains PatchSageAttentionKJ entry', () => {
 test('AC-27: NODE_LABELS contains TeaCache entry', () => {
   assert.ok(combSrc.includes("'TeaCache':              'Applying TeaCache'"),
     'NODE_LABELS must contain TeaCache label');
+});
+
+// ── AC-29: Tooltips on sliders and output controls ───────────────────────────
+console.log('\nAC-29 — tooltips on sliders + output controls');
+
+test('AC-29a: s1-dr34mlay-str has title attribute', () => {
+  assert.ok(indexHtml.includes('id="s1-dr34mlay-str"') && indexHtml.includes('title='),
+    's1-dr34mlay-str missing title attribute');
+});
+test('AC-29b: s1-cfg has title attribute', () => {
+  assert.ok(indexHtml.match(/id="s1-cfg"[\s\S]{0,200}title=/),
+    's1-cfg missing title attribute');
+});
+test('AC-29c: s2-steps has title attribute', () => {
+  assert.ok(indexHtml.match(/id="s2-steps"[\s\S]{0,200}title=/),
+    's2-steps missing title attribute');
+});
+test('AC-29d: resolution-select has title attribute', () => {
+  assert.ok(indexHtml.match(/id="resolution-select"[\s\S]{0,300}title=/),
+    'resolution-select missing title attribute');
+});
+test('AC-29e: fps-select has title attribute', () => {
+  assert.ok(indexHtml.match(/id="fps-select"[\s\S]{0,300}title=/),
+    'fps-select missing title attribute');
+});
+
+// ── AC-30: Preset system — IPC handlers + security + UI ──────────────────────
+console.log('\nAC-30 — preset system');
+
+test('AC-30a: ALLOWED_PRESET_SLUG pattern defined in main.js', () => {
+  assert.ok(mainSrc.includes('ALLOWED_PRESET_SLUG'), 'ALLOWED_PRESET_SLUG missing from main.js');
+});
+test('AC-30b: wan:listPresets handler exists', () => {
+  assert.ok(mainSrc.includes("'wan:listPresets'"), 'wan:listPresets handler missing');
+});
+test('AC-30c: wan:loadPreset validates slug with allowlist', () => {
+  assert.ok(mainSrc.includes("'wan:loadPreset'") && mainSrc.includes('ALLOWED_PRESET_SLUG.test(slug)'),
+    'wan:loadPreset missing or missing slug validation');
+});
+test('AC-30d: wan:loadPreset uses realpathSync escape guard', () => {
+  const loadPresetBlock = mainSrc.slice(mainSrc.indexOf("'wan:loadPreset'"));
+  assert.ok(loadPresetBlock.includes('realpathSync'), 'wan:loadPreset missing realpathSync escape guard');
+});
+test('AC-30e: wan:savePreset handler exists', () => {
+  assert.ok(mainSrc.includes("'wan:savePreset'"), 'wan:savePreset handler missing');
+});
+test('AC-30f: wan:deletePreset handler exists', () => {
+  assert.ok(mainSrc.includes("'wan:deletePreset'"), 'wan:deletePreset handler missing');
+});
+test('AC-30g: preload.js bridges all 4 preset methods', () => {
+  const pl = fs.readFileSync(path.join(APP_DIR, 'preload.js'), 'utf8');
+  assert.ok(pl.includes('listPresets'), 'listPresets not bridged in preload.js');
+  assert.ok(pl.includes('loadPreset'),  'loadPreset not bridged in preload.js');
+  assert.ok(pl.includes('savePreset'),  'savePreset not bridged in preload.js');
+  assert.ok(pl.includes('deletePreset'), 'deletePreset not bridged in preload.js');
+});
+test('AC-30h: #preset-section and #preset-select present in index.html', () => {
+  assert.ok(indexHtml.includes('id="preset-section"'), '#preset-section missing from HTML');
+  assert.ok(indexHtml.includes('id="preset-select"'),  '#preset-select missing from HTML');
+});
+test('AC-30i: renderer.js defines loadPresets and applyPreset and initPresetUI', () => {
+  assert.ok(renderSrc.includes('async function loadPresets'), 'loadPresets missing');
+  assert.ok(renderSrc.includes('async function applyPreset'), 'applyPreset missing');
+  assert.ok(renderSrc.includes('function initPresetUI'),      'initPresetUI missing');
+});
+test('AC-30j: presets/index.json exists and is valid JSON array', () => {
+  const indexJson = path.join(APP_DIR, 'presets', 'index.json');
+  assert.ok(fs.existsSync(indexJson), 'presets/index.json does not exist');
+  const parsed = JSON.parse(fs.readFileSync(indexJson, 'utf8'));
+  assert.ok(Array.isArray(parsed), 'presets/index.json must be a JSON array');
+});
+
+// ── AC-31: Seed bank — IPC handlers + security + UI ──────────────────────────
+console.log('\nAC-31 — seed bank');
+
+test('AC-31a: wan:listSeeds / saveSeed / deleteSeed handlers exist', () => {
+  assert.ok(mainSrc.includes("'wan:listSeeds'"),  'wan:listSeeds missing');
+  assert.ok(mainSrc.includes("'wan:saveSeed'"),   'wan:saveSeed missing');
+  assert.ok(mainSrc.includes("'wan:deleteSeed'"), 'wan:deleteSeed missing');
+});
+test('AC-31b: saveSeed validates seed is integer', () => {
+  assert.ok(mainSrc.includes('Number.isInteger(entry.seed)'), 'saveSeed missing integer check');
+});
+test('AC-31c: deleteSeed validates UUID format', () => {
+  assert.ok(mainSrc.includes('[0-9a-f-]{36}'), 'deleteSeed missing UUID regex');
+});
+test('AC-31d: preload.js bridges listSeeds, saveSeed, deleteSeed', () => {
+  const pl = fs.readFileSync(path.join(APP_DIR, 'preload.js'), 'utf8');
+  assert.ok(pl.includes('listSeeds'),  'listSeeds not bridged');
+  assert.ok(pl.includes('saveSeed'),   'saveSeed not bridged');
+  assert.ok(pl.includes('deleteSeed'), 'deleteSeed not bridged');
+});
+test('AC-31e: seeds.json exists and is valid JSON', () => {
+  const seedsPath = path.join(APP_DIR, 'seeds.json');
+  assert.ok(fs.existsSync(seedsPath), 'seeds.json does not exist');
+  const parsed = JSON.parse(fs.readFileSync(seedsPath, 'utf8'));
+  assert.ok(Array.isArray(parsed.seeds), 'seeds.json must have a seeds array');
+});
+test('AC-31f: #save-seed-btn and #seed-bank-panel in index.html', () => {
+  assert.ok(indexHtml.includes('id="save-seed-btn"'),   '#save-seed-btn missing');
+  assert.ok(indexHtml.includes('id="seed-bank-panel"'), '#seed-bank-panel missing');
+  assert.ok(indexHtml.includes('id="seed-bank-list"'),  '#seed-bank-list missing');
+});
+test('AC-31g: randomUUID imported from crypto in main.js', () => {
+  assert.ok(mainSrc.includes("randomUUID") && mainSrc.includes("require('crypto')"),
+    'randomUUID not imported from crypto');
+});
+test('AC-31h: prompt NOT stored in seed entry (privacy)', () => {
+  const saveSeedBlock = mainSrc.slice(mainSrc.indexOf("'wan:saveSeed'"),
+    mainSrc.indexOf("'wan:deleteSeed'"));
+  assert.ok(!saveSeedBlock.includes('prompt'), 'prompt must NOT be stored in seed bank');
+});
+
+// ── AC-32: Data files exist ───────────────────────────────────────────────────
+console.log('\nAC-32 — data files + init wiring');
+
+test('AC-32a: presets directory exists', () => {
+  assert.ok(fs.existsSync(path.join(APP_DIR, 'presets')), 'app/presets/ directory missing');
+});
+test('AC-32b: renderer.js init() calls all 4 phase-3 init functions', () => {
+  const initBlock = renderSrc.slice(renderSrc.indexOf('async function init()'));
+  assert.ok(initBlock.includes('initChaosSlider()'),  'initChaosSlider() not called in init()');
+  assert.ok(initBlock.includes('initPresetUI()'),     'initPresetUI() not called in init()');
+  assert.ok(initBlock.includes('initSeedBankUI()'),   'initSeedBankUI() not called in init()');
+  assert.ok(initBlock.includes('initQueueUI()'),      'initQueueUI() not called in init()');
+});
+
+// ── AC-33: Chaos slider ───────────────────────────────────────────────────────
+console.log('\nAC-33 — chaos slider');
+
+test('AC-33a: chaosFloat defined with dampener 0.3', () => {
+  assert.ok(renderSrc.includes('chaosFloat') && renderSrc.includes('0.3'),
+    'chaosFloat missing or wrong dampener');
+});
+test('AC-33b: chaosCfg defined with dampener 0.2', () => {
+  assert.ok(renderSrc.includes('chaosCfg') && renderSrc.includes('0.2'),
+    'chaosCfg missing or wrong dampener');
+});
+test('AC-33c: chaosSteps defined with dampener 0.15', () => {
+  assert.ok(renderSrc.includes('chaosSteps') && renderSrc.includes('0.15'),
+    'chaosSteps missing or wrong dampener');
+});
+test('AC-33d: applyChaos function defined', () => {
+  assert.ok(renderSrc.includes('function applyChaos'), 'applyChaos missing');
+});
+test('AC-33e: #chaos-pct slider in index.html with correct range', () => {
+  assert.ok(indexHtml.includes('id="chaos-pct"'), '#chaos-pct missing from HTML');
+  assert.ok(indexHtml.includes('min="0"') && indexHtml.includes('max="100"'),
+    '#chaos-pct missing min/max range');
+});
+test('AC-33f: chaos does NOT apply to FPS or resolution', () => {
+  const applyBlock = renderSrc.slice(
+    renderSrc.indexOf('function applyChaos'),
+    renderSrc.indexOf('// ─── CHAOS SLIDER UX')
+  );
+  assert.ok(!applyBlock.includes('fps') && !applyBlock.includes('resolution') &&
+            !applyBlock.includes('width') && !applyBlock.includes('height'),
+    'applyChaos must not touch fps or resolution');
+});
+
+// ── AC-34: Render queue ───────────────────────────────────────────────────────
+console.log('\nAC-34 — render queue');
+
+test('AC-34a: jobQueue array and activeJobIndex defined', () => {
+  assert.ok(renderSrc.includes('jobQueue') && renderSrc.includes('activeJobIndex'),
+    'queue state variables missing');
+});
+test('AC-34b: addCurrentStateAsJob function defined', () => {
+  assert.ok(renderSrc.includes('function addCurrentStateAsJob'), 'addCurrentStateAsJob missing');
+});
+test('AC-34c: runQueue is async and checks selectedImageFilename', () => {
+  assert.ok(renderSrc.includes('async function runQueue'), 'runQueue missing or not async');
+  assert.ok(renderSrc.includes('selectedImageFilename'), 'runQueue must guard on selectedImageFilename');
+});
+test('AC-34d: renderQueueUI hides queue-panel when jobQueue empty', () => {
+  assert.ok(renderSrc.includes("jobQueue.length > 0 ? 'block' : 'none'"),
+    'renderQueueUI must show/hide queue-panel based on jobQueue.length');
+});
+test('AC-34e: #queue-panel, #queue-list, #run-queue-btn in index.html', () => {
+  assert.ok(indexHtml.includes('id="queue-panel"'),   '#queue-panel missing');
+  assert.ok(indexHtml.includes('id="queue-list"'),    '#queue-list missing');
+  assert.ok(indexHtml.includes('id="run-queue-btn"'), '#run-queue-btn missing');
+  assert.ok(indexHtml.includes('id="add-to-queue-btn"'), '#add-to-queue-btn missing');
+});
+
+// ── AC-35: Single-run generate path unchanged ─────────────────────────────────
+console.log('\nAC-35 — single-run path backward-compatible');
+
+test('AC-35a: startGeneration has loraValuesOverride param with default null', () => {
+  assert.ok(renderSrc.includes('loraValuesOverride = null'), 'loraValuesOverride default null missing');
+});
+test('AC-35b: startGeneration has chaosApplied param with default 0', () => {
+  assert.ok(renderSrc.includes('chaosApplied = 0'), 'chaosApplied default 0 missing');
+});
+test('AC-35c: go-btn listener still calls runAllJobs (single-run path)', () => {
+  assert.ok(renderSrc.includes('runAllJobs'), 'runAllJobs missing — single-run path broken');
 });
 
 // ── Summary ──────────────────────────────────────────────────────────────────

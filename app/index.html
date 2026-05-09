@@ -643,6 +643,460 @@
     .log-entry[data-type="step"]     .log-msg    { color: var(--ws-amber); opacity: 0.75; }
     .log-entry[data-type="error"]    .log-icon,
     .log-entry[data-type="error"]    .log-msg    { color: var(--ws-state-error); }
+    .log-entry[data-type="init"]     .log-icon,
+    .log-entry[data-type="init"]     .log-msg    { color: var(--ws-fg-muted); opacity: 0.7; }
+    .log-entry[data-type="queue"]    .log-icon,
+    .log-entry[data-type="queue"]    .log-msg    { color: var(--ws-neon); opacity: 0.8; }
+
+    /* ── PRESET SECTION ─────────────────────────────────────────────── */
+    #preset-section {
+      border: 1px solid var(--ws-border);
+      background: var(--ws-bg-elevated);
+    }
+
+    #preset-bar {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto auto;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+    }
+
+    #preset-bar-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-fg-muted);
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    #preset-select {
+      font-family: var(--ws-font-mono);
+      font-size: 11px;
+      background: var(--ws-bg);
+      color: var(--ws-fg);
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      padding: 3px 6px;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: border-color 150ms ease;
+    }
+
+    #preset-select:hover,
+    #preset-select:focus { border-color: var(--ws-border-active); }
+
+    .preset-btn {
+      font-family: var(--ws-font-ui);
+      font-size: 10px;
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      background: transparent;
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      color: var(--ws-fg-muted);
+      cursor: pointer;
+      padding: 3px 8px;
+      white-space: nowrap;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+
+    .preset-btn:hover {
+      border-color: var(--ws-border-active);
+      color: var(--ws-amber);
+    }
+
+    #preset-delete-btn { display: none; }
+
+    #preset-save-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 12px;
+      border-top: 1px solid var(--ws-border);
+    }
+
+    #preset-name-input {
+      font-family: var(--ws-font-mono);
+      font-size: 11px;
+      background: var(--ws-bg);
+      color: var(--ws-fg);
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      padding: 3px 8px;
+      flex: 1;
+      outline: none;
+      transition: border-color 150ms ease;
+    }
+
+    #preset-name-input:focus { border-color: var(--ws-border-active); }
+
+    /* ── CHAOS CARD ─────────────────────────────────────────────────── */
+    #chaos-card {
+      border: 1px solid var(--ws-border);
+      background: var(--ws-bg-elevated);
+    }
+
+    #chaos-card-header {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--ws-border);
+      gap: 12px;
+    }
+
+    #chaos-card-title {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-fg-muted);
+      text-transform: uppercase;
+    }
+
+    #chaos-label-text {
+      font-family: var(--ws-font-mono);
+      font-size: 10px;
+      color: var(--ws-amber);
+      letter-spacing: 0.04em;
+      text-align: right;
+    }
+
+    #chaos-pct-val {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-small);
+      color: var(--ws-fg-muted);
+      min-width: 34px;
+      text-align: right;
+    }
+
+    #chaos-card-body {
+      padding: 8px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #chaos-pct {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 3px;
+      background: var(--ws-border);
+      outline: none;
+      cursor: pointer;
+    }
+
+    #chaos-pct::-webkit-slider-runnable-track { height: 3px; background: var(--ws-border); }
+
+    #chaos-pct::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 3px;
+      height: 16px;
+      background: var(--ws-amber);
+      border: none;
+      border-radius: 0;
+      margin-top: -6.5px;
+      cursor: pointer;
+      transition: background 100ms ease;
+    }
+
+    #chaos-pct:hover::-webkit-slider-thumb {
+      background: color-mix(in oklch, var(--ws-amber) 85%, white);
+    }
+
+    /* ── ACTION ROW (save seed + add to queue) ──────────────────────── */
+    #action-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    #save-seed-btn {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      background: transparent;
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      color: var(--ws-fg-muted);
+      cursor: pointer;
+      padding: 6px 14px;
+      white-space: nowrap;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+
+    #save-seed-btn:hover {
+      border-color: var(--ws-border-active);
+      color: var(--ws-amber);
+    }
+
+    #add-to-queue-btn {
+      flex: 1;
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      background: transparent;
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      color: var(--ws-fg-muted);
+      cursor: pointer;
+      padding: 6px 14px;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+
+    #add-to-queue-btn:hover {
+      border-color: var(--ws-neon);
+      color: var(--ws-neon);
+    }
+
+    /* ── SAVE-SEED INLINE FORM ──────────────────────────────────────── */
+    #save-seed-row {
+      display: none;
+      align-items: center;
+      gap: 8px;
+    }
+
+    #seed-label-input {
+      font-family: var(--ws-font-mono);
+      font-size: 11px;
+      background: var(--ws-bg-elevated);
+      color: var(--ws-fg);
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      padding: 5px 8px;
+      flex: 1;
+      outline: none;
+      transition: border-color 150ms ease;
+    }
+
+    #seed-label-input:focus { border-color: var(--ws-border-active); }
+
+    #seed-save-confirm,
+    #seed-save-skip {
+      font-family: var(--ws-font-ui);
+      font-size: 10px;
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      background: transparent;
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      color: var(--ws-fg-muted);
+      cursor: pointer;
+      padding: 5px 10px;
+      white-space: nowrap;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+
+    #seed-save-confirm:hover { border-color: var(--ws-amber); color: var(--ws-amber); }
+    #seed-save-skip:hover    { border-color: var(--ws-border-active); }
+
+    /* ── SEED BANK ──────────────────────────────────────────────────── */
+    #seed-bank-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #seed-bank-bar-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-fg-muted);
+      user-select: none;
+      opacity: 0.6;
+    }
+
+    #seed-bank-toggle {
+      font-family: var(--ws-font-mono);
+      font-size: 10px;
+      background: transparent;
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      color: var(--ws-fg-muted);
+      cursor: pointer;
+      padding: 2px 8px;
+      letter-spacing: 0.06em;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+
+    #seed-bank-toggle:hover {
+      border-color: var(--ws-border-active);
+      color: var(--ws-amber);
+    }
+
+    #seed-bank-panel {
+      background: color-mix(in oklch, var(--ws-bg) 60%, black);
+      border: 1px solid var(--ws-border);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .seed-bank-entry {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--ws-border);
+      gap: 8px;
+    }
+
+    .seed-bank-entry:last-child { border-bottom: none; }
+
+    .seed-bank-entry-info {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .seed-bank-entry-seed {
+      font-family: var(--ws-font-mono);
+      font-size: 11px;
+      color: var(--ws-amber);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .seed-bank-entry-label {
+      font-family: var(--ws-font-mono);
+      font-size: 11px;
+      color: var(--ws-fg);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .seed-bank-entry-date {
+      font-family: var(--ws-font-mono);
+      font-size: 10px;
+      color: var(--ws-fg-muted);
+      opacity: 0.5;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .seed-bank-entry-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    .seed-entry-load,
+    .seed-entry-delete {
+      font-family: var(--ws-font-ui);
+      font-size: 10px;
+      letter-spacing: var(--ws-tracking-ui);
+      background: transparent;
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      cursor: pointer;
+      padding: 2px 6px;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+
+    .seed-entry-load { color: var(--ws-fg-muted); }
+    .seed-entry-load:hover { border-color: var(--ws-amber); color: var(--ws-amber); }
+
+    .seed-entry-delete { color: var(--ws-fg-muted); opacity: 0.5; }
+    .seed-entry-delete:hover { opacity: 1; color: var(--ws-state-error); border-color: var(--ws-state-error); }
+
+    .seed-bank-empty {
+      padding: 8px 12px;
+      font-family: var(--ws-font-mono);
+      font-size: 11px;
+      color: var(--ws-fg-muted);
+      opacity: 0.5;
+    }
+
+    /* ── QUEUE PANEL ────────────────────────────────────────────────── */
+    #queue-panel {
+      border: 1px solid var(--ws-border);
+      background: var(--ws-bg-elevated);
+    }
+
+    #queue-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--ws-border);
+    }
+
+    #queue-header-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-fg-muted);
+      text-transform: uppercase;
+    }
+
+    #queue-header-actions { display: flex; gap: 8px; }
+
+    .queue-btn {
+      font-family: var(--ws-font-ui);
+      font-size: 10px;
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      background: transparent;
+      border: 1px solid var(--ws-border);
+      border-radius: 0;
+      color: var(--ws-fg-muted);
+      cursor: pointer;
+      padding: 3px 8px;
+      transition: border-color 150ms ease, color 150ms ease;
+    }
+
+    .queue-btn:hover { border-color: var(--ws-border-active); color: var(--ws-amber); }
+    #run-queue-btn:hover { border-color: var(--ws-neon); color: var(--ws-neon); }
+
+    #queue-list {
+      background: color-mix(in oklch, var(--ws-bg) 60%, black);
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .queue-job-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--ws-border);
+      font-family: var(--ws-font-mono);
+      font-size: 11px;
+    }
+
+    .queue-job-card:last-child { border-bottom: none; }
+
+    .queue-job-status { flex-shrink: 0; width: 14px; text-align: center; color: var(--ws-fg-muted); }
+    .queue-job-label  { color: var(--ws-fg-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .queue-job-chaos  { font-size: 10px; color: var(--ws-amber); opacity: 0.7; flex-shrink: 0; }
+
+    .queue-job-card[data-status="running"]  .queue-job-label { color: var(--ws-amber); }
+    .queue-job-card[data-status="complete"] .queue-job-label { color: var(--ws-neon); opacity: 0.7; }
+    .queue-job-card[data-status="error"]    .queue-job-label { color: var(--ws-state-error); }
+
+    .queue-job-remove {
+      font-family: var(--ws-font-mono);
+      font-size: 12px;
+      background: transparent;
+      border: none;
+      color: var(--ws-fg-muted);
+      cursor: pointer;
+      opacity: 0.4;
+      padding: 0 2px;
+      flex-shrink: 0;
+      transition: opacity 150ms ease, color 150ms ease;
+    }
+
+    .queue-job-remove:hover { opacity: 1; color: var(--ws-state-error); }
 
     /* ── VIDEO PLAYER ────────────────────────────────────────────────── */
     #video-player {
@@ -735,6 +1189,24 @@
     <!-- Prompt input -->
     <textarea id="prompt-input" placeholder="Describe motion, camera, scene..."></textarea>
 
+    <!-- Preset section — save/load LoRA + output configurations -->
+    <div id="preset-section">
+      <div id="preset-bar">
+        <span id="preset-bar-label">PRESETS</span>
+        <select id="preset-select" aria-label="Select a saved preset">
+          <option value="">— Select Preset —</option>
+        </select>
+        <button class="preset-btn" id="preset-load-btn" aria-label="Load selected preset">LOAD</button>
+        <button class="preset-btn" id="preset-delete-btn" aria-label="Delete selected preset">DELETE</button>
+        <button class="preset-btn" id="preset-save-btn" aria-label="Save current settings as preset">SAVE AS…</button>
+      </div>
+      <div id="preset-save-row">
+        <input type="text" id="preset-name-input" placeholder="preset name..." maxlength="64" aria-label="Preset name">
+        <button class="preset-btn" id="preset-confirm-btn">SAVE</button>
+        <button class="preset-btn" id="preset-cancel-btn">CANCEL</button>
+      </div>
+    </div>
+
     <!-- LoRA Stage Cards
          Two collapsible equipment panels. Stage 1 and Stage 2 are joined
          by a 4px seam inside .lora-section — they read as one instrument block.
@@ -770,7 +1242,8 @@
             <div class="lora-row-track">
               <input type="range" class="lora-slider" id="s1-dr34mlay-str"
                      min="0" max="1" step="0.01" value="0.80"
-                     aria-label="Stage 1 DR34ML4Y strength">
+                     aria-label="Stage 1 DR34ML4Y strength"
+                     title="Blends anime detail texture into the base image (Stage 1). Higher = stronger detail injection.">
             </div>
             <span class="lora-row-value" id="s1-dr34mlay-str-val">0.80</span>
           </div>
@@ -781,7 +1254,8 @@
             <div class="lora-row-track">
               <input type="range" class="lora-slider" id="s1-k3nk-str"
                      min="0" max="1" step="0.01" value="0.60"
-                     aria-label="Stage 1 k3nk strength">
+                     aria-label="Stage 1 k3nk strength"
+                     title="K3NK stylization strength in Stage 1. Higher = stronger artistic push.">
             </div>
             <span class="lora-row-value" id="s1-k3nk-str-val">0.60</span>
           </div>
@@ -792,7 +1266,8 @@
             <div class="lora-row-track">
               <input type="range" class="lora-slider" id="s1-steps"
                      min="1" max="60" step="1" value="20"
-                     aria-label="Stage 1 steps">
+                     aria-label="Stage 1 steps"
+                     title="How many refinement steps Stage 1 runs. Higher = more detail but slower.">
             </div>
             <span class="lora-row-value" id="s1-steps-val">20</span>
           </div>
@@ -803,7 +1278,8 @@
             <div class="lora-row-track">
               <input type="range" class="lora-slider" id="s1-cfg"
                      min="1" max="15" step="0.1" value="3.5"
-                     aria-label="Stage 1 CFG scale">
+                     aria-label="Stage 1 CFG scale"
+                     title="Prompt adherence in Stage 1. Higher = more literal to prompt; lower = more creative drift.">
             </div>
             <span class="lora-row-value" id="s1-cfg-val">3.5</span>
           </div>
@@ -829,7 +1305,8 @@
             <div class="lora-row-track">
               <input type="range" class="lora-slider" id="s2-dr34mlay-str"
                      min="0" max="1" step="0.01" value="0.80"
-                     aria-label="Stage 2 DR34ML4Y strength">
+                     aria-label="Stage 2 DR34ML4Y strength"
+                     title="DR34ML4Y texture in the refinement pass (Stage 2). Adds fine detail on top of Stage 1.">
             </div>
             <span class="lora-row-value" id="s2-dr34mlay-str-val">0.80</span>
           </div>
@@ -840,7 +1317,8 @@
             <div class="lora-row-track">
               <input type="range" class="lora-slider" id="s2-k3nk-str"
                      min="0" max="1" step="0.01" value="0.60"
-                     aria-label="Stage 2 k3nk strength">
+                     aria-label="Stage 2 k3nk strength"
+                     title="K3NK stylization in Stage 2. Balances Stage 1's stylistic push with refinement.">
             </div>
             <span class="lora-row-value" id="s2-k3nk-str-val">0.60</span>
           </div>
@@ -851,7 +1329,8 @@
             <div class="lora-row-track">
               <input type="range" class="lora-slider" id="s2-steps"
                      min="1" max="60" step="1" value="31"
-                     aria-label="Stage 2 steps">
+                     aria-label="Stage 2 steps"
+                     title="Refinement pass step count. More steps = sharper result but longer render time.">
             </div>
             <span class="lora-row-value" id="s2-steps-val">31</span>
           </div>
@@ -862,7 +1341,8 @@
             <div class="lora-row-track">
               <input type="range" class="lora-slider" id="s2-cfg"
                      min="1" max="15" step="0.1" value="6.0"
-                     aria-label="Stage 2 CFG scale">
+                     aria-label="Stage 2 CFG scale"
+                     title="Prompt adherence in Stage 2. Usually set higher than Stage 1 to lock down composition.">
             </div>
             <span class="lora-row-value" id="s2-cfg-val">6.0</span>
           </div>
@@ -871,6 +1351,20 @@
       </div><!-- /#lora-stage-2 -->
 
     </div><!-- /.lora-section -->
+
+    <!-- Chaos slider — randomizes LoRA values per-run by a percentage -->
+    <div id="chaos-card">
+      <div id="chaos-card-header">
+        <span id="chaos-card-title">CHAOS</span>
+        <span id="chaos-label-text">CHAOS OFF — exact values every run</span>
+        <span id="chaos-pct-val">0%</span>
+      </div>
+      <div id="chaos-card-body">
+        <input type="range" id="chaos-pct" min="0" max="100" step="5" value="0"
+               aria-label="Chaos percentage — randomizes LoRA values per run"
+               title="Adds controlled randomness to LoRA values each run. 0% = exact. 100% = fully random within slider range.">
+      </div>
+    </div>
 
     <!-- Seed row -->
     <div id="seed-row">
@@ -886,7 +1380,8 @@
 
         <div class="output-row">
           <label class="output-label" for="resolution-select">RESOLUTION</label>
-          <select id="resolution-select" class="output-select" aria-label="Output resolution preset">
+          <select id="resolution-select" class="output-select" aria-label="Output resolution preset"
+                  title="Output frame dimensions. 720p is ~4× slower than 480p.">
             <option value="832x480" selected>832×480  —  LANDSCAPE 480P</option>
             <option value="480x832">480×832  —  PORTRAIT 480P</option>
             <option value="624x624">624×624  —  SQUARE</option>
@@ -897,7 +1392,8 @@
 
         <div class="output-row">
           <label class="output-label" for="fps-select">FRAME RATE</label>
-          <select id="fps-select" class="output-select" aria-label="Output frame rate">
+          <select id="fps-select" class="output-select" aria-label="Output frame rate"
+                  title="Playback speed of the output video. 16 FPS is WAN's native rate.">
             <option value="8">8 FPS  —  minimum</option>
             <option value="12">12 FPS  —  slow</option>
             <option value="16" selected>16 FPS  —  native (default)</option>
@@ -926,6 +1422,19 @@
 
     <!-- Generate button -->
     <button id="go-btn">GENERATE</button>
+
+    <!-- Action row: save last seed + add current state to queue -->
+    <div id="action-row">
+      <button id="save-seed-btn" style="display:none" aria-label="Save last generated seed to seed bank">★ SAVE SEED</button>
+      <button id="add-to-queue-btn" aria-label="Add current settings as a job to the render queue">+ ADD TO QUEUE</button>
+    </div>
+
+    <!-- Inline seed-label form (shown when ★ SAVE SEED is clicked) -->
+    <div id="save-seed-row">
+      <input type="text" id="seed-label-input" placeholder="label this seed..." maxlength="200" aria-label="Seed label">
+      <button id="seed-save-confirm">SAVE</button>
+      <button id="seed-save-skip">SKIP</button>
+    </div>
 
     <!-- Progress bar — 11px with shimmer overlay child -->
     <div id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
@@ -956,6 +1465,27 @@
     </div>
     <div id="log-panel">
       <div id="log-output"></div>
+    </div>
+
+    <!-- Seed bank — saved seeds from completed generations -->
+    <div id="seed-bank-bar">
+      <span id="seed-bank-bar-label">SEED BANK</span>
+      <button id="seed-bank-toggle" aria-label="Toggle seed bank panel">▾ SHOW</button>
+    </div>
+    <div id="seed-bank-panel" style="display:none" aria-label="Saved seeds">
+      <div id="seed-bank-list"></div>
+    </div>
+
+    <!-- Queue panel — shown by JS when jobQueue has entries -->
+    <div id="queue-panel" style="display:none">
+      <div id="queue-header">
+        <span id="queue-header-label">RENDER QUEUE</span>
+        <div id="queue-header-actions">
+          <button class="queue-btn" id="run-queue-btn" aria-label="Run all pending queue jobs">▶ RUN QUEUE</button>
+          <button class="queue-btn" id="queue-clear-btn" aria-label="Clear pending queue jobs">CLEAR</button>
+        </div>
+      </div>
+      <div id="queue-list" aria-label="Queue jobs"></div>
     </div>
 
     <!-- Video player (hidden until video is ready) -->

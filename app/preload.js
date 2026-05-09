@@ -13,4 +13,11 @@ contextBridge.exposeInMainWorld('wan', {
   writeReport:    (filename, content) => ipcRenderer.invoke('wan:writeReport', { filename, content }),
   // NOTE: webUtils.getPathForFile() (Electron 28+ replacement for file.path) is renderer-only —
   // it cannot be bridged from preload on Electron 28. Revisit when upgrading to Electron 32+.
+  listPresets:    ()               => ipcRenderer.invoke('wan:listPresets'),
+  loadPreset:     (slug)           => ipcRenderer.invoke('wan:loadPreset', slug),
+  savePreset:     (slug, data)     => ipcRenderer.invoke('wan:savePreset', { slug, data }),
+  deletePreset:   (slug)           => ipcRenderer.invoke('wan:deletePreset', slug),
+  listSeeds:      ()               => ipcRenderer.invoke('wan:listSeeds'),
+  saveSeed:       (entry)          => ipcRenderer.invoke('wan:saveSeed', entry),
+  deleteSeed:     (id)             => ipcRenderer.invoke('wan:deleteSeed', id),
 });
