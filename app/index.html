@@ -1098,6 +1098,285 @@
 
     .queue-job-remove:hover { opacity: 1; color: var(--ws-state-error); }
 
+    /* ── DIAL MODE + PRODUCTION MODE ────────────────────────────────── */
+    #dial-section,
+    #prod-section {
+      border: 1px solid var(--ws-border);
+      background: var(--ws-bg-elevated);
+    }
+
+    #dial-bar,
+    #prod-bar {
+      display: flex;
+      align-items: center;
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--ws-border);
+      gap: 8px;
+    }
+
+    #dial-bar-label,
+    #prod-bar-label {
+      flex: 1;
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-fg-muted);
+      text-transform: uppercase;
+      user-select: none;
+    }
+
+    #dial-toggle,
+    #prod-toggle {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      background: transparent;
+      border: none;
+      color: var(--ws-fg-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      transition: color 150ms ease;
+    }
+
+    #dial-toggle:hover,
+    #prod-toggle:hover { color: var(--ws-fg); }
+
+    #dial-body,
+    #prod-body {
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .dial-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dial-axis-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .dial-row-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-fg-muted);
+      text-transform: uppercase;
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+
+    .dial-field-label {
+      font-family: var(--ws-font-ui);
+      font-size: 9px;
+      color: var(--ws-fg-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+    }
+
+    .dial-select {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-small);
+      background: var(--ws-bg);
+      color: var(--ws-fg);
+      border: 1px solid var(--ws-border);
+      padding: 3px 6px;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      transition: border-color 150ms ease;
+    }
+
+    .dial-select:hover,
+    .dial-select:focus { border-color: var(--ws-border-active); }
+
+    .dial-num-input {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-small);
+      background: var(--ws-bg);
+      color: var(--ws-fg);
+      border: 1px solid var(--ws-border);
+      padding: 3px 6px;
+      width: 62px;
+      outline: none;
+      text-align: right;
+      transition: border-color 150ms ease;
+    }
+
+    .dial-num-input:focus { border-color: var(--ws-border-active); }
+
+    .dial-small-btn {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      background: var(--ws-bg);
+      color: var(--ws-fg-muted);
+      border: 1px solid var(--ws-border);
+      padding: 3px 6px;
+      cursor: pointer;
+      transition: color 150ms ease, border-color 150ms ease;
+    }
+
+    .dial-small-btn:hover { color: var(--ws-fg); border-color: var(--ws-border-active); }
+
+    .dial-lock-active {
+      color: var(--ws-amber) !important;
+      border-color: var(--ws-amber) !important;
+    }
+
+    .dial-seed-val {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-small);
+      color: var(--ws-fg-muted);
+      flex: 1;
+    }
+
+    .dial-run-row { justify-content: flex-end; margin-top: 2px; }
+
+    .dial-job-count {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-small);
+      color: var(--ws-fg-muted);
+      flex: 1;
+    }
+
+    .dial-run-btn {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      background: var(--ws-bg);
+      color: var(--ws-neon);
+      border: 1px solid var(--ws-neon);
+      padding: 6px 16px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: background 150ms ease, color 150ms ease;
+    }
+
+    .dial-run-btn:hover { background: var(--ws-neon); color: var(--ws-bg); }
+    .dial-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── BATCH STATUS PANEL ──────────────────────────────────────────── */
+    #batch-panel {
+      border: 1px solid var(--ws-border-active);
+      background: var(--ws-bg-elevated);
+    }
+
+    #batch-header {
+      display: flex;
+      align-items: center;
+      padding: 5px 12px;
+      border-bottom: 1px solid var(--ws-border);
+      gap: 8px;
+    }
+
+    #batch-mode-label {
+      flex: 1;
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      color: var(--ws-neon);
+      text-transform: uppercase;
+    }
+
+    #batch-eta {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-small);
+      color: var(--ws-fg-muted);
+    }
+
+    #batch-progress-track {
+      height: 4px;
+      background: var(--ws-border);
+    }
+
+    #batch-progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--ws-neon);
+      transition: width 300ms ease;
+    }
+
+    #batch-job-list {
+      padding: 4px 0;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .batch-job-card {
+      display: flex;
+      align-items: center;
+      padding: 4px 12px;
+      gap: 8px;
+      border-bottom: 1px solid var(--ws-border);
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-small);
+    }
+
+    .batch-job-card:last-child { border-bottom: none; }
+
+    .batch-job-icon { font-size: 10px; flex-shrink: 0; min-width: 12px; }
+
+    .batch-job-label {
+      flex: 1;
+      color: var(--ws-fg-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .batch-job-running .batch-job-label { color: var(--ws-fg); }
+    .batch-job-complete .batch-job-icon { color: var(--ws-neon); }
+    .batch-job-error .batch-job-icon    { color: #ff4444; }
+
+    .batch-promote-btn {
+      font-family: var(--ws-font-ui);
+      font-size: 9px;
+      font-weight: var(--ws-weight-label);
+      letter-spacing: var(--ws-tracking-ui);
+      background: transparent;
+      color: var(--ws-amber);
+      border: 1px solid var(--ws-amber);
+      padding: 2px 6px;
+      cursor: pointer;
+      text-transform: uppercase;
+      flex-shrink: 0;
+      transition: background 150ms ease, color 150ms ease;
+    }
+
+    .batch-promote-btn:hover { background: var(--ws-amber); color: var(--ws-bg); }
+
+    #batch-footer {
+      padding: 6px 12px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    #batch-cancel-btn {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      letter-spacing: var(--ws-tracking-ui);
+      background: transparent;
+      color: var(--ws-fg-muted);
+      border: 1px solid var(--ws-border);
+      padding: 4px 10px;
+      cursor: pointer;
+      text-transform: uppercase;
+      transition: color 150ms ease, border-color 150ms ease;
+    }
+
+    #batch-cancel-btn:hover { color: #ff4444; border-color: #ff4444; }
+
     /* ── VIDEO PLAYER ────────────────────────────────────────────────── */
     #video-player {
       width: 100%;
@@ -1486,6 +1765,106 @@
         </div>
       </div>
       <div id="queue-list" aria-label="Queue jobs"></div>
+    </div>
+
+    <!-- DIAL MODE — parameter sweep with a fixed seed -->
+    <div id="dial-section">
+      <div id="dial-bar">
+        <span id="dial-bar-label">DIAL MODE</span>
+        <button id="dial-toggle">▾ SHOW</button>
+      </div>
+      <div id="dial-body" style="display:none">
+        <div class="dial-row">
+          <span class="dial-row-label">DIAL SEED</span>
+          <span id="dial-seed-display" class="dial-seed-val">—</span>
+          <button id="dial-seed-roll" class="dial-small-btn" title="Roll a new random seed">🎲</button>
+          <button id="dial-seed-lock" class="dial-small-btn" title="Lock seed so it stays fixed across rolls">LOCK</button>
+        </div>
+        <div class="dial-axis-row">
+          <span class="dial-row-label">AXIS 1</span>
+          <select id="dial-axis1-param" class="dial-select" aria-label="Axis 1 parameter">
+            <option value="s1.cfg">Stage 1 CFG</option>
+            <option value="s2.cfg">Stage 2 CFG</option>
+            <option value="s1.dr34mlayStr">DR34ML4Y Str S1</option>
+            <option value="s2.dr34mlayStr">DR34ML4Y Str S2</option>
+            <option value="s1.k3nkStr">k3nk Str S1</option>
+            <option value="s2.k3nkStr">k3nk Str S2</option>
+            <option value="s1.steps">Step Split</option>
+          </select>
+          <label class="dial-field-label">MIN</label>
+          <input type="number" id="dial-axis1-min" class="dial-num-input" value="3.0" step="0.1" aria-label="Axis 1 min">
+          <label class="dial-field-label">MAX</label>
+          <input type="number" id="dial-axis1-max" class="dial-num-input" value="6.0" step="0.1" aria-label="Axis 1 max">
+          <label class="dial-field-label">STEPS</label>
+          <input type="number" id="dial-axis1-steps" class="dial-num-input" value="4" min="2" max="10" aria-label="Axis 1 steps">
+        </div>
+        <div class="dial-axis-row">
+          <span class="dial-row-label">AXIS 2</span>
+          <select id="dial-axis2-param" class="dial-select" aria-label="Axis 2 parameter (optional)">
+            <option value="">OFF</option>
+            <option value="s1.cfg">Stage 1 CFG</option>
+            <option value="s2.cfg">Stage 2 CFG</option>
+            <option value="s1.dr34mlayStr">DR34ML4Y Str S1</option>
+            <option value="s2.dr34mlayStr">DR34ML4Y Str S2</option>
+            <option value="s1.k3nkStr">k3nk Str S1</option>
+            <option value="s2.k3nkStr">k3nk Str S2</option>
+            <option value="s1.steps">Step Split</option>
+          </select>
+          <label class="dial-field-label">MIN</label>
+          <input type="number" id="dial-axis2-min" class="dial-num-input" value="3.0" step="0.1" aria-label="Axis 2 min">
+          <label class="dial-field-label">MAX</label>
+          <input type="number" id="dial-axis2-max" class="dial-num-input" value="6.0" step="0.1" aria-label="Axis 2 max">
+          <label class="dial-field-label">STEPS</label>
+          <input type="number" id="dial-axis2-steps" class="dial-num-input" value="4" min="2" max="10" aria-label="Axis 2 steps">
+        </div>
+        <div class="dial-row dial-run-row">
+          <span id="dial-job-count" class="dial-job-count">→ 4 jobs</span>
+          <button id="dial-run-btn" class="dial-run-btn" aria-label="Run DIAL parameter sweep">RUN DIAL</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRODUCTION MODE — overnight batch with varied seeds -->
+    <div id="prod-section">
+      <div id="prod-bar">
+        <span id="prod-bar-label">PRODUCTION MODE</span>
+        <button id="prod-toggle">▾ SHOW</button>
+      </div>
+      <div id="prod-body" style="display:none">
+        <div class="dial-row">
+          <span class="dial-row-label">COUNT</span>
+          <input type="number" id="prod-count" class="dial-num-input" value="10" min="1" max="30" aria-label="Number of batch jobs">
+        </div>
+        <div class="dial-row">
+          <span class="dial-row-label">SEEDS</span>
+          <select id="prod-seed-strategy" class="dial-select" aria-label="Seed strategy">
+            <option value="random">RANDOM</option>
+            <option value="sequential">SEQUENTIAL</option>
+          </select>
+        </div>
+        <div class="dial-row" id="prod-base-seed-row" style="display:none">
+          <span class="dial-row-label">BASE SEED</span>
+          <input type="number" id="prod-base-seed" class="dial-num-input" value="1000" min="0" aria-label="Sequential base seed">
+        </div>
+        <div class="dial-row dial-run-row">
+          <button id="prod-run-btn" class="dial-run-btn" aria-label="Run production batch">RUN BATCH</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATCH STATUS — shared live progress panel (shown while batch is running) -->
+    <div id="batch-panel" style="display:none" aria-live="polite">
+      <div id="batch-header">
+        <span id="batch-mode-label">BATCH</span>
+        <span id="batch-eta">—</span>
+      </div>
+      <div id="batch-progress-track">
+        <div id="batch-progress-fill"></div>
+      </div>
+      <div id="batch-job-list" aria-label="Batch job list"></div>
+      <div id="batch-footer">
+        <button id="batch-cancel-btn" aria-label="Cancel batch after current job">CANCEL BATCH</button>
+      </div>
     </div>
 
     <!-- Video player (hidden until video is ready) -->

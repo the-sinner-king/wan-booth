@@ -21,6 +21,14 @@ let activeJobIndex        = -1;
 let seedBankVisible       = false;
 let currentPresetSlug     = null;
 
+// Batch system state
+let batchActive     = false;
+let batchQueue      = [];
+let batchJobIndex   = 0;
+let dialSeedLocked  = false;
+let dialSeedValue   = null;
+let batchCurrentPct = 0;
+
 // ─── ELEMENT REFS ─────────────────────────────────────────────────────────────
 const mainPanel    = document.getElementById('main-panel');
 const dropZone     = document.getElementById('drop-zone');
@@ -179,6 +187,9 @@ async function init() {
   await loadPresets();
   initSeedBankUI();
   initQueueUI();
+  initDialUI();
+  initProdUI();
+  initBatchPanel();
 }
 
 async function checkComfyStatus() {
@@ -945,6 +956,414 @@ function initQueueUI() {
       renderQueueUI();
     });
   }
+}
+
+// ─── BATCH SYSTEM ─────────────────────────────────────────────────────────────
+
+const PARAM_SHORT = {
+  's1.cfg':         's1cfg',
+  's2.cfg':         's2cfg',
+  's1.dr34mlayStr': 'dr34',
+  's2.dr34mlayStr': 'dr34lo',
+  's1.k3nkStr':     'k3nk',
+  's2.k3nkStr':     'k3nklo',
+  's1.steps':       'spt',
+  's2.steps':       'spt2',
+};
+
+const PARAM_DEFAULTS = {
+  's1.cfg':         { min: 3.0,  max: 6.0,  step: 0.1,  defaultSteps: 4 },
+  's2.cfg':         { min: 3.0,  max: 7.0,  step: 0.1,  defaultSteps: 4 },
+  's1.dr34mlayStr': { min: 0.4,  max: 1.0,  step: 0.05, defaultSteps: 4 },
+  's2.dr34mlayStr': { min: 0.4,  max: 1.0,  step: 0.05, defaultSteps: 4 },
+  's1.k3nkStr':     { min: 0.3,  max: 0.9,  step: 0.05, defaultSteps: 4 },
+  's2.k3nkStr':     { min: 0.3,  max: 0.9,  step: 0.05, defaultSteps: 4 },
+  's1.steps':       { min: 10,   max: 30,   step: 1,    defaultSteps: 4 },
+  's2.steps':       { min: 15,   max: 45,   step: 1,    defaultSteps: 4 },
+};
+
+function linspace(min, max, n) {
+  if (n === 1) return [min];
+  return Array.from({ length: n }, (_, i) => +(min + (max - min) * (i / (n - 1))).toFixed(3));
+}
+
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+function applyOverrides(lv, param1, val1, param2, val2) {
+  const setPath = (obj, dotPath, val) => {
+    const [prefix, key] = dotPath.split('.');
+    const stage = prefix === 's1' ? 'stage1' : 'stage2';
+    obj[stage][key] = val;
+  };
+  if (param1 != null && val1 != null) setPath(lv, param1, val1);
+  if (param2 != null && val2 != null) setPath(lv, param2, val2);
+  return lv;
+}
+
+function buildDialPrefix(param1, val1, param2, val2) {
+  const ts = Math.floor(Date.now() / 1000);
+  const p1 = (PARAM_SHORT[param1] || param1) + (+val1).toFixed(1);
+  const p2 = (param2 && val2 != null) ? '_' + (PARAM_SHORT[param2] || param2) + (+val2).toFixed(1) : '';
+  return `dial_${ts}_${p1}${p2}`;
+}
+
+function buildDialJobs(baseLoraValues, dialSeed, axis1Config, axis2Config) {
+  const axis1Values = linspace(axis1Config.min, axis1Config.max, axis1Config.steps);
+  const axis2Values = axis2Config ? linspace(axis2Config.min, axis2Config.max, axis2Config.steps) : [null];
+
+  return axis1Values.flatMap(v1 =>
+    axis2Values.map(v2 => ({
+      jobId:          crypto.randomUUID(),
+      mode:           'DIAL',
+      seed:           dialSeed,
+      filenamePrefix: buildDialPrefix(axis1Config.param, v1, axis2Config ? axis2Config.param : null, v2),
+      loraValues:     applyOverrides(deepClone(baseLoraValues), axis1Config.param, v1, axis2Config ? axis2Config.param : null, v2),
+      status:         'pending',
+      outputFile:     null,
+      startedAt:      null,
+      completedAt:    null,
+      errorMsg:       null,
+      overrides:      { axis1Label: axis1Config.param, axis1Value: v1, axis2Label: axis2Config ? axis2Config.param : null, axis2Value: v2 },
+    }))
+  );
+}
+
+function buildProdJobs(baseLoraValues, count, seedStrategy, baseSeed) {
+  return Array.from({ length: count }, (_, i) => {
+    const seed = seedStrategy === 'sequential'
+      ? (baseSeed + i * 1000007)
+      : Math.floor(Math.random() * 9999999999);
+    return {
+      jobId:          crypto.randomUUID(),
+      mode:           'PROD',
+      seed,
+      filenamePrefix: `prod_${String(i + 1).padStart(3, '0')}_s${seed}`,
+      loraValues:     deepClone(baseLoraValues),
+      status:         'pending',
+      outputFile:     null,
+      startedAt:      null,
+      completedAt:    null,
+      errorMsg:       null,
+      overrides:      null,
+    };
+  });
+}
+
+function estimateBatchEta(jobs, jobIndex, currentJobPct) {
+  const done = jobs.filter(j => j.status === 'complete');
+  if (done.length < 1) return null;
+  const avgMs     = done.reduce((sum, j) => sum + (j.completedAt - j.startedAt), 0) / done.length;
+  const remaining = jobs.length - jobIndex - 1;
+  const curLeft   = avgMs * (1 - currentJobPct / 100);
+  return curLeft + remaining * avgMs;
+}
+
+async function runBatch(jobs, imagePath, prompt) {
+  batchActive     = true;
+  batchQueue      = jobs;
+  batchJobIndex   = 0;
+  batchCurrentPct = 0;
+  updateBatchPanel();
+
+  for (const job of jobs) {
+    if (!batchActive) break;
+    job.status    = 'running';
+    job.startedAt = Date.now();
+    batchJobIndex   = jobs.indexOf(job);
+    batchCurrentPct = 0;
+    updateBatchPanel();
+
+    await new Promise((resolve) => {
+      window.ComfyClient.generate({
+        imagePath,
+        prompt,
+        seed:           job.seed,
+        workflowName:   'i2v_14B_2stage',
+        loraValues:     job.loraValues,
+        filenamePrefix: job.filenamePrefix,
+        onProgress: (pct) => {
+          batchCurrentPct = pct;
+          updateBatchPanel();
+        },
+        onComplete: (filename) => {
+          job.status      = 'complete';
+          job.outputFile  = filename;
+          job.completedAt = Date.now();
+          updateBatchPanel();
+          resolve();
+        },
+        onError: (msg) => {
+          job.status      = 'error';
+          job.errorMsg    = msg;
+          job.completedAt = Date.now();
+          updateBatchPanel();
+          resolve();
+        },
+        onLog: (type, msg) => appendLog(type, `[${batchJobIndex + 1}/${jobs.length}] ${msg}`),
+      });
+    });
+  }
+
+  batchActive     = false;
+  batchCurrentPct = 0;
+  updateBatchPanel();
+  const ok = jobs.filter(j => j.status === 'complete').length;
+  appendLog('complete', `Batch done — ${ok}/${jobs.length} completed`);
+}
+
+function updateBatchPanel() {
+  const panel    = document.getElementById('batch-panel');
+  const modeEl   = document.getElementById('batch-mode-label');
+  const progFill = document.getElementById('batch-progress-fill');
+  const etaEl    = document.getElementById('batch-eta');
+  const listEl   = document.getElementById('batch-job-list');
+  if (!panel) return;
+
+  const jobs    = batchQueue;
+  const dialBtn = document.getElementById('dial-run-btn');
+  const prodBtn = document.getElementById('prod-run-btn');
+
+  if (jobs.length === 0 || !batchActive) {
+    panel.style.display = 'none';
+    if (dialBtn) dialBtn.disabled = false;
+    if (prodBtn) prodBtn.disabled = false;
+    return;
+  }
+
+  panel.style.display = 'block';
+  if (dialBtn) dialBtn.disabled = true;
+  if (prodBtn) prodBtn.disabled = true;
+
+  const mode = jobs[0]?.mode || 'BATCH';
+  const done = jobs.filter(j => j.status === 'complete' || j.status === 'error').length;
+  if (modeEl) modeEl.textContent = `${mode}: job ${batchJobIndex + 1} of ${jobs.length}`;
+
+  const pct = jobs.length > 0 ? Math.round((done / jobs.length) * 100) : 0;
+  if (progFill) progFill.style.width = pct + '%';
+
+  const etaMs = estimateBatchEta(jobs, batchJobIndex, batchCurrentPct);
+  if (etaEl) {
+    if (etaMs != null) {
+      const mins  = Math.floor(etaMs / 60000);
+      const hours = Math.floor(mins / 60);
+      const m     = mins % 60;
+      etaEl.textContent = hours > 0 ? `~${hours}h ${m}m remaining` : `~${m}m remaining`;
+    } else {
+      etaEl.textContent = '—';
+    }
+  }
+
+  if (!listEl) return;
+  listEl.innerHTML = '';
+  jobs.forEach((job, i) => {
+    const card = document.createElement('div');
+    card.className = 'batch-job-card batch-job-' + job.status;
+
+    const icon = job.status === 'complete' ? '✓'
+               : job.status === 'error'    ? '✗'
+               : job.status === 'running'  ? '▶'
+               : '·';
+
+    const label = (job.mode === 'DIAL' && job.overrides)
+      ? (PARAM_SHORT[job.overrides.axis1Label] || job.overrides.axis1Label) + '=' + job.overrides.axis1Value.toFixed(1)
+        + (job.overrides.axis2Label ? ' · ' + (PARAM_SHORT[job.overrides.axis2Label] || job.overrides.axis2Label) + '=' + job.overrides.axis2Value.toFixed(1) : '')
+      : `Job ${i + 1}`;
+
+    const progressStr = job.status === 'running'  ? ` — ${batchCurrentPct}%`
+                      : (job.status === 'complete' && job.outputFile) ? ` — ${job.outputFile}` : '';
+
+    card.innerHTML = `<span class="batch-job-icon">${icon}</span><span class="batch-job-label">${label}${progressStr}</span>`;
+
+    if (job.status === 'complete' && job.mode === 'DIAL') {
+      const promBtn = document.createElement('button');
+      promBtn.className = 'batch-promote-btn';
+      promBtn.textContent = 'PROMOTE →';
+      promBtn.addEventListener('click', () => promoteDialJob(i));
+      card.appendChild(promBtn);
+    }
+
+    listEl.appendChild(card);
+  });
+}
+
+function promoteDialJob(idx) {
+  const job = batchQueue[idx];
+  if (!job || !job.loraValues) return;
+  const lv = job.loraValues;
+  const setSlider = (id, val) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = val;
+    el.dispatchEvent(new Event('input'));
+  };
+  setSlider('s1-dr34mlay-str', lv.stage1.dr34mlayStr);
+  setSlider('s1-k3nk-str',     lv.stage1.k3nkStr);
+  setSlider('s1-steps',        lv.stage1.steps);
+  setSlider('s1-cfg',          lv.stage1.cfg);
+  setSlider('s2-dr34mlay-str', lv.stage2.dr34mlayStr);
+  setSlider('s2-k3nk-str',     lv.stage2.k3nkStr);
+  setSlider('s2-steps',        lv.stage2.steps);
+  setSlider('s2-cfg',          lv.stage2.cfg);
+  appendLog('complete', `Promoted DIAL job ${idx + 1} settings to main panel`);
+}
+
+function initDialUI() {
+  const dialSection  = document.getElementById('dial-section');
+  const dialToggle   = document.getElementById('dial-toggle');
+  const dialBody     = document.getElementById('dial-body');
+  const dialSeedEl   = document.getElementById('dial-seed-display');
+  const dialSeedRoll = document.getElementById('dial-seed-roll');
+  const dialSeedLock = document.getElementById('dial-seed-lock');
+  const axis1Sel     = document.getElementById('dial-axis1-param');
+  const axis1Min     = document.getElementById('dial-axis1-min');
+  const axis1Max     = document.getElementById('dial-axis1-max');
+  const axis1Steps   = document.getElementById('dial-axis1-steps');
+  const axis2Sel     = document.getElementById('dial-axis2-param');
+  const axis2Min     = document.getElementById('dial-axis2-min');
+  const axis2Max     = document.getElementById('dial-axis2-max');
+  const axis2Steps   = document.getElementById('dial-axis2-steps');
+  const jobCountEl   = document.getElementById('dial-job-count');
+  const runBtn       = document.getElementById('dial-run-btn');
+  if (!dialSection) return;
+
+  dialSeedValue = Math.floor(Math.random() * 9999999999);
+  if (dialSeedEl) dialSeedEl.textContent = dialSeedValue;
+
+  if (dialToggle && dialBody) {
+    dialToggle.addEventListener('click', () => {
+      const collapsed = dialBody.style.display === 'none';
+      dialBody.style.display = collapsed ? 'block' : 'none';
+      dialToggle.textContent = collapsed ? '▾ HIDE' : '▾ SHOW';
+    });
+  }
+
+  if (dialSeedRoll) {
+    dialSeedRoll.addEventListener('click', () => {
+      if (dialSeedLocked) return;
+      dialSeedValue = Math.floor(Math.random() * 9999999999);
+      if (dialSeedEl) dialSeedEl.textContent = dialSeedValue;
+    });
+  }
+
+  if (dialSeedLock) {
+    dialSeedLock.addEventListener('click', () => {
+      dialSeedLocked = !dialSeedLocked;
+      dialSeedLock.textContent = dialSeedLocked ? 'UNLOCK' : 'LOCK';
+      dialSeedLock.classList.toggle('dial-lock-active', dialSeedLocked);
+    });
+  }
+
+  const applyDefaults = (paramSel, minEl, maxEl, stepsEl) => {
+    const param = paramSel ? paramSel.value : '';
+    if (param && PARAM_DEFAULTS[param]) {
+      const d = PARAM_DEFAULTS[param];
+      if (minEl)   minEl.value   = d.min;
+      if (maxEl)   maxEl.value   = d.max;
+      if (stepsEl) stepsEl.value = d.defaultSteps;
+    }
+  };
+
+  const refreshJobCount = () => {
+    if (!jobCountEl) return;
+    const n1 = parseInt(axis1Steps ? axis1Steps.value : '4', 10) || 4;
+    const a2 = axis2Sel ? axis2Sel.value : '';
+    const n2 = a2 ? (parseInt(axis2Steps ? axis2Steps.value : '1', 10) || 1) : 1;
+    const total = n1 * n2;
+    jobCountEl.textContent = `→ ${total} job${total !== 1 ? 's' : ''}`;
+  };
+
+  if (axis1Sel) {
+    axis1Sel.addEventListener('change', () => { applyDefaults(axis1Sel, axis1Min, axis1Max, axis1Steps); refreshJobCount(); });
+    applyDefaults(axis1Sel, axis1Min, axis1Max, axis1Steps);
+  }
+  if (axis2Sel) {
+    axis2Sel.addEventListener('change', () => { applyDefaults(axis2Sel, axis2Min, axis2Max, axis2Steps); refreshJobCount(); });
+  }
+  if (axis1Steps) axis1Steps.addEventListener('input', refreshJobCount);
+  if (axis2Steps) axis2Steps.addEventListener('input', refreshJobCount);
+  refreshJobCount();
+
+  if (runBtn) {
+    runBtn.addEventListener('click', async () => {
+      if (batchActive) return;
+      const prompt = promptInput.value.trim();
+      if (!prompt)              { setStatus('Prompt is empty.', 'error'); return; }
+      if (!selectedImagePath)   { setStatus('No image loaded.', 'error'); return; }
+      const axis1Param = axis1Sel ? axis1Sel.value : '';
+      if (!axis1Param)          { setStatus('Select at least one DIAL axis.', 'error'); return; }
+
+      const a1 = {
+        param: axis1Param,
+        min:   parseFloat(axis1Min.value),
+        max:   parseFloat(axis1Max.value),
+        steps: parseInt(axis1Steps.value, 10) || 4,
+      };
+      const axis2Param = axis2Sel ? axis2Sel.value : '';
+      const a2 = axis2Param ? {
+        param: axis2Param,
+        min:   parseFloat(axis2Min.value),
+        max:   parseFloat(axis2Max.value),
+        steps: parseInt(axis2Steps.value, 10) || 4,
+      } : null;
+
+      const jobs = buildDialJobs(getLoraValues(), dialSeedValue, a1, a2);
+      await runBatch(jobs, selectedImagePath, prompt);
+    });
+  }
+}
+
+function initProdUI() {
+  const prodSection  = document.getElementById('prod-section');
+  const prodToggle   = document.getElementById('prod-toggle');
+  const prodBody     = document.getElementById('prod-body');
+  const countEl      = document.getElementById('prod-count');
+  const stratSel     = document.getElementById('prod-seed-strategy');
+  const baseSeedRow  = document.getElementById('prod-base-seed-row');
+  const baseSeedEl   = document.getElementById('prod-base-seed');
+  const runBtn       = document.getElementById('prod-run-btn');
+  if (!prodSection) return;
+
+  if (prodToggle && prodBody) {
+    prodToggle.addEventListener('click', () => {
+      const collapsed = prodBody.style.display === 'none';
+      prodBody.style.display = collapsed ? 'block' : 'none';
+      prodToggle.textContent = collapsed ? '▾ HIDE' : '▾ SHOW';
+    });
+  }
+
+  if (stratSel && baseSeedRow) {
+    stratSel.addEventListener('change', () => {
+      baseSeedRow.style.display = stratSel.value === 'sequential' ? 'flex' : 'none';
+    });
+  }
+
+  if (runBtn) {
+    runBtn.addEventListener('click', async () => {
+      if (batchActive) return;
+      const prompt = promptInput.value.trim();
+      if (!prompt)            { setStatus('Prompt is empty.', 'error'); return; }
+      if (!selectedImagePath) { setStatus('No image loaded.', 'error'); return; }
+
+      const count    = Math.min(30, Math.max(1, parseInt(countEl ? countEl.value : '10', 10) || 10));
+      const strategy = stratSel ? stratSel.value : 'random';
+      const baseSeed = strategy === 'sequential' ? (parseInt(baseSeedEl ? baseSeedEl.value : '1000', 10) || 1000) : 0;
+
+      const jobs = buildProdJobs(getLoraValues(), count, strategy, baseSeed);
+      await runBatch(jobs, selectedImagePath, prompt);
+    });
+  }
+}
+
+function initBatchPanel() {
+  const cancelBtn = document.getElementById('batch-cancel-btn');
+  if (!cancelBtn) return;
+  cancelBtn.addEventListener('click', () => {
+    if (!batchActive) return;
+    batchActive = false;
+    appendLog('error', 'Batch cancelled — waiting for current job to finish');
+  });
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────

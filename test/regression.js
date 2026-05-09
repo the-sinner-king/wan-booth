@@ -1029,6 +1029,167 @@ test('AC-35c: go-btn listener still calls runAllJobs (single-run path)', () => {
   assert.ok(renderSrc.includes('runAllJobs'), 'runAllJobs missing — single-run path broken');
 });
 
+// ── Batch system — inline helpers (mirror renderer.js for black-box testing) ─
+let _batchJobIdCounter = 0;
+function _bid() { return 'bjob-' + (++_batchJobIdCounter); }
+
+function linspace(min, max, n) {
+  if (n === 1) return [min];
+  return Array.from({ length: n }, (_, i) => +(min + (max - min) * (i / (n - 1))).toFixed(3));
+}
+function deepClone(obj) { return JSON.parse(JSON.stringify(obj)); }
+function applyOverrides(lv, param1, val1, param2, val2) {
+  const setPath = (obj, dotPath, val) => {
+    const [prefix, key] = dotPath.split('.');
+    const stage = prefix === 's1' ? 'stage1' : 'stage2';
+    obj[stage][key] = val;
+  };
+  if (param1 != null && val1 != null) setPath(lv, param1, val1);
+  if (param2 != null && val2 != null) setPath(lv, param2, val2);
+  return lv;
+}
+const PARAM_SHORT_T = {
+  's1.cfg': 's1cfg', 's2.cfg': 's2cfg',
+  's1.dr34mlayStr': 'dr34',  's2.dr34mlayStr': 'dr34lo',
+  's1.k3nkStr': 'k3nk',     's2.k3nkStr': 'k3nklo',
+  's1.steps': 'spt',         's2.steps': 'spt2',
+};
+function buildDialPrefix(p1, v1, p2, v2) {
+  const a = (PARAM_SHORT_T[p1] || p1) + (+v1).toFixed(1);
+  const b = (p2 && v2 != null) ? '_' + (PARAM_SHORT_T[p2] || p2) + (+v2).toFixed(1) : '';
+  return `dial_${a}${b}`;
+}
+function buildDialJobs(baseLv, dialSeed, a1, a2) {
+  const v1s = linspace(a1.min, a1.max, a1.steps);
+  const v2s = a2 ? linspace(a2.min, a2.max, a2.steps) : [null];
+  return v1s.flatMap(v1 => v2s.map(v2 => ({
+    jobId: _bid(), mode: 'DIAL', seed: dialSeed,
+    filenamePrefix: buildDialPrefix(a1.param, v1, a2 ? a2.param : null, v2),
+    loraValues: applyOverrides(deepClone(baseLv), a1.param, v1, a2 ? a2.param : null, v2),
+    status: 'pending', outputFile: null, startedAt: null, completedAt: null, errorMsg: null,
+    overrides: { axis1Label: a1.param, axis1Value: v1, axis2Label: a2 ? a2.param : null, axis2Value: v2 },
+  })));
+}
+function buildProdJobs(baseLv, count, seedStrategy, baseSeed) {
+  return Array.from({ length: count }, (_, i) => {
+    const seed = seedStrategy === 'sequential'
+      ? (baseSeed + i * 1000007)
+      : Math.floor(Math.random() * 9999999999);
+    return {
+      jobId: _bid(), mode: 'PROD', seed,
+      filenamePrefix: `prod_${String(i + 1).padStart(3, '0')}_s${seed}`,
+      loraValues: deepClone(baseLv),
+      status: 'pending', outputFile: null, startedAt: null, completedAt: null, errorMsg: null,
+      overrides: null,
+    };
+  });
+}
+
+// ── T-LORA: injectPlaceholders — batch-relevant checks ───────────────────────
+console.log('\nT-LORA — filenamePrefix + loraValues invariants');
+
+test('T-LORA-01: all six LoRA+sampler nodes receive correct values', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv, 832, 480, 16, null);
+  assert.strictEqual(r['6'].inputs.strength_model,  lv.stage1.dr34mlayStr, 'node 6 model');
+  assert.strictEqual(r['6'].inputs.strength_clip,   lv.stage1.dr34mlayStr, 'node 6 clip');
+  assert.strictEqual(r['7'].inputs.strength_model,  lv.stage2.dr34mlayStr, 'node 7 model');
+  assert.strictEqual(r['18'].inputs.strength_model, lv.stage1.k3nkStr,     'node 18 model');
+  assert.strictEqual(r['18'].inputs.strength_clip,  lv.stage1.k3nkStr,     'node 18 clip');
+  assert.strictEqual(r['19'].inputs.strength_model, lv.stage2.k3nkStr,     'node 19 model');
+});
+test('T-LORA-02: loraValues=null → LoRA nodes untouched', () => {
+  const orig = workflow14b['6'].inputs.strength_model;
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, null, 832, 480, 16, null);
+  assert.strictEqual(r['6'].inputs.strength_model, orig, 'node 6 must be unchanged when loraValues=null');
+});
+test('T-LORA-03: step split invariant — node 13 end_at_step === node 14 start_at_step', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv, 832, 480, 16, null);
+  assert.strictEqual(r['13'].inputs.end_at_step, r['14'].inputs.start_at_step,
+    'Stage1 end_at_step must equal Stage2 start_at_step');
+});
+test('T-LORA-04: filenamePrefix injected into node 17 (VHS_VideoCombine)', () => {
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv, 832, 480, 16, 'dial_test_abc');
+  assert.strictEqual(r['17'].inputs.filename_prefix, 'dial_test_abc', 'prefix must reach node 17');
+});
+test('T-LORA-05: filenamePrefix=null → node 17 prefix unchanged from workflow', () => {
+  const orig = workflow14b['17'].inputs.filename_prefix;
+  const r = injectPlaceholders(workflow14b, 'a.png', 'b', 1, lv, 832, 480, 16, null);
+  assert.strictEqual(r['17'].inputs.filename_prefix, orig, 'node 17 prefix must not change when filenamePrefix=null');
+});
+
+// ── T-DIAL: DIAL mode job construction ───────────────────────────────────────
+console.log('\nT-DIAL — DIAL mode job construction');
+
+test('T-DIAL-01: linspace(3.0, 6.0, 4) returns [3.0, 4.0, 5.0, 6.0]', () => {
+  assert.deepStrictEqual(linspace(3.0, 6.0, 4), [3.0, 4.0, 5.0, 6.0]);
+});
+test('T-DIAL-02: buildDialJobs with 1 axis (4 steps) generates 4 jobs', () => {
+  const jobs = buildDialJobs(lv, 42, { param: 's1.cfg', min: 3.0, max: 6.0, steps: 4 }, null);
+  assert.strictEqual(jobs.length, 4, 'single-axis DIAL must produce n jobs');
+});
+test('T-DIAL-03: buildDialJobs with 2 axes (4×3) generates 12 jobs', () => {
+  const jobs = buildDialJobs(lv, 42,
+    { param: 's1.cfg', min: 3.0, max: 6.0, steps: 4 },
+    { param: 's2.cfg', min: 3.0, max: 6.0, steps: 3 });
+  assert.strictEqual(jobs.length, 12, 'two-axis DIAL must produce n1×n2 jobs');
+});
+test('T-DIAL-04: all DIAL jobs share the same seed (dialSeed)', () => {
+  const dialSeed = 9876543;
+  const jobs = buildDialJobs(lv, dialSeed, { param: 's1.cfg', min: 3.0, max: 6.0, steps: 4 }, null);
+  assert.ok(jobs.every(j => j.seed === dialSeed), 'all DIAL jobs must use the same fixed seed');
+});
+test('T-DIAL-05: DIAL filenamePrefix starts with dial_ and encodes param short-code', () => {
+  const jobs = buildDialJobs(lv, 1, { param: 's1.cfg', min: 3.0, max: 6.0, steps: 4 }, null);
+  assert.ok(jobs[0].filenamePrefix.startsWith('dial_'), 'DIAL prefix must start with dial_');
+  assert.ok(jobs[0].filenamePrefix.includes('s1cfg'), 'DIAL prefix must encode the s1.cfg short-code');
+});
+
+// ── T-PROD: PRODUCTION mode job construction ──────────────────────────────────
+console.log('\nT-PROD — PRODUCTION mode job construction');
+
+test('T-PROD-01: buildProdJobs generates correct count', () => {
+  assert.strictEqual(buildProdJobs(lv, 20, 'random', 0).length, 20);
+});
+test('T-PROD-02: SEQUENTIAL seeds stride by 1000007', () => {
+  const jobs = buildProdJobs(lv, 5, 'sequential', 1000);
+  for (let i = 0; i < jobs.length - 1; i++) {
+    assert.strictEqual(jobs[i + 1].seed - jobs[i].seed, 1000007, `stride broken at index ${i}`);
+  }
+});
+test('T-PROD-03: RANDOM seeds — 1000 jobs all have unique seeds', () => {
+  const jobs = buildProdJobs(lv, 1000, 'random', 0);
+  const unique = new Set(jobs.map(j => j.seed));
+  assert.strictEqual(unique.size, 1000, 'all 1000 random seeds must be unique');
+});
+test('T-PROD-04: PROD filenamePrefix includes zero-padded index + seed', () => {
+  const jobs = buildProdJobs(lv, 3, 'sequential', 1000);
+  assert.ok(jobs[0].filenamePrefix.startsWith('prod_001_s'), 'must start with prod_001_s');
+  assert.ok(jobs[1].filenamePrefix.startsWith('prod_002_s'), 'must start with prod_002_s');
+});
+test('T-PROD-05: DIAL jobs have mode=DIAL, PROD jobs have mode=PROD', () => {
+  const dialJobs = buildDialJobs(lv, 1, { param: 's1.cfg', min: 3.0, max: 6.0, steps: 2 }, null);
+  const prodJobs = buildProdJobs(lv, 2, 'random', 0);
+  assert.ok(dialJobs.every(j => j.mode === 'DIAL'), 'DIAL jobs must have mode=DIAL');
+  assert.ok(prodJobs.every(j => j.mode === 'PROD'), 'PROD jobs must have mode=PROD');
+});
+
+// ── T-BATCH: cross-cutting invariants ────────────────────────────────────────
+console.log('\nT-BATCH — cross-cutting batch invariants');
+
+test('T-BATCH-01: all jobs have unique jobIds regardless of mode', () => {
+  const dialJobs = buildDialJobs(lv, 1, { param: 's1.cfg', min: 3.0, max: 6.0, steps: 4 }, null);
+  const prodJobs = buildProdJobs(lv, 4, 'random', 0);
+  const allIds   = [...dialJobs, ...prodJobs].map(j => j.jobId);
+  const unique   = new Set(allIds);
+  assert.strictEqual(unique.size, allIds.length, 'all job IDs must be unique across modes');
+});
+test('T-BATCH-02: applyOverrides does not mutate the base loraValues object', () => {
+  const base    = deepClone(lv);
+  const baseCfg = base.stage1.cfg;
+  applyOverrides(deepClone(base), 's1.cfg', 99.9, null, null);
+  assert.strictEqual(base.stage1.cfg, baseCfg, 'base loraValues must not be mutated');
+});
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(56)}`);
 if (failed > 0) {
