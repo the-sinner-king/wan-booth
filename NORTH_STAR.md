@@ -27,7 +27,7 @@ CREATED.....: 2026-05-06 (S252)
 ╰────────────────────────────────────────────╯
 
 
-UPDATED.....: 2026-05-09 (S259 — Phase 3A+3B COMPLETE: tooltips, preset system, seed bank, chaos slider, render queue. 183/183 regressions. Art Gate PASSED. OBSIDIAN PASSED (2 bugs caught + fixed). Committed.)
+UPDATED.....: 2026-05-10 (S259/solo + S260 — Phase 4 COMPLETE: DIAL MODE + PRODUCTION MODE batch system. 200/200 regressions. Platform-aware workflow routing: Mac→i2v_14B_2stage_mac (no SageAttention nodes), PC→i2v_14B_2stage (full Phase 2.6 chain). Committed + pushed.)
 
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 [ ⛬ 01 ]  T H E   I N V O C A T I O N
@@ -434,8 +434,8 @@ Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass require
 
 ┌───────────────────────────────────────────────────────────────────────────────────┐
 │ 🔋 FORGE TELEMETRY                                                                │
-│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [█████████████████████] 100% (Phase 3A+3B COMPLETE) │
-│ [ ⟆ PHASE   ] Phase 3 SHIPPED — tooltips, presets, seed bank, chaos, queue. 183/183 regressions. Next: batch system (DIAL + PRODUCTION modes) per BATCH_SYSTEM_PLAN.md │
+│[ 🜂 VOLTAGE ] PROJECT_PROGRESS: [█████████████████████] 100% (Phase 4 COMPLETE)      │
+│ [ ⟆ PHASE   ] Phase 4 SHIPPED — DIAL MODE + PRODUCTION MODE batch system. 200/200 regressions. Platform-aware workflow routing live. Commit 545e947 (batch) + platform fix. │
 └───────────────────────────────────────────────────────────────────────────────────┘
 
 • ACTIVE STATE FILE: `WAN_BOOTH/NORTH_STAR.md` (this file)
@@ -467,7 +467,14 @@ Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass require
 ├─ [✅ DONE] Phase 3 RESEARCH — PHASE_3_CODING_BRIEF.md written. All 5 RQs resolved. Verified online. NLM brief uploaded (source ID 29252404).
 ├─ [✅ DONE] Phase 3A — Tooltips + Preset system + Seed bank (183/183 regressions)
 ├─ [✅ DONE] Phase 3B — Chaos slider + Visual render queue (183/183 regressions)
-├─ [NEXT] Batch system — DIAL + PRODUCTION modes per BATCH_SYSTEM_PLAN.md
+├─ [✅ DONE] Phase 4 — Batch system: DIAL MODE + PRODUCTION MODE (200/200 regressions, commit 545e947)
+│             Platform routing: Mac→i2v_14B_2stage_mac (bypasses PatchSageAttentionKJ nodes 20+22, not installed on Mac)
+│             PC→i2v_14B_2stage (full Phase 2.6 SageAttention chain, unchanged)
+│             get14bWorkflow() in renderer.js dispatches based on process.platform via wan:getPlatform IPC
+│             Mac ComfyUI Python 3.14 venv has broken pip (libexpat/pyexpat symbol mismatch) — use uv for any future pip installs
+│             KJ Nodes cloned to ~/Desktop/ComfyUI/custom_nodes/ComfyUI-KJNodes but deps not installed (matplotlib/mss/color-matcher missing)
+│             If you want SageAttention on Mac in future: fix Python or reinstall ComfyUI venv with Python 3.12
+├─ [NEXT] First full batch run on Citadel + UI polish per feedback
 
 ## RESOLVED QUESTIONS
 1. ✅ **Build on Mac first**, transfer to PC when validated.

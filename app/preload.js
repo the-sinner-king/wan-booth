@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld('wan', {
   copyToInput:    (sourcePath) => ipcRenderer.invoke('wan:copyToInput', sourcePath),
   getComfyStatus: () => ipcRenderer.invoke('wan:getComfyStatus'),
   getHomedir:     () => ipcRenderer.invoke('wan:getHomedir'),
+  getPlatform:    () => ipcRenderer.invoke('wan:getPlatform'),
   getComfyDir:    () => ipcRenderer.invoke('wan:getComfyDir'),
   loadWorkflow:   (name) => ipcRenderer.invoke('wan:loadWorkflow', name),
   toFileURL:      (filePath) => ipcRenderer.invoke('wan:toFileURL', filePath),

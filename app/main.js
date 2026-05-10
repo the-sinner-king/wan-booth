@@ -188,6 +188,10 @@ ipcMain.handle('wan:getHomedir', async () => {
   return os.homedir();
 });
 
+ipcMain.handle('wan:getPlatform', async () => {
+  return process.platform;
+});;
+
 ipcMain.handle('wan:getComfyDir', async () => {
   return getComfyDir();
 });

@@ -7,6 +7,7 @@ let selectedImageDimensions = null; // { width, height } from nativeImage after 
 let seedMode                = 'random'; // 'random' | 'fixed'
 let isGenerating            = false;
 let homedir                 = null;
+let platform                = null;
 let totalRunCount           = 1;
 let currentRun              = 0;
 
@@ -179,8 +180,13 @@ function updateEta(percent) {
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
+function get14bWorkflow() {
+  return platform === 'darwin' ? 'i2v_14B_2stage_mac' : 'i2v_14B_2stage';
+}
+
 async function init() {
-  homedir = await window.wan.getHomedir();
+  homedir  = await window.wan.getHomedir();
+  platform = await window.wan.getPlatform();
   checkComfyStatus();
   initChaosSlider();
   initPresetUI();
@@ -444,7 +450,7 @@ function startGeneration(seed, prompt, runNum, totalRuns,
       imagePath:      selectedImageFilename,
       prompt,
       seed,
-      workflowName:   'i2v_14B_2stage',
+      workflowName:   get14bWorkflow(),
       loraValues:     lora,
       width:          resolution.width,
       height:         resolution.height,
@@ -1080,7 +1086,7 @@ async function runBatch(jobs, imagePath, prompt) {
         imagePath,
         prompt,
         seed:           job.seed,
-        workflowName:   'i2v_14B_2stage',
+        workflowName:   get14bWorkflow(),
         loraValues:     job.loraValues,
         filenamePrefix: job.filenamePrefix,
         onProgress: (pct) => {
