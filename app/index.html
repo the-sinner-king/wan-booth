@@ -2,1877 +2,676 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- RF-10: CSP — lock down sources; unsafe-inline required for the inline <style> block -->
-  <meta http-equiv="Content-Security-Policy" content="
-    default-src 'self';
-    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-    font-src https://fonts.gstatic.com;
-    script-src 'self';
-    connect-src http://localhost:8188 ws://localhost:8188 http://127.0.0.1:8188 ws://127.0.0.1:8188;
-    img-src 'self' data:;
-    media-src file:;
-    object-src 'none';
-    base-uri 'none';
-  ">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self';
+             script-src 'self';
+             style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+             font-src 'self' https://fonts.gstatic.com;
+             img-src 'self' data: blob:;
+             media-src 'self' blob:;
+             connect-src 'self' ws: wss: http://127.0.0.1:* http://localhost:*">
   <title>WAN BOOTH</title>
-  <!-- Google Fonts — preconnect + link for initial-paint speed -->
+
+  <!-- Typefaces -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
-  <!-- Design token stylesheets (bare filenames — colocated in final app) -->
+  <link href="https://fonts.googleapis.com/css2?family=Syne+Mono&family=IBM+Plex+Mono:wght@400;600&family=VT323&display=swap" rel="stylesheet">
+  <!-- Note: Monaspace Argon to be loaded locally, falls back to monospace -->
+
+  <!-- Design tokens -->
   <link rel="stylesheet" href="type-tokens.css">
   <link rel="stylesheet" href="color-tokens.css">
+
+  <!-- Spatial architecture (GRID_GHOST) -->
+  <link rel="stylesheet" href="layout.css">
+
+  <!-- Color expressions (CHROMA_BLEED) -->
+  <link rel="stylesheet" href="chroma-bleed.css">
+
   <style>
+    /* ── Inline residuals ──────────────────────────────────────────────────
+       Only rules that don't belong in any token file live here.
+       Color → chroma-bleed.css · Layout → layout.css · Tokens → *-tokens.css
+    ──────────────────────────────────────────────────────────────────────── */
 
-    /* ═══════════════════════════════════════════════════════════════════════════
-     *  GRID_GHOST — WAN BOOTH v2 SPATIAL ARCHITECTURE
-     *  Layout geometry only. Colors and type reference var(--ws-*) tokens.
-     *  Existing token consumers (nameplate, drop-zone, prompt, seed, log, video)
-     *  are preserved and extended — not replaced.
-     * ═══════════════════════════════════════════════════════════════════════════ */
-
-    /* ── RESET / BASE ────────────────────────────────────────────────── */
-    *, *::before, *::after {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
-
-    html, body {
-      width: 900px;
-      min-height: 100vh;
-      overflow-x: hidden;
-      background: var(--ws-bg);
-      color: var(--ws-fg);
-      font-family: var(--ws-font-ui);
-    }
-
-    /* ── NAMEPLATE ───────────────────────────────────────────────────── */
-    #nameplate {
-      padding: 20px 24px 12px;
-      border-bottom: 1px solid var(--ws-border);
-      background: var(--ws-bg);
-    }
-
-    #nameplate h1 {
-      font-family: var(--ws-font-display);
-      font-size: var(--ws-type-display);
-      font-weight: var(--ws-weight-display);
-      letter-spacing: var(--ws-tracking-display);
-      color: var(--ws-amber);
-      text-shadow:
-        0 0 8px var(--ws-amber-glow),
-        0 0 24px var(--ws-amber-glow),
-        0 0 48px color-mix(in oklch, var(--ws-amber-glow) 50%, transparent);
+    /* Terminal ASCII Borders */
+    .ascii-border {
+      font-family: var(--ws-font-glitch);
+      color: var(--ws-pink);
+      white-space: pre;
       line-height: 1;
-      user-select: none;
-    }
-
-    /* ── MAIN PANEL — load-bearing chassis ──────────────────────────── */
-    /*
-     * The gap between sub-panels is structural mass, not breathing room.
-     * 16px default gap. LoRA cards sit as a contiguous section — the gap
-     * between Stage 1 and Stage 2 is tightened (4px seam) to read as one
-     * equipment block. Achieved by zero bottom margin on stage-1, zero top
-     * on stage-2, handled inside .lora-section.
-     */
-    #main-panel {
-      padding: 20px 24px 28px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* ── DROP ZONE ───────────────────────────────────────────────────── */
-    #drop-zone {
-      background: var(--ws-bg-elevated);
-      border: 2px dashed var(--ws-border);
-      padding: 32px 24px;
       text-align: center;
-      cursor: pointer;
-      transition: border-color 150ms ease, color 150ms ease, background 150ms ease;
-    }
-
-    #drop-label {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      pointer-events: none;
+      margin: 8px 0;
       user-select: none;
-      transition: color 150ms ease;
-    }
-
-    #drop-zone.active {
-      border-style: dashed;
-      border-color: var(--ws-border-active);
-      background: color-mix(in oklch, var(--ws-bg-elevated) 85%, var(--ws-amber));
-    }
-
-    #drop-zone.active #drop-label {
-      color: var(--ws-amber);
-    }
-
-    #drop-zone.loaded {
-      border-style: solid;
-      border-color: var(--ws-neon);
-    }
-
-    #drop-zone.loaded #drop-label {
-      color: var(--ws-neon);
-    }
-
-    /* ── PROMPT INPUT ────────────────────────────────────────────────── */
-    #prompt-input {
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-body);
-      line-height: var(--ws-leading-prompt);
-      background: var(--ws-bg-elevated);
-      color: var(--ws-fg);
-      border: 1px solid var(--ws-border);
-      padding: 12px 14px;
-      width: 100%;
-      min-height: 90px;
-      resize: vertical;
-      outline: none;
-      transition: border-color 150ms ease;
-    }
-
-    #prompt-input::placeholder {
-      color: var(--ws-fg-muted);
-      opacity: 1;
-    }
-
-    #prompt-input:focus {
-      border-color: var(--ws-border-active);
-      outline: none;
-    }
-
-    /* ════════════════════════════════════════════════════════════════════
-     *  LORA STAGE CARDS — THE EQUIPMENT PANELS
-     *
-     *  Structure:
-     *    .lora-section                     — wrapper, defines the subgrid
-     *    .lora-stage                       — one stage card (stage-1 / stage-2)
-     *    .lora-stage-header                — full-width clickable label row
-     *    .lora-stage-body                  — collapsible drawer
-     *    .lora-row                         — one [label | track | value] row
-     *
-     *  Collapse mechanism: checkbox-and-label hack.
-     *    <input type="checkbox" class="lora-toggle" id="stage-N-toggle">
-     *    <label for="stage-N-toggle" class="lora-stage-header">
-     *    <div class="lora-stage-body">
-     *
-     *  CSS :has() on .lora-stage checks the sibling checkbox state:
-     *    .lora-stage:has(.lora-toggle:checked) .lora-stage-body { max-height ... }
-     *
-     *  The panel opens when the checkbox is CHECKED (default state).
-     *  Clicking the header label toggles the checkbox — pure CSS, zero JS.
-     *
-     *  SUBGRID: .lora-section establishes a named grid with 3 columns.
-     *  Both .lora-stage-body instances inherit this column geometry via
-     *  display: subgrid. Label column is fixed at 180px. Value column is
-     *  fixed at 52px. Track fills the remainder. This means labels and
-     *  value readouts stay column-aligned even when both stages are open.
-     *
-     *  Electron 28 (Chromium 120) — subgrid: SUPPORTED (Chrome 117+).
-     *  No fallback needed for this target.
-     * ════════════════════════════════════════════════════════════════════ */
-
-    /* Outer wrapper — establishes the subgrid column template */
-    .lora-section {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .lora-stage {
-      border: 1px solid var(--ws-border);
-      background: var(--ws-bg-elevated);
-    }
-
-    /* Stage-2 card top border merges with stage-1 bottom:
-     * The 4px gap is the seam. Both borders remain visible — two panels bolted together.
-     * No negative margin tricks — the seam is honest structure. */
-
-    /* ── LORA TOGGLE CHECKBOX — the mechanical latch (hidden) ────────── */
-    .lora-toggle {
-      /* Visually hidden but accessible to :has() and label targeting */
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      opacity: 0;
-      pointer-events: none;
-    }
-
-    /* ── STAGE HEADER — the pull-handle ─────────────────────────────── */
-    .lora-stage-header {
-      display: grid;
-      grid-template-columns: 1fr auto;
-      align-items: center;
-      padding: 5px 12px;
-      border-bottom: 1px solid var(--ws-border);
-      cursor: pointer;
-      user-select: none;
-      /* Physical click feel: no easing. Immediate response. */
-      transition: background 80ms step-end;
-    }
-
-    .lora-stage-header:active {
-      background: color-mix(in oklch, var(--ws-bg-elevated) 80%, var(--ws-amber));
-    }
-
-    .lora-stage-header-title {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-    }
-
-    .lora-stage-header-caret {
-      font-family: var(--ws-font-mono);
       font-size: var(--ws-type-small);
-      color: var(--ws-fg-muted);
-      opacity: 0.5;
-      /* Caret rotates on open — the panel rotates the indicator, not the drawer */
-      display: inline-block;
-      transition: transform cubic-bezier(0.87, 0, 0.13, 1) 260ms;
-    }
-
-    /* ── DRAWER — open when toggle is CHECKED ────────────────────────── */
-    /*
-     * max-height collapse pattern: the only CSS-only collapse that works
-     * with subgrid (overflow:hidden on the parent does not prevent subgrid
-     * rows from contributing to the parent grid's row sizing).
-     * We clamp to a known maximum height. 200px covers 4 rows @ ~44px each
-     * with comfortable padding.
-     */
-    .lora-stage-body {
-      display: grid;
-      grid-template-columns: 150px 1fr 52px;
+      letter-spacing: -0.05em;
       overflow: hidden;
-      max-height: 0;
-      transition: max-height cubic-bezier(0.87, 0, 0.13, 1) 320ms;
-      padding: 0 12px;
-    }
-
-    /* Checked = open panel — drawer extends to full height */
-    .lora-stage:has(.lora-toggle:checked) .lora-stage-body {
-      max-height: 160px;
-      padding: 6px 12px;
-    }
-
-    /* Caret indicator: ▸ when closed, ▾ when open */
-    .lora-stage:has(.lora-toggle:checked) .lora-stage-header-caret::before {
-      content: '▾';
-    }
-    .lora-stage:not(:has(.lora-toggle:checked)) .lora-stage-header-caret::before {
-      content: '▸';
-    }
-
-    /* Caret rotates — purely ornamental, the content swap above is the signal */
-    .lora-stage:has(.lora-toggle:checked) .lora-stage-header-caret {
-      transform: none;
-      opacity: 0.8;
-    }
-
-    /* ── LORA ROW — [label | track | value] ─────────────────────────── */
-    /*
-     * Uses subgrid inherited from .lora-stage-body → .lora-section columns.
-     * Each row is a full-bleed grid item: 3 cells, always aligned with the
-     * outer section grid. Both stages share the same column geometry.
-     */
-    .lora-row {
-      display: contents; /* participates in parent subgrid as individual cells */
-    }
-
-    .lora-row-label {
-      grid-column: 1;
-      display: flex;
-      align-items: center;
-      padding: 4px 0;
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-small);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .lora-row-track {
-      grid-column: 2;
-      display: flex;
-      align-items: center;
-      padding: 4px 8px 4px 0;
-    }
-
-    .lora-row-value {
-      grid-column: 3;
-      display: flex;
-      align-items: center;
-      justify-content: flex-end;
-      padding: 4px 0;
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      color: var(--ws-fg-muted);
-      white-space: nowrap;
-    }
-
-    /* ── RANGE INPUT — styled as an industrial track ─────────────────── */
-    /*
-     * Browser default range inputs are cartoonish. We strip everything
-     * and rebuild: thin track (3px), small thumb (10×16px — finger-width
-     * rectangle, not a ball), no border-radius on the track.
-     * The thumb is a hard-edged marker, not a bubble.
-     */
-    .lora-slider {
-      -webkit-appearance: none;
-      appearance: none;
       width: 100%;
-      height: 3px;
-      background: var(--ws-border);
-      outline: none;
-      cursor: pointer;
     }
 
-    /* Webkit track (Electron/Chromium) */
-    .lora-slider::-webkit-slider-runnable-track {
-      height: 3px;
-      background: var(--ws-border);
+    .ascii-header {
+      color: var(--ws-cyan);
     }
 
-    /* Webkit thumb — hard-edged rectangular marker */
-    .lora-slider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 3px;
-      height: 16px;
-      background: var(--ws-amber);
-      border: none;
-      border-radius: 0;
-      margin-top: -6.5px; /* center thumb on track */
-      cursor: pointer;
-      transition: background 100ms ease;
-    }
-
-    .lora-slider:hover::-webkit-slider-thumb {
-      background: color-mix(in oklch, var(--ws-amber) 85%, white);
-    }
-
-    .lora-slider:focus::-webkit-slider-thumb {
-      outline: 1px solid var(--ws-border-active);
-      outline-offset: 2px;
-    }
-
-    /* ── SEED ROW ────────────────────────────────────────────────────── */
-    #seed-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    #seed-label {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-small);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      user-select: none;
-    }
-
-    #seed-toggle {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      background: transparent;
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      color: var(--ws-fg-muted);
-      cursor: pointer;
-      padding: 4px 10px;
-      transition: border-color 150ms ease, color 150ms ease;
-    }
-
-    #seed-toggle:hover {
-      border-color: var(--ws-border-active);
-      color: var(--ws-amber);
-    }
-
-    #seed-value {
-      display: none;
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      background: var(--ws-bg-elevated);
-      color: var(--ws-fg);
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      padding: 4px 8px;
-      width: 140px;
-      outline: none;
-      transition: border-color 150ms ease;
-    }
-
-    #seed-value:focus {
-      border-color: var(--ws-border-active);
-      outline: none;
-    }
-
-    #seed-value::-webkit-outer-spin-button,
-    #seed-value::-webkit-inner-spin-button {
-      -webkit-appearance: none;
-    }
-
-    /* ── GENERATE BUTTON ─────────────────────────────────────────────── */
-    #go-btn {
-      width: 100%;
-      padding: 14px 0;
-      background: var(--ws-amber);
-      color: var(--ws-bg);
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      border: none;
-      border-radius: 0;
-      cursor: pointer;
-      transition: opacity 150ms ease, background 150ms ease;
-      user-select: none;
-    }
-
-    #go-btn:hover:not(:disabled) {
-      background: color-mix(in oklch, var(--ws-amber) 90%, white);
-    }
-
-    #go-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-
-    /* ════════════════════════════════════════════════════════════════════
-     *  PROGRESS BAR — upgraded from 6px to 11px with shimmer overlay
-     *
-     *  Structure:
-     *    #progress-bar          — track container (11px, hard edge)
-     *    #progress-fill         — fill layer (state-colored, JS-driven width)
-     *    #progress-shimmer      — shimmer overlay (CSS-only, moving gradient)
-     *
-     *  Shimmer: a 40%-wide semi-transparent highlight moves left→right
-     *  on a 1.8s linear loop. Pure CSS @keyframes + background-position.
-     *  The shimmer is a child of #progress-bar positioned absolutely over
-     *  the fill. It is clipped by overflow:hidden on the parent.
-     *  When fill is 0% width, the shimmer has nothing to sit on — it
-     *  will slide over the dark track silently. Fine.
-     * ════════════════════════════════════════════════════════════════════ */
-    #progress-bar {
-      position: relative;
-      background: var(--ws-bg-elevated);
-      border: 1px solid var(--ws-border);
-      height: 11px;
-      width: 100%;
-      overflow: hidden;
-    }
-
-    #progress-fill {
-      background: var(--ws-state-idle);
-      height: 100%;
-      width: 0%;
-      transition: width 300ms ease, background 200ms ease;
-      position: relative;
-      z-index: 1;
-    }
-
-    /* Shimmer overlay — sits above fill, clipped by parent overflow:hidden */
-    #progress-shimmer {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 2;
-      pointer-events: none;
-      background: linear-gradient(
-        90deg,
-        transparent 0%,
-        transparent 30%,
-        color-mix(in oklch, white 22%, transparent) 50%,
-        transparent 70%,
-        transparent 100%
-      );
-      background-size: 250% 100%;
-      animation: shimmer-sweep 1.8s linear infinite;
-    }
-
-    @keyframes shimmer-sweep {
-      0%   { background-position: 200% center; }
-      100% { background-position: -50% center; }
-    }
-
-    /* ════════════════════════════════════════════════════════════════════
-     *  ETA / ELAPSED ROW
-     *
-     *  Hidden by default. Shown only when #main-panel has data-generating.
-     *  JS sets this attribute on startGeneration() and removes it on
-     *  completion/error. No extra CSS class juggling required.
-     *
-     *  Layout: two-cell flex row, fixed-width label + mono readout pairs,
-     *  separated by a structural gap. Reads like instrument panel readouts.
-     * ════════════════════════════════════════════════════════════════════ */
-    #eta-row {
-      display: none;
-      align-items: center;
-      gap: 24px;
-    }
-
-    /* Shown only during active generation */
-    #main-panel[data-generating] #eta-row {
-      display: flex;
-    }
-
-    .eta-cell {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .eta-cell-label {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-small);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      opacity: 0.6;
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .eta-cell-value {
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-label);
-      color: var(--ws-fg);
-      letter-spacing: 0.04em;
-      white-space: nowrap;
-    }
-
-    /* Separator between ELAPSED and ETA — a vertical 1px rule */
-    .eta-separator {
-      width: 1px;
-      height: 14px;
-      background: var(--ws-border);
-      align-self: center;
-    }
-
-    /* ── STATUS TEXT ─────────────────────────────────────────────────── */
-    #status-text {
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      color: var(--ws-fg-muted);
-      min-height: 1.2em;
-      word-break: break-word;
-    }
-
-    /* ── LOG PANEL ───────────────────────────────────────────────────── */
-    #log-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    #log-bar-label {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-small);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      user-select: none;
-      opacity: 0.6;
-    }
-
-    #log-toggle {
-      font-family: var(--ws-font-mono);
-      font-size: 10px;
-      background: transparent;
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      color: var(--ws-fg-muted);
-      cursor: pointer;
-      padding: 2px 8px;
-      letter-spacing: 0.06em;
-      transition: border-color 150ms ease, color 150ms ease;
-    }
-
-    #log-toggle:hover {
-      border-color: var(--ws-border-active);
-      color: var(--ws-amber);
-    }
-
-    #log-panel {
-      background: color-mix(in oklch, var(--ws-bg) 60%, black);
-      border: 1px solid var(--ws-border);
-      height: 164px;
-      overflow: hidden;
-      display: none;
-    }
-
-    #log-output {
-      height: 100%;
-      overflow-y: auto;
-      padding: 6px 10px;
-      font-family: var(--ws-font-mono);
-      font-size: 11px;
-      line-height: 1.65;
-    }
-
-    .log-entry       { display: flex; gap: 9px; }
-    .log-ts          { color: var(--ws-fg-muted); opacity: 0.35; flex-shrink: 0; }
-    .log-icon        { flex-shrink: 0; width: 1ch; }
-    .log-msg         { color: var(--ws-fg-muted); word-break: break-all; }
-
-    .log-entry[data-type="start"]    .log-icon,
-    .log-entry[data-type="start"]    .log-msg    { color: var(--ws-amber); }
-    .log-entry[data-type="complete"] .log-icon,
-    .log-entry[data-type="complete"] .log-msg    { color: var(--ws-neon); }
-    .log-entry[data-type="node"]     .log-icon   { color: var(--ws-neon); }
-    .log-entry[data-type="node"]     .log-msg    { color: var(--ws-fg); }
-    .log-entry[data-type="step"]     .log-icon,
-    .log-entry[data-type="step"]     .log-msg    { color: var(--ws-amber); opacity: 0.75; }
-    .log-entry[data-type="error"]    .log-icon,
-    .log-entry[data-type="error"]    .log-msg    { color: var(--ws-state-error); }
-    .log-entry[data-type="init"]     .log-icon,
-    .log-entry[data-type="init"]     .log-msg    { color: var(--ws-fg-muted); opacity: 0.7; }
-    .log-entry[data-type="queue"]    .log-icon,
-    .log-entry[data-type="queue"]    .log-msg    { color: var(--ws-neon); opacity: 0.8; }
-
-    /* ── PRESET SECTION ─────────────────────────────────────────────── */
-    #preset-section {
-      border: 1px solid var(--ws-border);
-      background: var(--ws-bg-elevated);
-    }
-
+    /* Preset bar */
+    #preset-section { padding: 0 0 16px; }
     #preset-bar {
-      display: grid;
-      grid-template-columns: auto 1fr auto auto auto;
+      display: flex;
       align-items: center;
       gap: 8px;
-      padding: 5px 12px;
+      margin-bottom: 8px;
     }
-
     #preset-bar-label {
       font-family: var(--ws-font-ui);
       font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
+      color: var(--ws-muted);
       letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-      white-space: nowrap;
+      flex-shrink: 0;
+      font-weight: var(--ws-weight-label);
     }
-
     #preset-select {
-      font-family: var(--ws-font-mono);
-      font-size: 11px;
-      background: var(--ws-bg);
-      color: var(--ws-fg);
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      background: transparent;
+      color: var(--ws-text);
       border: 1px solid var(--ws-border);
-      border-radius: 0;
-      padding: 3px 6px;
-      outline: none;
-      cursor: pointer;
-      -webkit-appearance: none;
-      appearance: none;
-      transition: border-color 150ms ease;
+      padding: 4px 8px;
+      flex: 1;
     }
-
-    #preset-select:hover,
-    #preset-select:focus { border-color: var(--ws-border-active); }
-
     .preset-btn {
       font-family: var(--ws-font-ui);
-      font-size: 10px;
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
+      font-size: var(--ws-type-small);
       background: transparent;
+      color: var(--ws-text);
       border: 1px solid var(--ws-border);
-      border-radius: 0;
-      color: var(--ws-fg-muted);
+      padding: 4px 10px;
       cursor: pointer;
-      padding: 3px 8px;
+      letter-spacing: var(--ws-tracking-ui);
       white-space: nowrap;
-      transition: border-color 150ms ease, color 150ms ease;
+      transition: var(--ws-type-transition);
     }
-
-    .preset-btn:hover {
-      border-color: var(--ws-border-active);
-      color: var(--ws-amber);
-    }
-
-    #preset-delete-btn { display: none; }
-
+    .preset-btn:hover { border-color: var(--ws-pink); color: var(--ws-pink); }
     #preset-save-row {
       display: none;
-      align-items: center;
       gap: 8px;
-      padding: 5px 12px;
-      border-top: 1px solid var(--ws-border);
-    }
-
-    #preset-name-input {
-      font-family: var(--ws-font-mono);
-      font-size: 11px;
-      background: var(--ws-bg);
-      color: var(--ws-fg);
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      padding: 3px 8px;
-      flex: 1;
-      outline: none;
-      transition: border-color 150ms ease;
-    }
-
-    #preset-name-input:focus { border-color: var(--ws-border-active); }
-
-    /* ── CHAOS CARD ─────────────────────────────────────────────────── */
-    #chaos-card {
-      border: 1px solid var(--ws-border);
-      background: var(--ws-bg-elevated);
-    }
-
-    #chaos-card-header {
-      display: grid;
-      grid-template-columns: 1fr auto auto;
       align-items: center;
-      padding: 5px 12px;
-      border-bottom: 1px solid var(--ws-border);
-      gap: 12px;
+    }
+    #preset-save-row.visible { display: flex; }
+    #preset-name-input {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      background: transparent;
+      color: var(--ws-text);
+      border: 1px solid var(--ws-border);
+      padding: 4px 8px;
+      flex: 1;
     }
 
+    /* LoRA stage headers */
+    .lora-stage { margin-bottom: 24px; }
+    .lora-toggle { display: none; }
+    .lora-stage-header {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      padding: 8px 16px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .lora-stage-chevron {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      color: var(--ws-bg);
+      transition: transform 0.25s var(--ease-mechanical);
+      display: inline-block;
+    }
+    .lora-toggle:checked ~ .lora-stage-header .lora-stage-chevron { transform: rotate(90deg); }
+    .lora-stage-header-title {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-stage);
+      letter-spacing: var(--ws-tracking-stage);
+      color: var(--ws-bg);
+      font-weight: var(--ws-weight-label);
+      text-shadow: none;
+      flex: 1;
+    }
+    .lora-stage-body {
+      overflow: hidden;
+      max-height: 0;
+      transition: max-height 0.25s var(--ease-mechanical);
+    }
+    .lora-toggle:checked ~ .lora-stage-body { max-height: 800px; }
+
+    /* LoRA row label & value */
+    .lora-row-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      color: var(--ws-cyan);
+      letter-spacing: var(--ws-tracking-ui);
+      display: flex;
+      align-items: center;
+      padding: 8px 0;
+      text-shadow: 0 0 4px var(--ws-cyan);
+    }
+    .lora-row-value {
+      font-family: var(--ws-font-glitch);
+      font-size: clamp(20px, 2.5vw + 15px, 32px);
+      line-height: 1.0;
+      color: var(--ws-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Chaos card */
+    #chaos-card {
+      padding: 0 0 24px;
+    }
+    #chaos-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
     #chaos-card-title {
       font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
+      font-size: var(--ws-type-stage);
+      letter-spacing: 0.35em;
+      color: var(--ws-text);
       font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
     }
-
     #chaos-label-text {
-      font-family: var(--ws-font-mono);
-      font-size: 10px;
-      color: var(--ws-amber);
-      letter-spacing: 0.04em;
-      text-align: right;
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      color: var(--ws-muted);
+      letter-spacing: var(--ws-tracking-ui);
     }
-
     #chaos-pct-val {
       font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      color: var(--ws-fg-muted);
-      min-width: 34px;
-      text-align: right;
+      font-size: var(--ws-type-value);
+      color: var(--ws-text);
+      margin-left: auto;
     }
+    #chaos-card-body { width: 100%; }
+    #chaos-pct { width: 100%; }
 
-    #chaos-card-body {
-      padding: 8px 12px;
-      display: grid;
-      grid-template-columns: 1fr auto;
+    /* Seed row */
+    #seed-row {
+      display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 12px;
+      padding: 0 0 24px;
     }
-
-    #chaos-pct {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      height: 3px;
-      background: var(--ws-border);
-      outline: none;
+    #seed-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      color: var(--ws-muted);
+      letter-spacing: var(--ws-tracking-ui);
+    }
+    #seed-toggle {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-small);
+      background: transparent;
+      color: var(--ws-cyan);
+      border: 1px solid var(--ws-cyan);
+      padding: 4px 10px;
       cursor: pointer;
+      letter-spacing: var(--ws-tracking-ui);
+      transition: var(--ws-type-transition);
+    }
+    #seed-toggle:hover { background: var(--ws-cyan); color: var(--ws-bg); box-shadow: 0 0 8px var(--ws-cyan); }
+    #seed-value {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-label);
+      background: transparent;
+      color: var(--ws-text);
+      border: 1px solid var(--ws-border);
+      padding: 4px 8px;
+      width: 120px;
     }
 
-    #chaos-pct::-webkit-slider-runnable-track { height: 3px; background: var(--ws-border); }
-
-    #chaos-pct::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 3px;
-      height: 16px;
-      background: var(--ws-amber);
-      border: none;
-      border-radius: 0;
-      margin-top: -6.5px;
-      cursor: pointer;
-      transition: background 100ms ease;
+    /* Output card (resolution / fps / runs) */
+    #output-card {
+      padding: 0 0 24px;
     }
-
-    #chaos-pct:hover::-webkit-slider-thumb {
-      background: color-mix(in oklch, var(--ws-amber) 85%, white);
+    #output-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
     }
+    #output-card-title {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-stage);
+      letter-spacing: var(--ws-tracking-stage);
+      color: var(--ws-text);
+      font-weight: var(--ws-weight-label);
+    }
+    .output-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .output-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      color: var(--ws-muted);
+      letter-spacing: var(--ws-tracking-ui);
+      width: 120px;
+      flex-shrink: 0;
+    }
+    .output-select {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      background: transparent;
+      color: var(--ws-text);
+      border: 1px solid var(--ws-border);
+      padding: 4px 8px;
+      flex: 1;
+    }
+    .output-select:hover { border-color: var(--ws-pink); }
 
-    /* ── ACTION ROW (save seed + add to queue) ──────────────────────── */
+    /* Action row (add to queue / save seed) */
     #action-row {
       display: flex;
-      gap: 8px;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 0 0;
     }
-
-    #save-seed-btn {
+    #add-to-queue-btn, #save-seed-btn {
       font-family: var(--ws-font-ui);
       font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
       background: transparent;
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      color: var(--ws-fg-muted);
+      color: var(--ws-cyan);
+      border: 1px solid var(--ws-cyan);
+      padding: 8px 20px;
       cursor: pointer;
-      padding: 6px 14px;
-      white-space: nowrap;
-      transition: border-color 150ms ease, color 150ms ease;
-    }
-
-    #save-seed-btn:hover {
-      border-color: var(--ws-border-active);
-      color: var(--ws-amber);
-    }
-
-    #add-to-queue-btn {
-      flex: 1;
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
       letter-spacing: var(--ws-tracking-ui);
-      background: transparent;
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      color: var(--ws-fg-muted);
-      cursor: pointer;
-      padding: 6px 14px;
-      transition: border-color 150ms ease, color 150ms ease;
+      transition: var(--ws-type-transition);
+    }
+    #add-to-queue-btn:hover, #save-seed-btn:hover {
+      background: var(--ws-cyan);
+      color: var(--ws-bg);
+      box-shadow: 0 0 12px var(--ws-cyan);
     }
 
-    #add-to-queue-btn:hover {
-      border-color: var(--ws-neon);
-      color: var(--ws-neon);
-    }
-
-    /* ── SAVE-SEED INLINE FORM ──────────────────────────────────────── */
+    /* Save seed row */
     #save-seed-row {
       display: none;
       align-items: center;
       gap: 8px;
+      padding: 12px 0 0;
     }
-
+    #save-seed-row.visible { display: flex; }
     #seed-label-input {
       font-family: var(--ws-font-mono);
-      font-size: 11px;
-      background: var(--ws-bg-elevated);
-      color: var(--ws-fg);
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      padding: 5px 8px;
-      flex: 1;
-      outline: none;
-      transition: border-color 150ms ease;
-    }
-
-    #seed-label-input:focus { border-color: var(--ws-border-active); }
-
-    #seed-save-confirm,
-    #seed-save-skip {
-      font-family: var(--ws-font-ui);
-      font-size: 10px;
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      background: transparent;
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      color: var(--ws-fg-muted);
-      cursor: pointer;
-      padding: 5px 10px;
-      white-space: nowrap;
-      transition: border-color 150ms ease, color 150ms ease;
-    }
-
-    #seed-save-confirm:hover { border-color: var(--ws-amber); color: var(--ws-amber); }
-    #seed-save-skip:hover    { border-color: var(--ws-border-active); }
-
-    /* ── SEED BANK ──────────────────────────────────────────────────── */
-    #seed-bank-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    #seed-bank-bar-label {
-      font-family: var(--ws-font-ui);
       font-size: var(--ws-type-small);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      user-select: none;
-      opacity: 0.6;
-    }
-
-    #seed-bank-toggle {
-      font-family: var(--ws-font-mono);
-      font-size: 10px;
       background: transparent;
+      color: var(--ws-text);
       border: 1px solid var(--ws-border);
-      border-radius: 0;
-      color: var(--ws-fg-muted);
-      cursor: pointer;
-      padding: 2px 8px;
-      letter-spacing: 0.06em;
-      transition: border-color 150ms ease, color 150ms ease;
-    }
-
-    #seed-bank-toggle:hover {
-      border-color: var(--ws-border-active);
-      color: var(--ws-amber);
-    }
-
-    #seed-bank-panel {
-      background: color-mix(in oklch, var(--ws-bg) 60%, black);
-      border: 1px solid var(--ws-border);
-      max-height: 200px;
-      overflow-y: auto;
-    }
-
-    .seed-bank-entry {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 5px 10px;
-      border-bottom: 1px solid var(--ws-border);
-      gap: 8px;
-    }
-
-    .seed-bank-entry:last-child { border-bottom: none; }
-
-    .seed-bank-entry-info {
-      display: flex;
-      gap: 10px;
-      align-items: baseline;
+      padding: 4px 8px;
       flex: 1;
-      min-width: 0;
     }
-
-    .seed-bank-entry-seed {
-      font-family: var(--ws-font-mono);
-      font-size: 11px;
-      color: var(--ws-amber);
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .seed-bank-entry-label {
-      font-family: var(--ws-font-mono);
-      font-size: 11px;
-      color: var(--ws-fg);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .seed-bank-entry-date {
-      font-family: var(--ws-font-mono);
-      font-size: 10px;
-      color: var(--ws-fg-muted);
-      opacity: 0.5;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .seed-bank-entry-actions { display: flex; gap: 6px; flex-shrink: 0; }
-
-    .seed-entry-load,
-    .seed-entry-delete {
-      font-family: var(--ws-font-ui);
-      font-size: 10px;
-      letter-spacing: var(--ws-tracking-ui);
-      background: transparent;
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      cursor: pointer;
-      padding: 2px 6px;
-      transition: border-color 150ms ease, color 150ms ease;
-    }
-
-    .seed-entry-load { color: var(--ws-fg-muted); }
-    .seed-entry-load:hover { border-color: var(--ws-amber); color: var(--ws-amber); }
-
-    .seed-entry-delete { color: var(--ws-fg-muted); opacity: 0.5; }
-    .seed-entry-delete:hover { opacity: 1; color: var(--ws-state-error); border-color: var(--ws-state-error); }
-
-    .seed-bank-empty {
-      padding: 8px 12px;
-      font-family: var(--ws-font-mono);
-      font-size: 11px;
-      color: var(--ws-fg-muted);
-      opacity: 0.5;
-    }
-
-    /* ── QUEUE PANEL ────────────────────────────────────────────────── */
-    #queue-panel {
-      border: 1px solid var(--ws-border);
-      background: var(--ws-bg-elevated);
-    }
-
-    #queue-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 5px 12px;
-      border-bottom: 1px solid var(--ws-border);
-    }
-
-    #queue-header-label {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-    }
-
-    #queue-header-actions { display: flex; gap: 8px; }
-
-    .queue-btn {
-      font-family: var(--ws-font-ui);
-      font-size: 10px;
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      background: transparent;
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      color: var(--ws-fg-muted);
-      cursor: pointer;
-      padding: 3px 8px;
-      transition: border-color 150ms ease, color 150ms ease;
-    }
-
-    .queue-btn:hover { border-color: var(--ws-border-active); color: var(--ws-amber); }
-    #run-queue-btn:hover { border-color: var(--ws-neon); color: var(--ws-neon); }
-
-    #queue-list {
-      background: color-mix(in oklch, var(--ws-bg) 60%, black);
-      max-height: 180px;
-      overflow-y: auto;
-    }
-
-    .queue-job-card {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 5px 10px;
-      border-bottom: 1px solid var(--ws-border);
-      font-family: var(--ws-font-mono);
-      font-size: 11px;
-    }
-
-    .queue-job-card:last-child { border-bottom: none; }
-
-    .queue-job-status { flex-shrink: 0; width: 14px; text-align: center; color: var(--ws-fg-muted); }
-    .queue-job-label  { color: var(--ws-fg-muted); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .queue-job-chaos  { font-size: 10px; color: var(--ws-amber); opacity: 0.7; flex-shrink: 0; }
-
-    .queue-job-card[data-status="running"]  .queue-job-label { color: var(--ws-amber); }
-    .queue-job-card[data-status="complete"] .queue-job-label { color: var(--ws-neon); opacity: 0.7; }
-    .queue-job-card[data-status="error"]    .queue-job-label { color: var(--ws-state-error); }
-
-    .queue-job-remove {
-      font-family: var(--ws-font-mono);
-      font-size: 12px;
-      background: transparent;
-      border: none;
-      color: var(--ws-fg-muted);
-      cursor: pointer;
-      opacity: 0.4;
-      padding: 0 2px;
-      flex-shrink: 0;
-      transition: opacity 150ms ease, color 150ms ease;
-    }
-
-    .queue-job-remove:hover { opacity: 1; color: var(--ws-state-error); }
-
-    /* ── DIAL MODE + PRODUCTION MODE ────────────────────────────────── */
-    #dial-section,
-    #prod-section {
-      border: 1px solid var(--ws-border);
-      background: var(--ws-bg-elevated);
-    }
-
-    #dial-bar,
-    #prod-bar {
-      display: flex;
-      align-items: center;
-      padding: 5px 12px;
-      border-bottom: 1px solid var(--ws-border);
-      gap: 8px;
-    }
-
-    #dial-bar-label,
-    #prod-bar-label {
-      flex: 1;
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-      user-select: none;
-    }
-
-    #dial-toggle,
-    #prod-toggle {
+    #seed-save-confirm, #seed-save-skip {
       font-family: var(--ws-font-ui);
       font-size: var(--ws-type-small);
       background: transparent;
-      border: none;
-      color: var(--ws-fg-muted);
+      border: 1px solid var(--ws-border);
+      color: var(--ws-text);
+      padding: 4px 12px;
       cursor: pointer;
-      padding: 2px 4px;
-      transition: color 150ms ease;
+      letter-spacing: var(--ws-tracking-ui);
+      transition: var(--ws-type-transition);
     }
+    #seed-save-confirm:hover { border-color: var(--ws-pink); color: var(--ws-pink); }
+    #seed-save-skip:hover { border-color: var(--ws-muted); color: var(--ws-muted); }
 
-    #dial-toggle:hover,
-    #prod-toggle:hover { color: var(--ws-fg); }
-
-    #dial-body,
-    #prod-body {
-      padding: 8px 12px;
+    /* ETA row */
+    #eta-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+      padding: 8px 0;
+    }
+    .eta-cell {
       display: flex;
       flex-direction: column;
-      gap: 6px;
-    }
-
-    .dial-row {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .dial-axis-row {
-      display: flex;
       align-items: center;
       gap: 4px;
-      flex-wrap: wrap;
     }
-
-    .dial-row-label {
+    .eta-cell-label {
       font-family: var(--ws-font-ui);
       font-size: var(--ws-type-small);
-      font-weight: var(--ws-weight-label);
+      color: var(--ws-muted);
       letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-      min-width: 80px;
-      flex-shrink: 0;
     }
-
-    .dial-field-label {
-      font-family: var(--ws-font-ui);
-      font-size: 9px;
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      flex-shrink: 0;
-    }
-
-    .dial-select {
+    .eta-cell-value {
       font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      background: var(--ws-bg);
-      color: var(--ws-fg);
-      border: 1px solid var(--ws-border);
-      padding: 3px 6px;
-      outline: none;
-      cursor: pointer;
-      -webkit-appearance: none;
-      appearance: none;
-      transition: border-color 150ms ease;
+      font-size: var(--ws-type-value);
+      color: var(--ws-text);
     }
-
-    .dial-select:hover,
-    .dial-select:focus { border-color: var(--ws-border-active); }
-
-    .dial-num-input {
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      background: var(--ws-bg);
-      color: var(--ws-fg);
-      border: 1px solid var(--ws-border);
-      padding: 3px 6px;
-      width: 62px;
-      outline: none;
-      text-align: right;
-      transition: border-color 150ms ease;
-    }
-
-    .dial-num-input:focus { border-color: var(--ws-border-active); }
-
-    .dial-small-btn {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-small);
-      background: var(--ws-bg);
-      color: var(--ws-fg-muted);
-      border: 1px solid var(--ws-border);
-      padding: 3px 6px;
-      cursor: pointer;
-      transition: color 150ms ease, border-color 150ms ease;
-    }
-
-    .dial-small-btn:hover { color: var(--ws-fg); border-color: var(--ws-border-active); }
-
-    .dial-lock-active {
-      color: var(--ws-amber) !important;
-      border-color: var(--ws-amber) !important;
-    }
-
-    .dial-seed-val {
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      color: var(--ws-fg-muted);
-      flex: 1;
-    }
-
-    .dial-run-row { justify-content: flex-end; margin-top: 2px; }
-
-    .dial-job-count {
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      color: var(--ws-fg-muted);
-      flex: 1;
-    }
-
-    .dial-run-btn {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      background: var(--ws-bg);
-      color: var(--ws-neon);
-      border: 1px solid var(--ws-neon);
-      padding: 6px 16px;
-      cursor: pointer;
-      text-transform: uppercase;
-      transition: background 150ms ease, color 150ms ease;
-    }
-
-    .dial-run-btn:hover { background: var(--ws-neon); color: var(--ws-bg); }
-    .dial-run-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-    /* ── BATCH STATUS PANEL ──────────────────────────────────────────── */
-    #batch-panel {
-      border: 1px solid var(--ws-border-active);
-      background: var(--ws-bg-elevated);
-    }
-
-    #batch-header {
-      display: flex;
-      align-items: center;
-      padding: 5px 12px;
-      border-bottom: 1px solid var(--ws-border);
-      gap: 8px;
-    }
-
-    #batch-mode-label {
-      flex: 1;
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-neon);
-      text-transform: uppercase;
-    }
-
-    #batch-eta {
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      color: var(--ws-fg-muted);
-    }
-
-    #batch-progress-track {
-      height: 4px;
+    .eta-separator {
+      width: 1px;
+      height: 32px;
       background: var(--ws-border);
     }
 
-    #batch-progress-fill {
-      height: 100%;
-      width: 0%;
-      background: var(--ws-neon);
-      transition: width 300ms ease;
-    }
-
-    #batch-job-list {
-      padding: 4px 0;
-      max-height: 240px;
-      overflow-y: auto;
-    }
-
-    .batch-job-card {
-      display: flex;
-      align-items: center;
-      padding: 4px 12px;
-      gap: 8px;
-      border-bottom: 1px solid var(--ws-border);
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-    }
-
-    .batch-job-card:last-child { border-bottom: none; }
-
-    .batch-job-icon { font-size: 10px; flex-shrink: 0; min-width: 12px; }
-
-    .batch-job-label {
-      flex: 1;
-      color: var(--ws-fg-muted);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .batch-job-running .batch-job-label { color: var(--ws-fg); }
-    .batch-job-complete .batch-job-icon { color: var(--ws-neon); }
-    .batch-job-error .batch-job-icon    { color: #ff4444; }
-
-    .batch-promote-btn {
-      font-family: var(--ws-font-ui);
-      font-size: 9px;
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      background: transparent;
-      color: var(--ws-amber);
-      border: 1px solid var(--ws-amber);
-      padding: 2px 6px;
-      cursor: pointer;
-      text-transform: uppercase;
-      flex-shrink: 0;
-      transition: background 150ms ease, color 150ms ease;
-    }
-
-    .batch-promote-btn:hover { background: var(--ws-amber); color: var(--ws-bg); }
-
-    #batch-footer {
-      padding: 6px 12px;
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    #batch-cancel-btn {
-      font-family: var(--ws-font-ui);
-      font-size: var(--ws-type-small);
-      letter-spacing: var(--ws-tracking-ui);
-      background: transparent;
-      color: var(--ws-fg-muted);
-      border: 1px solid var(--ws-border);
-      padding: 4px 10px;
-      cursor: pointer;
-      text-transform: uppercase;
-      transition: color 150ms ease, border-color 150ms ease;
-    }
-
-    #batch-cancel-btn:hover { color: #ff4444; border-color: #ff4444; }
-
-    /* ── VIDEO PLAYER ────────────────────────────────────────────────── */
-    #video-player {
-      width: 100%;
-      max-height: 400px;
-      background: black;
-      display: none;
-    }
-
-    /* ── OUTPUT SETTINGS CARD ────────────────────────────────────────── */
-    #output-card {
-      border: 1px solid var(--ws-border);
-      background: var(--ws-bg-elevated);
-    }
-
-    #output-card-header {
-      padding: 5px 12px;
-      border-bottom: 1px solid var(--ws-border);
+    /* Status text */
+    #status-text {
       font-family: var(--ws-font-ui);
       font-size: var(--ws-type-label);
-      font-weight: var(--ws-weight-label);
+      color: var(--ws-cyan);
       letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-      user-select: none;
+      text-align: center;
+      padding: 8px 0;
+      text-shadow: 0 0 5px var(--ws-cyan);
     }
 
-    #output-card-body {
-      padding: 8px 12px;
+    /* Log bar + panel */
+    #log-bar {
       display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .output-row {
-      display: grid;
-      grid-template-columns: 150px 1fr;
       align-items: center;
+      justify-content: space-between;
+      padding: 12px 0;
+      border-top: 1px solid var(--ws-border);
+      cursor: pointer;
     }
-
-    .output-label {
+    #log-bar-label {
+      font-family: var(--ws-font-ui);
+      font-size: var(--ws-type-label);
+      color: var(--ws-muted);
+      letter-spacing: var(--ws-tracking-ui);
+    }
+    #log-toggle {
       font-family: var(--ws-font-ui);
       font-size: var(--ws-type-small);
-      font-weight: var(--ws-weight-label);
-      letter-spacing: var(--ws-tracking-ui);
-      color: var(--ws-fg-muted);
-      text-transform: uppercase;
-      white-space: nowrap;
-    }
-
-    .output-select {
-      font-family: var(--ws-font-mono);
-      font-size: var(--ws-type-small);
-      background: var(--ws-bg);
-      color: var(--ws-fg);
-      border: 1px solid var(--ws-border);
-      border-radius: 0;
-      padding: 4px 8px;
-      outline: none;
+      background: transparent;
+      color: var(--ws-muted);
+      border: none;
       cursor: pointer;
-      -webkit-appearance: none;
-      appearance: none;
-      width: 100%;
-      transition: border-color 150ms ease;
+      letter-spacing: var(--ws-tracking-ui);
     }
 
-    .output-select:hover,
-    .output-select:focus {
-      border-color: var(--ws-border-active);
-      outline: none;
+    /* Log output override */
+    #log-output {
+      font-family: var(--ws-font-mono);
+      font-size: var(--ws-type-log);
+      line-height: var(--ws-leading-log);
+    }
+
+    /* Type law overrides — correcting cascade conflicts with layout.css / chroma-bleed.css */
+    #go-btn { 
+      font-size: var(--ws-type-button); 
+      font-family: var(--ws-font-display);
+      text-shadow: 0 0 10px var(--ws-bg); /* Dark glow */
+      letter-spacing: 0.1em;
+    }
+
+    /* Input focus glow */
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid var(--ws-focus-ring, transparent);
+      outline-offset: 2px;
+      border-color: var(--ws-pink);
+      box-shadow: 0 0 8px var(--ws-pink);
+    }
+
+    /* ASCII Frames */
+    .terminal-frame {
+      border: 2px solid var(--ws-pink);
+      box-shadow: inset 0 0 10px var(--ws-pink), 0 0 10px var(--ws-pink);
+      padding: 16px;
+      position: relative;
+    }
+    
+    .terminal-frame::before {
+      content: "╔═════════════════════════════════════════════════════════════════╗";
+      position: absolute;
+      top: -12px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: var(--ws-pink);
+      font-family: var(--ws-font-glitch);
+      letter-spacing: -1px;
+      font-size: 14px;
+      pointer-events: none;
+    }
+    .terminal-frame::after {
+      content: "╚═════════════════════════════════════════════════════════════════╝";
+      position: absolute;
+      bottom: -12px;
+      left: 0;
+      width: 100%;
+      text-align: center;
+      color: var(--ws-pink);
+      font-family: var(--ws-font-glitch);
+      letter-spacing: -1px;
+      font-size: 14px;
+      pointer-events: none;
     }
 
   </style>
 </head>
+
 <body>
 
-  <!-- WAN BOOTH nameplate -->
+  <div class="wan-container">
+
+  <!-- ══════════════════════════════════════════════════════════
+       ZONE 1 — NAMEPLATE / HEADER
+  ══════════════════════════════════════════════════════════ -->
+  <div class="ascii-border ascii-header">
+╔═════════════════════════════════════════════════════════════════════════════════════════════════════════╗
+║     __  __  __  __  __                                                                                  ║
+║    /  |/  |/  |/  |/  |                                                                                 ║
+║    $$ |$$ |$$ |$$ |$$ |       ZOETROPE BATCH PROCESSOR                                                  ║
+║    $$ |$$ |$$ |$$ |$$ |       SYS.VER: SULPHUR KAWAII 1.0                                               ║
+║    $$ |$$ |$$ |$$ |$$ |       POWER: OVERWHELMING                                                       ║
+║    $$/ $$/ $$/ $$/ $$/                                                                                  ║
+╚═════════════════════════════════════════════════════════════════════════════════════════════════════════╝
+  </div>
   <header id="nameplate">
-    <h1>WAN BOOTH</h1>
+    <h1 style="font-family: var(--ws-font-display); font-size: var(--ws-type-display); color: var(--ws-pink); text-shadow: 0 0 15px var(--ws-pink); letter-spacing: var(--ws-tracking-display);">ZOETROPE</h1>
+    <div class="nameplate-status">
+      <div id="comfy-status-dot" class="comfy-disconnected"></div>
+      <span id="comfy-status-label">OFFLINE</span>
+    </div>
   </header>
 
-  <!-- Main panel — data-generating attribute is set/removed by renderer.js during generation -->
+  <!-- ══════════════════════════════════════════════════════════
+       ZONE 2 — MODE SELECTOR
+  ══════════════════════════════════════════════════════════ -->
+  <nav id="mode-selector">
+    <button class="mode-tab active" id="single-mode-btn">SINGLE</button>
+    <button class="mode-tab" id="dial-mode-btn">DIAL</button>
+    <button class="mode-tab" id="prod-mode-btn">PRODUCTION</button>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MAIN PANEL — Zones 3-7
+  ══════════════════════════════════════════════════════════ -->
   <main id="main-panel">
 
-    <!-- Image drop zone -->
-    <div id="drop-zone">
-      <span id="drop-label">DROP IMAGE</span>
+    <div class="ascii-border" style="color: var(--ws-muted);">
+─── DATA INGESTION ────────────────────────────────────────────────────────────────────────────────────────
     </div>
 
-    <!-- Prompt input -->
-    <textarea id="prompt-input" placeholder="Describe motion, camera, scene..."></textarea>
+    <!-- ── ZONE 3 — INPUT BLOCK ──────────────────────────── -->
+    <section class="zone zone-input">
 
-    <!-- Preset section — save/load LoRA + output configurations -->
-    <div id="preset-section">
-      <div id="preset-bar">
-        <span id="preset-bar-label">PRESETS</span>
-        <select id="preset-select" aria-label="Select a saved preset">
-          <option value="">— Select Preset —</option>
-        </select>
-        <button class="preset-btn" id="preset-load-btn" aria-label="Load selected preset">LOAD</button>
-        <button class="preset-btn" id="preset-delete-btn" aria-label="Delete selected preset">DELETE</button>
-        <button class="preset-btn" id="preset-save-btn" aria-label="Save current settings as preset">SAVE AS…</button>
+      <!-- Drop zone -->
+      <div id="drop-zone">
+        <span id="drop-label" style="color: var(--ws-cyan);">[ DROP IMAGE MATRIX HERE ]</span>
       </div>
-      <div id="preset-save-row">
-        <input type="text" id="preset-name-input" placeholder="preset name..." maxlength="64" aria-label="Preset name">
-        <button class="preset-btn" id="preset-confirm-btn">SAVE</button>
-        <button class="preset-btn" id="preset-cancel-btn">CANCEL</button>
-      </div>
+
+      <!-- Prompt -->
+      <textarea id="prompt-input" placeholder="> Enter prompt override..."></textarea>
+
+    </section><!-- /zone-input -->
+
+    <div class="ascii-border" style="color: var(--ws-muted); margin-top: 24px;">
+─── PARAMETER BLOCK ───────────────────────────────────────────────────────────────────────────────────────
     </div>
 
-    <!-- LoRA Stage Cards
-         Two collapsible equipment panels. Stage 1 and Stage 2 are joined
-         by a 4px seam inside .lora-section — they read as one instrument block.
+    <!-- ── ZONE 4 — PARAMETER BLOCK ─────────────────────── -->
+    <section class="zone zone-params">
 
-         Collapse mechanism: hidden checkbox + label targeting.
-         Default state: both stages OPEN (checkboxes checked).
-
-         Subgrid: .lora-section provides grid-template-columns: 180px 1fr 52px.
-         .lora-stage-body uses display:subgrid to inherit those column widths.
-         .lora-row uses display:contents to place its 3 children directly into
-         the subgrid. Result: label column and value column align perfectly
-         across both stages when both are open simultaneously. -->
-    <div class="lora-section">
-
-      <!-- ── STAGE 1 — HIGH DETAIL PASS ──────────────────────────────── -->
-      <div class="lora-stage" id="lora-stage-1">
-
-        <!-- Hidden mechanical latch — checked = panel open (default) -->
-        <input type="checkbox" class="lora-toggle" id="stage-1-toggle" checked>
-
-        <!-- Pull-handle: clicking this label toggles the checkbox -->
-        <label for="stage-1-toggle" class="lora-stage-header">
-          <span class="lora-stage-header-title">STAGE 1 — HIGH DETAIL PASS</span>
-          <span class="lora-stage-header-caret" aria-hidden="true"></span>
-        </label>
-
-        <!-- Drawer — collapses/expands via max-height transition -->
-        <div class="lora-stage-body">
-
-          <!-- DR34ML4Y STRENGTH -->
-          <div class="lora-row">
-            <span class="lora-row-label">DR34ML4Y STR</span>
-            <div class="lora-row-track">
-              <input type="range" class="lora-slider" id="s1-dr34mlay-str"
-                     min="0" max="1" step="0.01" value="0.80"
-                     aria-label="Stage 1 DR34ML4Y strength"
-                     title="Blends anime detail texture into the base image (Stage 1). Higher = stronger detail injection.">
-            </div>
-            <span class="lora-row-value" id="s1-dr34mlay-str-val">0.80</span>
-          </div>
-
-          <!-- K3NK STRENGTH -->
-          <div class="lora-row">
-            <span class="lora-row-label">K3NK STR</span>
-            <div class="lora-row-track">
-              <input type="range" class="lora-slider" id="s1-k3nk-str"
-                     min="0" max="1" step="0.01" value="0.60"
-                     aria-label="Stage 1 k3nk strength"
-                     title="K3NK stylization strength in Stage 1. Higher = stronger artistic push.">
-            </div>
-            <span class="lora-row-value" id="s1-k3nk-str-val">0.60</span>
-          </div>
-
-          <!-- STEPS -->
-          <div class="lora-row">
-            <span class="lora-row-label">STEPS</span>
-            <div class="lora-row-track">
-              <input type="range" class="lora-slider" id="s1-steps"
-                     min="1" max="60" step="1" value="20"
-                     aria-label="Stage 1 steps"
-                     title="How many refinement steps Stage 1 runs. Higher = more detail but slower.">
-            </div>
-            <span class="lora-row-value" id="s1-steps-val">20</span>
-          </div>
-
-          <!-- CFG -->
-          <div class="lora-row">
-            <span class="lora-row-label">CFG</span>
-            <div class="lora-row-track">
-              <input type="range" class="lora-slider" id="s1-cfg"
-                     min="1" max="15" step="0.1" value="3.5"
-                     aria-label="Stage 1 CFG scale"
-                     title="Prompt adherence in Stage 1. Higher = more literal to prompt; lower = more creative drift.">
-            </div>
-            <span class="lora-row-value" id="s1-cfg-val">3.5</span>
-          </div>
-
-        </div><!-- /.lora-stage-body -->
-      </div><!-- /#lora-stage-1 -->
-
-      <!-- ── STAGE 2 — REFINEMENT PASS ───────────────────────────────── -->
-      <div class="lora-stage" id="lora-stage-2">
-
-        <input type="checkbox" class="lora-toggle" id="stage-2-toggle" checked>
-
-        <label for="stage-2-toggle" class="lora-stage-header">
-          <span class="lora-stage-header-title">STAGE 2 — REFINEMENT PASS</span>
-          <span class="lora-stage-header-caret" aria-hidden="true"></span>
-        </label>
-
-        <div class="lora-stage-body">
-
-          <!-- DR34ML4Y STRENGTH -->
-          <div class="lora-row">
-            <span class="lora-row-label">DR34ML4Y STR</span>
-            <div class="lora-row-track">
-              <input type="range" class="lora-slider" id="s2-dr34mlay-str"
-                     min="0" max="1" step="0.01" value="0.80"
-                     aria-label="Stage 2 DR34ML4Y strength"
-                     title="DR34ML4Y texture in the refinement pass (Stage 2). Adds fine detail on top of Stage 1.">
-            </div>
-            <span class="lora-row-value" id="s2-dr34mlay-str-val">0.80</span>
-          </div>
-
-          <!-- K3NK STRENGTH -->
-          <div class="lora-row">
-            <span class="lora-row-label">K3NK STR</span>
-            <div class="lora-row-track">
-              <input type="range" class="lora-slider" id="s2-k3nk-str"
-                     min="0" max="1" step="0.01" value="0.60"
-                     aria-label="Stage 2 k3nk strength"
-                     title="K3NK stylization in Stage 2. Balances Stage 1's stylistic push with refinement.">
-            </div>
-            <span class="lora-row-value" id="s2-k3nk-str-val">0.60</span>
-          </div>
-
-          <!-- STEPS -->
-          <div class="lora-row">
-            <span class="lora-row-label">STEPS</span>
-            <div class="lora-row-track">
-              <input type="range" class="lora-slider" id="s2-steps"
-                     min="1" max="60" step="1" value="31"
-                     aria-label="Stage 2 steps"
-                     title="Refinement pass step count. More steps = sharper result but longer render time.">
-            </div>
-            <span class="lora-row-value" id="s2-steps-val">31</span>
-          </div>
-
-          <!-- CFG -->
-          <div class="lora-row">
-            <span class="lora-row-label">CFG</span>
-            <div class="lora-row-track">
-              <input type="range" class="lora-slider" id="s2-cfg"
-                     min="1" max="15" step="0.1" value="6.0"
-                     aria-label="Stage 2 CFG scale"
-                     title="Prompt adherence in Stage 2. Usually set higher than Stage 1 to lock down composition.">
-            </div>
-            <span class="lora-row-value" id="s2-cfg-val">6.0</span>
-          </div>
-
-        </div><!-- /.lora-stage-body -->
-      </div><!-- /#lora-stage-2 -->
-
-    </div><!-- /.lora-section -->
-
-    <!-- Chaos slider — randomizes LoRA values per-run by a percentage -->
-    <div id="chaos-card">
-      <div id="chaos-card-header">
-        <span id="chaos-card-title">CHAOS</span>
-        <span id="chaos-label-text">CHAOS OFF — exact values every run</span>
-        <span id="chaos-pct-val">0%</span>
-      </div>
-      <div id="chaos-card-body">
-        <input type="range" id="chaos-pct" min="0" max="100" step="5" value="0"
-               aria-label="Chaos percentage — randomizes LoRA values per run"
-               title="Adds controlled randomness to LoRA values each run. 0% = exact. 100% = fully random within slider range.">
-      </div>
-    </div>
-
-    <!-- Seed row -->
-    <div id="seed-row">
-      <label id="seed-label">SEED</label>
-      <button id="seed-toggle" aria-label="Toggle seed mode">RANDOM</button>
-      <input type="number" id="seed-value" value="42" min="0" max="9999999999">
-    </div>
-
-    <!-- Output settings card — resolution, FPS, repeat runs -->
-    <div id="output-card">
-      <div id="output-card-header">OUTPUT SETTINGS</div>
-      <div id="output-card-body">
-
-        <div class="output-row">
-          <label class="output-label" for="resolution-select">RESOLUTION</label>
-          <select id="resolution-select" class="output-select" aria-label="Output resolution preset"
-                  title="Output frame dimensions. 720p is ~4× slower than 480p.">
-            <option value="832x480" selected>832×480  —  LANDSCAPE 480P</option>
-            <option value="480x832">480×832  —  PORTRAIT 480P</option>
-            <option value="624x624">624×624  —  SQUARE</option>
-            <option value="1280x720">1280×720  —  LANDSCAPE 720P  (4× slower)</option>
-            <option value="720x1280">720×1280  —  PORTRAIT 720P  (4× slower)</option>
+      <!-- Preset bar -->
+      <div id="preset-section">
+        <div id="preset-bar">
+          <span id="preset-bar-label">PRESETS</span>
+          <select id="preset-select">
+            <option value="">— select preset —</option>
           </select>
+          <button class="preset-btn" id="preset-load-btn">LOAD</button>
+          <button class="preset-btn" id="preset-delete-btn">DELETE</button>
+          <button class="preset-btn" id="preset-save-btn">SAVE AS…</button>
         </div>
-
-        <div class="output-row">
-          <label class="output-label" for="fps-select">FRAME RATE</label>
-          <select id="fps-select" class="output-select" aria-label="Output frame rate"
-                  title="Playback speed of the output video. 16 FPS is WAN's native rate.">
-            <option value="8">8 FPS  —  minimum</option>
-            <option value="12">12 FPS  —  slow</option>
-            <option value="16" selected>16 FPS  —  native (default)</option>
-            <option value="24">24 FPS  —  smooth</option>
-          </select>
-        </div>
-
-        <div class="output-row">
-          <label class="output-label" for="runs-select">RUNS</label>
-          <select id="runs-select" class="output-select" aria-label="Number of repeat runs">
-            <option value="1" selected>1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5</option>
-            <option value="6">6</option>
-            <option value="7">7</option>
-            <option value="8">8</option>
-            <option value="9">9</option>
-            <option value="10">10</option>
-          </select>
-        </div>
-
-      </div>
-    </div>
-
-    <!-- Generate button -->
-    <button id="go-btn">GENERATE</button>
-
-    <!-- Action row: save last seed + add current state to queue -->
-    <div id="action-row">
-      <button id="save-seed-btn" style="display:none" aria-label="Save last generated seed to seed bank">★ SAVE SEED</button>
-      <button id="add-to-queue-btn" aria-label="Add current settings as a job to the render queue">+ ADD TO QUEUE</button>
-    </div>
-
-    <!-- Inline seed-label form (shown when ★ SAVE SEED is clicked) -->
-    <div id="save-seed-row">
-      <input type="text" id="seed-label-input" placeholder="label this seed..." maxlength="200" aria-label="Seed label">
-      <button id="seed-save-confirm">SAVE</button>
-      <button id="seed-save-skip">SKIP</button>
-    </div>
-
-    <!-- Progress bar — 11px with shimmer overlay child -->
-    <div id="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
-      <div id="progress-fill"></div>
-      <div id="progress-shimmer" aria-hidden="true"></div>
-    </div>
-
-    <!-- ETA / Elapsed row — shown only when data-generating is set on #main-panel -->
-    <div id="eta-row" aria-live="polite" aria-atomic="false">
-      <div class="eta-cell">
-        <span class="eta-cell-label">ELAPSED</span>
-        <span class="eta-cell-value" id="elapsed-value">00:00:00</span>
-      </div>
-      <div class="eta-separator" aria-hidden="true"></div>
-      <div class="eta-cell">
-        <span class="eta-cell-label">ETA</span>
-        <span class="eta-cell-value" id="eta-value">—</span>
-      </div>
-    </div>
-
-    <!-- Status text -->
-    <div id="status-text">READY</div>
-
-    <!-- Execution log -->
-    <div id="log-bar">
-      <span id="log-bar-label">EXECUTION LOG</span>
-      <button id="log-toggle">▾ SHOW</button>
-    </div>
-    <div id="log-panel">
-      <div id="log-output"></div>
-    </div>
-
-    <!-- Seed bank — saved seeds from completed generations -->
-    <div id="seed-bank-bar">
-      <span id="seed-bank-bar-label">SEED BANK</span>
-      <button id="seed-bank-toggle" aria-label="Toggle seed bank panel">▾ SHOW</button>
-    </div>
-    <div id="seed-bank-panel" style="display:none" aria-label="Saved seeds">
-      <div id="seed-bank-list"></div>
-    </div>
-
-    <!-- Queue panel — shown by JS when jobQueue has entries -->
-    <div id="queue-panel" style="display:none">
-      <div id="queue-header">
-        <span id="queue-header-label">RENDER QUEUE</span>
-        <div id="queue-header-actions">
-          <button class="queue-btn" id="run-queue-btn" aria-label="Run all pending queue jobs">▶ RUN QUEUE</button>
-          <button class="queue-btn" id="queue-clear-btn" aria-label="Clear pending queue jobs">CLEAR</button>
+        <div id="preset-save-row">
+          <input type="text" id="preset-name-input" placeholder="Preset name…">
+          <button class="preset-btn" id="preset-confirm-btn">SAVE</button>
+          <button class="preset-btn" id="preset-cancel-btn">CANCEL</button>
         </div>
       </div>
-      <div id="queue-list" aria-label="Queue jobs"></div>
+
+      <!-- LoRA Stage 1 -->
+      <div class="lora-section">
+        <div class="lora-stage" id="lora-stage-1">
+          <input type="checkbox" class="lora-toggle" id="stage-1-toggle" checked>
+          <label for="stage-1-toggle" class="lora-stage-header">
+            <span class="lora-stage-chevron">▶</span>
+            <span class="lora-stage-header-title">STAGE 1 — BASE</span>
+            <span class="stage-badge">HIGH</span>
+          </label>
+          <div class="lora-stage-body">
+
+            <div class="lora-row">
+              <label class="lora-row-label" for="s1-dr34mlay-str">DR34MLAY</label>
+              <input type="range" class="lora-row-slider" id="s1-dr34mlay-str" min="0" max="1" step="0.01" value="0.7">
+              <span class="lora-row-value" id="s1-dr34mlay-str-val">0.70</span>
+            </div>
+
+            <div class="lora-row">
+              <label class="lora-row-label" for="s1-k3nk-str">K3NK</label>
+              <input type="range" class="lora-row-slider" id="s1-k3nk-str" min="0" max="1" step="0.01" value="0.5">
+              <span class="lora-row-value" id="s1-k3nk-str-val">0.50</span>
+            </div>
+
+            <div class="lora-row">
+              <label class="lora-row-label" for="s1-steps">STEPS</label>
+              <input type="range" class="lora-row-slider" id="s1-steps" min="1" max="50" step="1" value="20">
+              <span class="lora-row-value" id="s1-steps-val">20</span>
+            </div>
+
+            <div class="lora-row">
+              <label class="lora-row-label" for="s1-cfg">CFG</label>
+              <input type="range" class="lora-row-slider" id="s1-cfg" min="1" max="20" step="0.5" value="7">
+              <span class="lora-row-value" id="s1-cfg-val">7.0</span>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- LoRA Stage 2 -->
+        <div class="lora-stage" id="lora-stage-2">
+          <input type="checkbox" class="lora-toggle" id="stage-2-toggle" checked>
+          <label for="stage-2-toggle" class="lora-stage-header">
+            <span class="lora-stage-chevron">▶</span>
+            <span class="lora-stage-header-title">STAGE 2 — REFINE</span>
+            <span class="stage-badge">LOW</span>
+          </label>
+          <div class="lora-stage-body">
+
+            <div class="lora-row">
+              <label class="lora-row-label" for="s2-dr34mlay-str">DR34MLAY</label>
+              <input type="range" class="lora-row-slider" id="s2-dr34mlay-str" min="0" max="1" step="0.01" value="0.7">
+              <span class="lora-row-value" id="s2-dr34mlay-str-val">0.70</span>
+            </div>
+
+            <div class="lora-row">
+              <label class="lora-row-label" for="s2-k3nk-str">K3NK</label>
+              <input type="range" class="lora-row-slider" id="s2-k3nk-str" min="0" max="1" step="0.01" value="0.5">
+              <span class="lora-row-value" id="s2-k3nk-str-val">0.50</span>
+            </div>
+
+            <div class="lora-row">
+              <label class="lora-row-label" for="s2-steps">STEPS</label>
+              <input type="range" class="lora-row-slider" id="s2-steps" min="1" max="50" step="1" value="20">
+              <span class="lora-row-value" id="s2-steps-val">20</span>
+            </div>
+
+            <div class="lora-row">
+              <label class="lora-row-label" for="s2-cfg">CFG</label>
+              <input type="range" class="lora-row-slider" id="s2-cfg" min="1" max="20" step="0.5" value="7">
+              <span class="lora-row-value" id="s2-cfg-val">7.0</span>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Seed row -->
+      <div id="seed-row">
+        <label id="seed-label" style="color: var(--ws-cyan); text-shadow: 0 0 4px var(--ws-cyan);">SEED</label>
+        <button id="seed-toggle">RANDOM</button>
+        <input type="number" id="seed-value" value="42" style="color: var(--ws-pink); border-color: var(--ws-pink);">
+      </div>
+
+    </section><!-- /zone-params -->
+
+    <div class="ascii-border" style="color: var(--ws-muted); margin-top: 24px;">
+─── SYSTEM EXECUTION ──────────────────────────────────────────────────────────────────────────────────────
     </div>
 
-    <!-- DIAL MODE — parameter sweep with a fixed seed -->
-    <div id="dial-section">
-      <div id="dial-bar">
-        <span id="dial-bar-label">DIAL MODE</span>
-        <button id="dial-toggle">▾ SHOW</button>
-      </div>
-      <div id="dial-body" style="display:none">
-        <div class="dial-row">
-          <span class="dial-row-label">DIAL SEED</span>
-          <span id="dial-seed-display" class="dial-seed-val">—</span>
-          <button id="dial-seed-roll" class="dial-small-btn" title="Roll a new random seed">🎲</button>
-          <button id="dial-seed-lock" class="dial-small-btn" title="Lock seed so it stays fixed across rolls">LOCK</button>
-        </div>
-        <div class="dial-axis-row">
-          <span class="dial-row-label">AXIS 1</span>
-          <select id="dial-axis1-param" class="dial-select" aria-label="Axis 1 parameter">
-            <option value="s1.cfg">Stage 1 CFG</option>
-            <option value="s2.cfg">Stage 2 CFG</option>
-            <option value="s1.dr34mlayStr">DR34ML4Y Str S1</option>
-            <option value="s2.dr34mlayStr">DR34ML4Y Str S2</option>
-            <option value="s1.k3nkStr">k3nk Str S1</option>
-            <option value="s2.k3nkStr">k3nk Str S2</option>
-            <option value="s1.steps">Step Split</option>
-          </select>
-          <label class="dial-field-label">MIN</label>
-          <input type="number" id="dial-axis1-min" class="dial-num-input" value="3.0" step="0.1" aria-label="Axis 1 min">
-          <label class="dial-field-label">MAX</label>
-          <input type="number" id="dial-axis1-max" class="dial-num-input" value="6.0" step="0.1" aria-label="Axis 1 max">
-          <label class="dial-field-label">STEPS</label>
-          <input type="number" id="dial-axis1-steps" class="dial-num-input" value="4" min="2" max="10" aria-label="Axis 1 steps">
-        </div>
-        <div class="dial-axis-row">
-          <span class="dial-row-label">AXIS 2</span>
-          <select id="dial-axis2-param" class="dial-select" aria-label="Axis 2 parameter (optional)">
-            <option value="">OFF</option>
-            <option value="s1.cfg">Stage 1 CFG</option>
-            <option value="s2.cfg">Stage 2 CFG</option>
-            <option value="s1.dr34mlayStr">DR34ML4Y Str S1</option>
-            <option value="s2.dr34mlayStr">DR34ML4Y Str S2</option>
-            <option value="s1.k3nkStr">k3nk Str S1</option>
-            <option value="s2.k3nkStr">k3nk Str S2</option>
-            <option value="s1.steps">Step Split</option>
-          </select>
-          <label class="dial-field-label">MIN</label>
-          <input type="number" id="dial-axis2-min" class="dial-num-input" value="3.0" step="0.1" aria-label="Axis 2 min">
-          <label class="dial-field-label">MAX</label>
-          <input type="number" id="dial-axis2-max" class="dial-num-input" value="6.0" step="0.1" aria-label="Axis 2 max">
-          <label class="dial-field-label">STEPS</label>
-          <input type="number" id="dial-axis2-steps" class="dial-num-input" value="4" min="2" max="10" aria-label="Axis 2 steps">
-        </div>
-        <div class="dial-row dial-run-row">
-          <span id="dial-job-count" class="dial-job-count">→ 4 jobs</span>
-          <button id="dial-run-btn" class="dial-run-btn" aria-label="Run DIAL parameter sweep">RUN DIAL</button>
-        </div>
-      </div>
-    </div>
+    <!-- ── ZONE 6 — ALTAR / CTA ──────────────────────────── -->
+    <section class="zone zone-altar">
 
-    <!-- PRODUCTION MODE — overnight batch with varied seeds -->
-    <div id="prod-section">
-      <div id="prod-bar">
-        <span id="prod-bar-label">PRODUCTION MODE</span>
-        <button id="prod-toggle">▾ SHOW</button>
-      </div>
-      <div id="prod-body" style="display:none">
-        <div class="dial-row">
-          <span class="dial-row-label">COUNT</span>
-          <input type="number" id="prod-count" class="dial-num-input" value="10" min="1" max="30" aria-label="Number of batch jobs">
-        </div>
-        <div class="dial-row">
-          <span class="dial-row-label">SEEDS</span>
-          <select id="prod-seed-strategy" class="dial-select" aria-label="Seed strategy">
-            <option value="random">RANDOM</option>
-            <option value="sequential">SEQUENTIAL</option>
-          </select>
-        </div>
-        <div class="dial-row" id="prod-base-seed-row" style="display:none">
-          <span class="dial-row-label">BASE SEED</span>
-          <input type="number" id="prod-base-seed" class="dial-num-input" value="1000" min="0" aria-label="Sequential base seed">
-        </div>
-        <div class="dial-row dial-run-row">
-          <button id="prod-run-btn" class="dial-run-btn" aria-label="Run production batch">RUN BATCH</button>
-        </div>
-      </div>
-    </div>
+      <button id="go-btn">[ EXECUTE_BATCH ]</button>
 
-    <!-- BATCH STATUS — shared live progress panel (shown while batch is running) -->
-    <div id="batch-panel" style="display:none" aria-live="polite">
-      <div id="batch-header">
-        <span id="batch-mode-label">BATCH</span>
-        <span id="batch-eta">—</span>
+      <!-- Action row -->
+      <div id="action-row">
+        <button id="add-to-queue-btn">+ ADD TO QUEUE</button>
       </div>
-      <div id="batch-progress-track">
-        <div id="batch-progress-fill"></div>
+
+    </section><!-- /zone-altar -->
+
+    <!-- ── ZONE 7 — RESULTS / STATUS ─────────────────────── -->
+    <section class="zone zone-results">
+
+      <div class="ascii-border" style="color: var(--ws-pink);">
+███████████████████████████████████████████████████████████████████████████████████████████████████████████
       </div>
-      <div id="batch-job-list" aria-label="Batch job list"></div>
-      <div id="batch-footer">
-        <button id="batch-cancel-btn" aria-label="Cancel batch after current job">CANCEL BATCH</button>
+
+      <!-- Progress bar -->
+      <div id="progress-bar" style="background: rgba(0,255,255,0.1); border: 1px solid var(--ws-cyan);">
+        <div id="progress-fill" style="background: var(--ws-cyan); box-shadow: 0 0 10px var(--ws-cyan);"></div>
+        <div id="progress-shimmer"></div>
       </div>
-    </div>
 
-    <!-- Video player (hidden until video is ready) -->
-    <video id="video-player" controls autoplay loop style="display:none;"></video>
+      <!-- Status text -->
+      <div id="status-text">AWAITING INPUT...</div>
 
-  </main>
+      <!-- Log bar + panel -->
+      <div id="log-bar">
+        <span id="log-bar-label" style="color: var(--ws-pink);">> SYS_LOG</span>
+        <button id="log-toggle">▾ SHOW</button>
+      </div>
+      <div id="log-panel">
+        <div id="log-output" style="background: #050505; border: 1px solid var(--ws-pink); color: var(--ws-cyan);"></div>
+      </div>
 
-  <!-- comfy.js MUST load BEFORE renderer.js -->
+      <!-- Video player -->
+      <video id="video-player" controls autoplay loop style="display:none; border: 2px solid var(--ws-cyan); box-shadow: 0 0 15px var(--ws-cyan);"></video>
+
+    </section><!-- /zone-results -->
+
+  </main><!-- /#main-panel -->
+
+  </div><!-- /.wan-container -->
+
   <script src="comfy.js"></script>
   <script src="renderer.js"></script>
 </body>

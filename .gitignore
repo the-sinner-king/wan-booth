@@ -18,14 +18,19 @@ logs/
 app/*.tmp
 app/output/
 
-# Soulforge / Glitchswarm session files (local dev artifacts)
+# Soulforge / Glitchswarm session artifacts (local dev — archived in .forge-sessions/)
+.forge-sessions/
+.forge-staging/
 BLACKBOARD.json
 BLACKBOARD.json.lock
 GLITCHSWARM_BLACKBOARD.json
 OBSIDIAN_REPORT.json
+REFINERY_REPORT.json
 SCOUT_REPORT.json
+VeriMAP.json
 *_north_star.md
 team_roster.md
+ASSEMBLER_COMPLETE.json
 
 # ComfyUI workflow temp outputs
 app/workflows/**_output*.json

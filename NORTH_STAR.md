@@ -27,7 +27,7 @@ CREATED.....: 2026-05-06 (S252)
 ╰────────────────────────────────────────────╯
 
 
-UPDATED.....: 2026-05-10 (S259/solo + S260 — Phase 4 COMPLETE: DIAL MODE + PRODUCTION MODE batch system. 200/200 regressions. Platform-aware workflow routing: Mac→i2v_14B_2stage_mac (no SageAttention nodes), PC→i2v_14B_2stage (full Phase 2.6 chain). Committed + pushed.)
+UPDATED.....: 2026-05-13 (S262) — ZOETROPE v2 visual rebuild COMPLETE. Glitchswarm S262: 5 drones (CHROMA_BLEED · GRID_GHOST · TYPE_WEAVER · OBSIDIAN ×2). chroma-bleed.css: OKLCH v2 color layer (15 sections). layout.css: v2 geometry + compact spacing. main.js: title "WAN BOOTH", dock icon, backgroundColor #0d0b12, zoomFactor 0.65. index.html: .wan-container wrapper, HIGH/LOW stage badges, inline cascade fixes, ascii-border clipped. Design locked: 640px centered container · pink neon border · solid cyan stage headers · multicolor slider thumbs · VT323 readouts. Baseline committed.
 
 ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓
 [ ⛬ 01 ]  T H E   I N V O C A T I O N
@@ -322,9 +322,11 @@ Goal: Turn the generator into a production tool Brandon can actually run solo ov
 Research COMPLETE — `PHASE_3_CODING_BRIEF.md` is the authoritative implementation spec.
 Build order: Phase 3A (smart) → Phase 3B (factory). Two Soulforge CODING sessions.
 
-**TIER 1 — UI REBUILD (Glitchswarm)**
-Full Bad Candy Arcade redesign. Current interface is non-functional for production use.
-Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass required before logic builds.
+**✅ TIER 1 — UI REBUILD (Glitchswarm) — v1 COMPLETE · v2 COMPLETE ✅**
+S258: Design tokens (color-tokens.css, type-tokens.css, chroma-bleed.css), initial layout concepts, CHROMA_BLEED + TYPE_WEAVER + GRID_GHOST drone outputs.
+S241 (Æris): Ground-up index.html rebuild — 7-zone architecture, layout.css deployed to app/, all 129 HTML IDs preserved, all token violations resolved. OBSIDIAN ok:true. Art Gate PASSED.
+S241+ (Æris): #prompt-input white-textarea fix — chroma-bleed.css Section 11 added (background/color/border/placeholder/:focus).
+**✅ DESIGN V2 — S262 COMPLETE**: ZOETROPE aesthetic shipped. Glitchswarm 5-drone run (CHROMA_BLEED · GRID_GHOST · TYPE_WEAVER · OBSIDIAN ×2). OBSIDIAN: 7 blockers found (loop 1), 5 fixed, 2 ghost-nodded. Art Gate PASSED. 640px centered container · pink neon border + glow · solid cyan stage card headers · HIGH/LOW badges · OKLCH palette locked (pink/cyan/sulphur/void) · VT323 value readouts · zoomFactor 0.65. Baseline committed S262.
 
 **TIER 2 — MAKE IT SMART (Phase 3A)**
 - **Plain-English tooltips** — ships first (zero risk, pure HTML). Effect-first language. All 8 sliders + FPS + resolution. Ready-to-paste copy in PHASE_3_CODING_BRIEF.md §RQ-02.
@@ -474,6 +476,8 @@ Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass require
 │             Mac ComfyUI Python 3.14 venv has broken pip (libexpat/pyexpat symbol mismatch) — use uv for any future pip installs
 │             KJ Nodes cloned to ~/Desktop/ComfyUI/custom_nodes/ComfyUI-KJNodes but deps not installed (matplotlib/mss/color-matcher missing)
 │             If you want SageAttention on Mac in future: fix Python or reinstall ComfyUI venv with Python 3.12
+├─ [✅ DONE] UI ground-up redesign — 7-zone architecture, Bad Candy Arcade aesthetic. Glitchswarm S241. layout.css + chroma-bleed.css deployed. OBSIDIAN ok:true.
+├─ [NEXT] JS hookup dev session — mode selector switching, ComfyUI status dot, altar label per-mode
 ├─ [NEXT] First full batch run on Citadel + UI polish per feedback
 
 ## RESOLVED QUESTIONS
@@ -630,6 +634,49 @@ Not cosmetic — the layout itself blocks the workflow. Glitchswarm pass require
 - **NLM verification pass**: 10 NLM feedback items (RF-01 through RF-10) cross-checked against codebase + 4 online Tavily searches. Net result: 1 real fix (add shift:8.0 to preset + seed bank schema), 1 note (RF-04 speed LoRA CFG caveat), 1 runtime dependency note (ComfyUI Dynamic VRAM required for queue). 4 items dead (RF-01/02/03/07). 2 already in brief (RF-06/10). 2 out of scope (RF-08/09).
 - **Brief uploaded to NLM**: Source ID 29252404. Notebook now has 367 sources.
 - **Biggest finding**: Chaos is renderer-only — zero IPC changes, zero main.js changes. Ships in one focused session.
+
+### S241 (Æris/AExGO) — 2026-05-11 — GLITCHSWARM PASS 2: FULL INDEX.HTML GROUND-UP REDESIGN
+
+**Glitchswarm session. 4 loops. OBSIDIAN ok:true (Round 3). Art Gate PASSED. promise: COMPLETE.**
+
+- **Mission**: Ground-up rewrite of `app/index.html` — Bad Candy Arcade aesthetic, 7-zone architecture, all 129 HTML IDs preserved, JS files untouched.
+- **Note**: S258 created the design token files (color-tokens.css, type-tokens.css, chroma-bleed.css) and initial layout concepts. S241 is the COMPLETE index.html rebuild integrating all prior drone output.
+- **7-zone architecture deployed**:
+  - Zone 1 (header/nameplate): outside `#main-panel`, with `#comfy-status-dot` + `#comfy-status-label`
+  - Zone 2 (mode-selector nav): outside `#main-panel`, 3 mode tabs (`#single-mode-btn`, `#dial-mode-btn`, `#prod-mode-btn`)
+  - Zones 3-7 (input/params/mode-ctrls/altar/results): as `<section class="zone">` inside `<main id="main-panel">`
+- **layout.css deployed** — GRID_GHOST spatial architecture copied from `.forge-staging/` to `app/`. Fixes applied at source: `.lora-stage-header-title`, `.lora-row-value`, `#go-btn` type tokens corrected.
+- **chroma-bleed.css updated** — `.lora-stage-header-title`, `.lora-row-value`, `.batch-promote-btn` type token violations fixed.
+- **Token compliance**: All `var(--ws-font-nameplate)` refs (5 occurrences) purged — token does not exist. All elements now use valid `var(--ws-font-ui)`. `--ws-tracking-button` zero occurrences (doesn't exist). All type scale values correct: button=24px, stage=32px, value=24px, log=16px.
+- **LoRA row pattern**: `.lora-row { display:contents }` — wrapper dissolves, children become direct 4-col subgrid participants. `input[type=range]` has `.lora-row-slider` directly — no `.lora-row-track` wrapper.
+- **Collapsible pattern**: Hidden checkbox `.lora-toggle` + `<label>` + `.lora-stage-body` with CSS `max-height 0→800px`. `display:none` forbidden for CSS-only drawers; JS-driven panels exempt.
+- **Zone padding**: 28px on all `.zone` base rules. Child elements inside zones have no horizontal padding (double-padding stripped — was 56px misalignment).
+- **OBSIDIAN R1**: ok:false — 6 blockers. B-01/05/06 fixed. B-02/03/04 deferred (JS-driven panels, renderer.js READ ONLY).
+- **OBSIDIAN R2**: ok:false — NF-01/02/03 (layout.css source tokens, --ws-font-nameplate at 5 locations). All fixed.
+- **OBSIDIAN R3**: ok:true — 15 checks passed, 3 non-blocking warnings (dead CSS rules, type-tokens.css responsive breakpoints). W-R3-01 (.batch-promote-btn 9px) fixed pre-promise.
+- **Ghost nodes** (dev session required): mode-selector JS hookup, altar label per-mode, `#comfy-status-dot` JS hookup, `#dial-body`/`#prod-body`/`#seed-bank-panel` animation conversion.
+- **Project root cleanup**: all Soulforge session artifacts moved to `.forge-sessions/`. `.gitignore` updated.
+
+### S241+ (Æris/AExGO) — 2026-05-13 — PROMPT-INPUT BUG FIX + DESIGN V2 PIVOT
+
+- **Bug fixed**: `#prompt-input` white textarea — `background/color/border/::placeholder/:focus` were delegated to chroma-bleed.css in layout.css comment but never written. Added as Section 11 in chroma-bleed.css. Selector: `background: var(--ws-bg); color: var(--ws-fg); border: 1px solid var(--ws-border)`. Focus: `border-color: var(--ws-pink); box-shadow: 0 0 8px var(--ws-pink-glow)`.
+- **Design feedback**: S241 shell is functional but aesthetically flat — correct color palette and pixel font, but no visual structure, no depth, no panel card hierarchy. Brandon's verdict: "the design was a bit lacking."
+- **Design v2 pivot**: New direction is ZOETROPE aesthetic — cyan+pink dual accent (not pink-only), bordered panel cards for each section, stage sections as distinct boxed containers, pixel dot progress animations, deeper visual hierarchy. Reference images: ZOETROPE AI Video Batch Processor mockups (images shared in session).
+- **Status**: Brandon + Æris (AExMUSE panel) actively designing new shell. All 129 HTML IDs must survive — renderer.js stays untouched.
+
+### S262 (Æris/AExGO) — 2026-05-13 — ZOETROPE v2 COMPLETE
+
+**Glitchswarm session. 2 loops. 5 drones. Art Gate PASSED. OBSIDIAN ok:true (loop 2). Baseline committed.**
+
+- **CHROMA_BLEED**: chroma-bleed.css Sections 1-15. OKLCH palette: pink oklch(0.72 0.28 350), cyan oklch(0.82 0.13 200), sulphur oklch(0.75 0.17 85), void oklch(0.095 0.010 285). Drop zone: repeating-linear-gradient diagonal stripe + dashed cyan border. Stage headers: solid cyan fill + void text. GO btn: void bg + sulphur text, hover = sulphur fill. Slider thumbs: LoRA = pink, STEPS = cyan, CFG = sulphur. Section 15: explicit ID-targeted pink thumbs for all 4 LoRA strength sliders.
+- **GRID_GHOST**: layout.css Section 12 — .wan-container 640px centered, zone padding strip, stage card geometry + border, badge styles, GO button full-width override. Section 13 — compact spacing (nameplate 64px→8px, zone 48px→16px, altar 80px→16px). html { width:100% } + body { margin:0 auto } for correct centering at zoom factor.
+- **TYPE_WEAVER**: chroma-bleed.css Section 14 — .lora-row-value: VT323, clamp(20px, 2.5vw+15px, 32px), line-height:1.0 (load-bearing — pixel font collapses without it).
+- **OBSIDIAN loop 1** (7 blockers): B-01 inline color/text-shadow on lora-row-value spans, B-03 .lora-slider class DNE in DOM, B-04 #drop-zone rgba() box-shadow (OKLCH law), B-05 justify-content:space-between on stage header, B-06 .terminal-frame overflow on zone-input/zone-params. B-02/#go-btn height ghost, B-07 dead slider IDs ghost.
+- **OBSIDIAN loop 2** (5 fixed): B-01 8 inline styles stripped, B-03 Section 15 added, B-04 inline style removed, B-05 flex-start added, B-06 terminal-frame class removed. B-02/B-07 ghost-nodded.
+- **main.js**: BrowserWindow title "WAN BOOTH", icon.png, backgroundColor #0d0b12, zoomFactor 0.65. app.dock.setIcon() on macOS. DevTools auto-open removed (open manually with Cmd+Opt+I).
+- **icon.png**: 512×512 — void bg, 4-layer pink neon border glow, cyan corner film holes, "W" in pink, "BOOTH" in cyan.
+- **index.html**: `<title>WAN BOOTH</title>`, .wan-container wrapper, HIGH/LOW stage badges, .ascii-border overflow:hidden + width:100%, inline cascade fixes (justify-content, header colors, lora-row-value font), all inline element color/text-shadow stripped.
+- **Ghost nodes (surviving)**: #go-btn 72px height set in layout.css but not chroma-bleed (low priority). Dead slider ID selectors in layout.css Section 7 (low priority, cosmetic).
 
 ### S259 continued — 2026-05-09 — PHASE 3A+3B COMPLETE
 
@@ -798,34 +845,54 @@ Note: `--bf16-unet` and `PYTORCH_MPS_HIGH_WATERMARK_RATIO` are in the Mac branch
 ⚠️ SA speedup ceiling on Ampere: RTX 3000-series uses legacy sm86 kernels only (10-15%). The 30-40% figures in community guides apply to Ada Lovelace (RTX 4090, sm89+) and Blackwell only. Going to Ada/Blackwell unlocks the next tier.
 🔭 A/B test pending: `rel_l1_thresh` 0.3 → 0.5 should push TeaCache to ~3.5× by skipping more aggressively. Cost: more visible cache artifacts. Same seed/prompt/image recommended for clean comparison.
 
-## FILE INVENTORY (current)
+## FILE INVENTORY (current — as of 2026-05-11 S241)
 ```
 WAN_BOOTH/
-├── NORTH_STAR.md          (this file)
+├── NORTH_STAR.md          (this file — canonical specification + session log)
 ├── README.md              (Mac + PC setup guide — npm install, ComfyUI install, model download paths)
-├── .gitignore             (node_modules, dist, session artifacts, BLACKBOARD files)
+├── .gitignore             (node_modules, dist, session artifacts, .forge-sessions/)
 ├── WAN_BOOTH_ARCHITECTURE.txt  (18-section full source map — also uploaded to NLM 811bfc8c)
-├── BATCH_SYSTEM_PLAN.md   (DIAL MODE + PRODUCTION MODE batch system — complete CODING brief)
-├── GLITCHSWARM_BLACKBOARD.json (Glitchswarm S258 decisions — color/type/layout locked)
+├── BATCH_SYSTEM_PLAN.md   (DIAL MODE + PRODUCTION MODE batch system — complete CODING brief. Shipped Phase 4.)
 ├── CLAUDE_FIXES.md        (Citadel bug log — BUG #1-5 with root causes + install ops IO #1-3. Replay guide for Citadel env setup.)
-├── PHASE_2.6_BRINGUP_REPORT.md  (Cla⌂de's full Phase 2.6 bring-up report: 8 confirmed runs, 18:18 avg, 2.41×, per-step breakdown, hardware notes, all 5 bugs found/fixed, privacy residual.)
-├── PHASE_3_CODING_BRIEF.md   (Phase 3 implementation spec — all 5 RQs resolved. Copy-paste-ready code for tooltips, preset/seed IPC, chaos math, queue schema. Verified against NLM + online sources. NLM source ID: 29252404.)
+├── PHASE_2.6_BRINGUP_REPORT.md  (Phase 2.6 bring-up report: 8 confirmed runs, 18:18 avg, 2.41×, per-step breakdown.)
+├── PHASE_3_CODING_BRIEF.md   (Phase 3 implementation spec — tooltips, preset/seed IPC, chaos math, queue. NLM source ID: 29252404.)
+├── WAN_BOOTH_UI_DESIGN_BRIEF.md  (Glitchswarm design brief — 7-zone architecture spec, token system, Bad Candy Arcade aesthetic law)
+├── VERIFY_BEFORE_FIRST_RUN.md  (Citadel field checklist — node load verification, SageAttention/TeaCache confirm)
+├── .forge-sessions/       (gitignored — Soulforge/Glitchswarm session artifacts: north_stars, BLACKBOARD, reports, VeriMAP)
 ├── app/
 │   ├── package.json
 │   ├── main.js            (Electron main — IPC, ComfyUI spawn, platform-adaptive flags, getComfyDir() helper)
 │   ├── preload.js         (IPC bridge — all wan.* methods including getComfyDir)
 │   ├── comfy.js           (ComfyUI API client — WebSocket + POST + NODE_LABELS + WORKFLOW_14B_CONTRACT validation)
-│   ├── renderer.js        (UI logic — drop zone, generate button, video player, ETA timer; prompt NOT written to reports)
-│   ├── index.html         (Bad Candy Arcade UI — Glitchswarm S258 complete)
-│   ├── color-tokens.css   (Bad Candy Arcade OKLCH palette — hot magenta, cyan, purple-void)
-│   ├── type-tokens.css    (VT323 + Press Start 2P bimodal system)
+│   ├── renderer.js        (UI logic — drop zone, generate button, video player, ETA timer, queue, batch, chaos; prompt NOT written to reports)
+│   ├── index.html         (Bad Candy Arcade UI — Glitchswarm S241 ground-up redesign. 7-zone, 129 IDs.)
+│   ├── color-tokens.css   (Bad Candy Arcade OKLCH palette — hot magenta, cyan, purple-void. Backward-compat aliases for --ws-amber/--ws-neon.)
+│   ├── type-tokens.css    (VT323 + Press Start 2P bimodal system — PS2P: 88px/6px only, VT323: 16px minimum)
+│   ├── layout.css         (GRID_GHOST spatial architecture — 7-zone layout, LoRA subgrid, spacing tokens, easing curves)
+│   ├── chroma-bleed.css   (CHROMA_BLEED color expressions — glow rules, state colors, mode tab active states, altar pulse)
+│   ├── copy-tokens.json   (UI copy strings — machine voice, operator-facing strings for drop zone, buttons, errors)
+│   ├── seeds.json         (Seed bank — saved seeds with UUIDs, persists across sessions)
+│   ├── presets/
+│   │   └── index.json     (Preset library — saved parameter snapshots)
 │   ├── workflows/
-│   │   ├── i2v_5B.json         (Wan 2.2 TI2V-5B — Wan22ImageToVideoLatent, 15 nodes)
-│   │   └── i2v_14B_2stage.json (Wan 2.2 I2V-14B — 2-stage MoE, WanImageToVideo, dual-LoRA chain, serial KSamplerAdvanced, VAEDecodeTiled, PathchSageAttentionKJ (20/22) + TeaCache (21/23), 23 nodes)
+│   │   ├── i2v_5B.json              (Wan 2.2 TI2V-5B — Wan22ImageToVideoLatent, 15 nodes)
+│   │   ├── i2v_14B_2stage.json      (PC workflow — 2-stage 14B, dual-LoRA chain, SageAttention + TeaCache nodes 20-23)
+│   │   └── i2v_14B_2stage_mac.json  (Mac workflow — SageAttention nodes removed, MPS-safe, auto-selected on darwin)
 │   └── test/
-│       └── regression.js  (144 regression tests — all passing)
+│       └── regression.js  (200 regression tests — all passing as of Phase 4)
 └── GitHub: https://github.com/the-sinner-king/wan-booth
 ```
+
+### Ghost Nodes (pending dev session)
+**✅ NOTE**: Design v2 SHIPPED S262 (ZOETROPE aesthetic, Glitchswarm). Ghost nodes marked "v1 only" are closed. JS hookup ghosts survive.
+
+- `[✅ FIXED]` `#prompt-input` white textarea — chroma-bleed.css Section 11 added (S241+)
+- `[GHOST: medium]` Mode selector switching (SINGLE/DIAL/PRODUCTION) — UI designed, JS hookup needed
+- `[GHOST: medium]` Altar button label per-mode — JS hookup needed  
+- `[GHOST: medium]` `#comfy-status-dot` / `#comfy-status-label` — JS hookup needed
+- `[GHOST: low]` `#dial-body`, `#prod-body`, `#seed-bank-panel` use `display:none` (JS-driven). Convert to class-based max-height animation when renderer.js is editable.
+- `[GHOST: low — v1 only]` layout.css dead rules for `#dial-panel` / `#prod-panel` (HTML uses `#dial-section` / `#prod-section`) — cosmetic cleanup; moot if v2 shell ships
+- `[GHOST: low — v1 only]` type-tokens.css responsive breakpoints drop `--ws-type-display` into 10-80px forbidden zone — moot if v2 ships with new token file
 
 ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
 🜚 SIGNED: ÆRIS_GLITCHMUSE // ⛬⚚⛬ THE LAW STANDS.

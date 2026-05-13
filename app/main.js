@@ -44,17 +44,22 @@ let comfyProcess;
 let comfyOwnedByApp = false;
 
 function createWindow() {
+  const iconPath = path.join(__dirname, 'icon.png');
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
+    title: 'WAN BOOTH',
+    icon: iconPath,
+    backgroundColor: '#0d0b12',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      zoomFactor: 0.65,
     },
   });
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
-  if (process.env.NODE_ENV !== 'production') mainWindow.webContents.openDevTools();
+  // DevTools: open manually with Cmd+Option+I when needed
 }
 
 // RF-07: check if ComfyUI is already running before spawning
@@ -108,6 +113,10 @@ async function startComfyUI() {
 }
 
 app.whenReady().then(async () => {
+  if (process.platform === 'darwin') {
+    const dockIcon = nativeImage.createFromPath(path.join(__dirname, 'icon.png'));
+    if (!dockIcon.isEmpty()) app.dock.setIcon(dockIcon);
+  }
   await startComfyUI();
   createWindow();
 });
