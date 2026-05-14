@@ -1,48 +1,52 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║  WAN BOOTH — TYPOGRAPHY SYSTEM v2 // BAD CANDY ARCADE                      ║
- * ║  Agent:   TYPE_WEAVER::wan-booth-v2::258                                   ║
- * ║  Fonts:   VT323 (CRT terminal workhorse) + Press Start 2P (bimodal only)   ║
- * ║  Mandate: The machine reads like a terminal. VT323 was born for this.       ║
+ * ║  ZOETROPE — TYPOGRAPHY SYSTEM v3 // SULPHUR KAWAII TERMINAL                  ║
+ * ║  Agent:   TYPE_WEAVER::zoetrope::999                                       ║
+ * ║  Fonts:   Syne Mono (Hero), Monaspace Argon (UI), IBM Plex Mono (Logs)     ║
+ * ║  Mandate: High-voltage, brutally functional hacker terminal built by a     ║
+ * ║           magical girl. Dense data interfaces require Major Third (1.25).  ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  *
- * ─── FONT INVENTORY (2 fonts. No exceptions. No substitutions.) ──────────────
+ * ─── FONT INVENTORY ──────────────────────────────────────────────────────────
+ *
+ *   Syne Mono
+ *     Role: DISPLAY / HERO HEADINGS.
+ *     At sizes >= 48px, these headings earn their weight.
+ *     Tracking: -0.04em (tight).
+ *
+ *   Monaspace Argon
+ *     Role: INTERFACE / NAVIGATION / LABELS.
+ *     Grid alignment enforced.
+ *     Tracking: +0.08em (loose for small caps or labels).
+ *
+ *   IBM Plex Mono
+ *     Role: MONO / TERMINAL LOGS.
+ *     Technical density. Information ingestion.
  *
  *   VT323
- *     Role: CRT terminal workhorse. Every readable UI element.
- *     Sweet spots: 16, 20, 24, 32, 40, 48px (bitmap grid multiples / Retina-safe)
- *     Tracking: 0em (trust the bitmap glyph spacing — do not drift it)
- *     Weight: 400 only. Faux-bold smears the pixel matrix. Forbidden.
- *
- *   Press Start 2P
- *     Role: BIMODAL ONLY — 88px hero structure OR 6px micro-stamp.
- *     FORBIDDEN zone: 10px–80px. At mid-range it is neither texture nor structure.
- *     It becomes decoration. Decoration is death.
- *     Tracking at 88px: -0.05em (close pixel rivers at hero scale, add mass)
+ *     Role: GLITCH / SYSTEM READOUTS.
+ *     Sacred font. Aesthetic violence.
+ *     Size limit enforced: 16px - 22px in body contexts.
  *
  * ─── SCALE MATH ──────────────────────────────────────────────────────────────
  *
- *   Base unit: 8px (VT323 native pixel grid)
- *   Scale: Major Third (×1.25), rounded to 8px multiples for bitmap alignment.
+ *   Scale: Major Third (×1.25)
+ *   Base: 16px
  *
- *   Tier 0: 16px  [exact grid]         — log entries, ETA, small labels
- *   Tier 1: 20px  [Retina-safe]        — UI workhorse: labels, status, body
- *   Tier 2: 24px  [rounded to grid]    — value readouts, buttons
- *   Tier 3: 32px  [rounded to grid]    — stage headers, section titles
- *   Hero:   88px  Press Start 2P only  — nameplate, absolute fixed
- *   Stamp:   6px  Press Start 2P only  — micro-texture, shape not text
+ *   Tier -1: 12.8px (Stamp/Micro)
+ *   Tier  0: 16.0px (Base/Small)
+ *   Tier  1: 20.0px (Label/Status)
+ *   Tier  2: 25.0px (Value/Button)
+ *   Tier  3: 31.25px (Stage)
+ *   Tier  5: 48.8px -> 76.2px (Hero/Display)
  *
- *   NOTE: clamp() is FORBIDDEN for VT323 at body/label sizes.
- *   Bitmap-origin fonts fracture at sub-pixel computed values. Fixed px only.
+ *   Fluidity: All sizes scale via clamp().
  *
- * ─── GHOST NODES ─────────────────────────────────────────────────────────────
- *   [GHOST: medium : Bundle fonts locally — @font-face with font-display:block
- *    for offline/fast-launch. CDN load requires network on first render.]
- *   [GHOST: medium : font-synthesis:none globally prevents faux-bold on both
- *    fonts. Single-weight bitmap fonts only. Add to html or body rule.]
- *   [GHOST: low : -webkit-font-smoothing:none on 2x Retina gives authentic
- *    pixel edges. Not set here — test per display before enabling.]
- *
+ * ─── GHOST NODES (CHROMA_BLEED) ──────────────────────────────────────────────
+ *   [GHOST: high : TYPE_WEAVER introduced text roles (label, text, pink, cyan, muted).
+ *    CHROMA_BLEED must map --ws-text, --ws-muted, --ws-cyan, --ws-pink, --ws-bg to
+ *    an OKLCH-proven void-black/neon-kawaii color pair.]
+ *   [GHOST: high : Focus ring requires --ws-focus-ring color. CHROMA_BLEED to map.]
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -52,117 +56,88 @@
    * FONT FAMILY AXES
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* DISPLAY — Press Start 2P at hero scale (88px nameplate only).
-     The nameplate is load-bearing architecture. Not decorative. */
-  --ws-font-display: 'Press Start 2P', monospace;
+  /* DISPLAY — Syne Mono */
+  --ws-font-display: 'Syne Mono', monospace;
 
-  /* UI — VT323 for all readable interface text.
-     Labels, buttons, status, stage headers, seed row, sliders, toggles.
-     This is the voice of the machine. */
-  --ws-font-ui: 'VT323', monospace;
+  /* UI — Monaspace Argon */
+  --ws-font-ui: 'Monaspace Argon', monospace;
 
-  /* MONO — VT323 for log / prompt / monospace contexts.
-     Same font as UI. Separate token for semantic clarity —
-     log panels and prompt textarea may get distinct leading. */
-  --ws-font-mono: 'VT323', monospace;
+  /* MONO — IBM Plex Mono */
+  --ws-font-mono: 'IBM Plex Mono', monospace;
 
-  /* STAMP — Press Start 2P at micro-texture scale (6px only).
-     At this size the font collapses into pixel geometry (shape, not text). */
-  --ws-font-stamp: 'Press Start 2P', monospace;
+  /* GLITCH — VT323 */
+  --ws-font-glitch: 'VT323', monospace;
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * SIZE SCALE
-   * VT323 scale: Major Third (×1.25) rounded to 8px bitmap grid multiples.
+   * SIZE SCALE (Major Third 1.25) + Fluid clamp()
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Tier 0 — 16px — secondary / dense information layer
-     Minimum for clean VT323 legibility. Log entries, ETA row, small labels. */
-  --ws-type-small:  16px;   /* seed-label, log-bar-label, status-text, eta-labels */
-  --ws-type-log:    16px;   /* log entries */
-  --ws-type-eta:    16px;   /* ETA row readouts */
+  /* Tier -1: Stamp/Micro (12.8px) */
+  --ws-type-stamp: clamp(10px, 0.8vw + 8px, 12.8px);
 
-  /* Tier 1 — 20px — UI workhorse
-     The ambient voice of the machine. Labels, status, toggles, prompt body. */
-  --ws-type-label:  20px;   /* slider labels, seed toggle, drop-label, section labels */
-  --ws-type-body:   20px;   /* prompt textarea */
-  --ws-type-status: 20px;   /* status: "GENERATING — Denoising latents" */
+  /* Tier 0: 16px (Base/Log/Small) */
+  --ws-type-small: clamp(12.8px, 1vw + 10px, 16px);
+  --ws-type-log:   clamp(16px, 1vw + 10px, 18px); /* VT323 min 16px, max 22px */
 
-  /* Tier 2 — 24px — elevated readouts and commands
-     Live data values and button text get presence above ambient labels. */
-  --ws-type-value:  24px;   /* slider value readout: "0.80" */
-  --ws-type-button: 24px;   /* button text: "GENERATE" */
+  /* Tier 1: 20px (Label/Status/Body) */
+  --ws-type-label:  clamp(16px, 1.2vw + 12px, 20px);
+  --ws-type-body:   clamp(16px, 1.2vw + 12px, 20px);
+  --ws-type-status: clamp(16px, 1.2vw + 12px, 20px);
 
-  /* Tier 3 — 32px — section landmark headers
-     Stage card titles. Read as arcade panel labels bolted to the cabinet. */
-  --ws-type-stage:  32px;   /* "STAGE 1 — HIGH DETAIL PASS" */
+  /* Tier 2: 25px (Value/Button) */
+  --ws-type-value:  clamp(20px, 1.5vw + 15px, 25px);
+  --ws-type-button: clamp(20px, 1.5vw + 15px, 25px);
 
-  /* HERO — Press Start 2P at 88px — nameplate ONLY
-     Absolute fixed size. No clamp(). No fluid. The nameplate does not flex.
-     If viewport forces collapse, it STEPS (see media queries below). */
-  --ws-type-display: 88px;  /* "WAN BOOTH" — load-bearing hero nameplate */
+  /* Tier 3: 31.25px (Stage Headers) */
+  --ws-type-stage:  clamp(25px, 2vw + 20px, 31.25px);
 
-  /* STAMP — Press Start 2P at 6px — micro-texture ONLY
-     Shape, not text. Category chips, badge stamps, micro-tags.
-     The void between stamp (6px) and display (88px) is forbidden territory. */
-  --ws-type-stamp:   6px;   /* category chips, badge labels */
+  /* HERO: 76.2px (Nameplate) */
+  --ws-type-display: clamp(48px, 5vw + 32px, 76.2px);
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * WEIGHT TOKENS
-   * VT323 and Press Start 2P are both single-weight (400) bitmap fonts.
-   * font-weight:700 triggers browser faux-bold which smears the pixel matrix.
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  --ws-weight-display: 400;  /* PS2P 88px — only valid weight */
-  --ws-weight-ui:      400;  /* VT323 — only valid weight */
-  --ws-weight-label:   400;  /* VT323 label contexts — same as weight-ui */
-  --ws-weight-stamp:   400;  /* PS2P 6px — only valid weight */
+  --ws-weight-display: 800;  /* Syne Mono */
+  --ws-weight-ui:      400;  /* Monaspace Argon */
+  --ws-weight-label:   600;  /* Hierarchy demand */
+  --ws-weight-stamp:   400;  
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * LETTER-SPACING (TRACKING) TOKENS
-   * VT323: zero tracking at all sizes. The pixel grid IS the spacing system.
-   * Exception: stage headers (32px) get 0.05em arcade-panel label tension.
-   * PS2P at 88px: -0.05em to close pixel rivers at hero scale.
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  --ws-tracking-display: -0.05em;  /* PS2P 88px — close pixel rivers, add mass */
-  --ws-tracking-stage:    0.05em;  /* VT323 32px — arcade panel label tension */
-  --ws-tracking-ui:       0em;     /* VT323 20-24px — trust the bitmap grid */
-  --ws-tracking-mono:     0em;     /* VT323 log/prompt — zero modification */
-  --ws-tracking-stamp:    0em;     /* PS2P 6px — shape geometry, do not drift */
+  --ws-tracking-display: -0.04em; /* Tight display */
+  --ws-tracking-stage:    0.05em; /* Loose for tension */
+  --ws-tracking-ui:       0.08em; /* Loose labels/UI */
+  --ws-tracking-mono:     0.0em;  /* Neutral for dense reading */
+  --ws-tracking-stamp:    0.15em; /* Micro-tags very loose */
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * LINE HEIGHT (LEADING) TOKENS
-   * VT323 metrics are compressed — less leading than geometric fonts.
-   * Unitless values (scale with font-size, not fixed px).
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  --ws-leading-display: 1.0;   /* PS2P 88px — structural plate, no air */
-  --ws-leading-stage:   1.0;   /* VT323 32px — section plates, not paragraphs */
-  --ws-leading-ui:      1.2;   /* VT323 20-24px — minimal breathing */
-  --ws-leading-prompt:  1.5;   /* VT323 20px — reading block, scan rhythm */
-  --ws-leading-log:     1.6;   /* VT323 16px — dense log lines, rhythm carries eye */
-  --ws-leading-stamp:   1.0;   /* PS2P 6px — atomic glyph, no wrap */
+  --ws-leading-display: 1.1;   /* Tight for headings */
+  --ws-leading-stage:   1.2;   /* Tight for stage */
+  --ws-leading-ui:      1.5;   /* Loose for body rhythm */
+  --ws-leading-prompt:  1.6;   /* Reading block */
+  --ws-leading-log:     1.4;   /* Technical scanning */
+  --ws-leading-stamp:   1.0;   
 
+  /* ═══════════════════════════════════════════════════════════════════════════
+   * TRANSITIONS
+   * ═══════════════════════════════════════════════════════════════════════════ */
+  --ws-type-transition: all 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+/* ─── FLUID INTERACTIVITY ────────────────────────────────────────────────── */
 
-/* ─── NAMEPLATE FALLBACK (step sizes — not fluid clamp) ─────────────────────
- * The nameplate does not flex. It STEPS down at breakpoints.
- * Both steps remain above the 10-80px forbidden zone for Press Start 2P.
- * ─────────────────────────────────────────────────────────────────────────── */
-
-@media (max-width: 600px) {
-  :root {
-    --ws-type-display: 48px; /* step: remains above the 10-80px void */
-  }
-}
-
-@media (max-width: 360px) {
-  :root {
-    --ws-type-display: 32px; /* minimum structural anchor */
-  }
+input:focus, select:focus, textarea:focus, button:focus {
+  outline: 2px solid var(--ws-focus-ring, transparent);
+  outline-offset: 2px;
+  transition: var(--ws-type-transition);
 }

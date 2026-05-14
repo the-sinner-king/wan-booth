@@ -1172,9 +1172,9 @@ input[type="range"]::-moz-range-thumb {
  * SECTION 12 — WAN BOOTH v2 — CONTAINER + STAGE CARD GEOMETRY (GRID_GHOST)
  * ════════════════════════════════════════════════════════════════════════════ */
 
-/* 640px centered container — v2 spatial frame */
+/* Full-width container — v2 spatial frame, expanded for two-column layout */
 .wan-container {
-  width: 640px;
+  width: 900px;
   margin: 0 auto;
   padding: 24px;
   position: relative;
@@ -1183,8 +1183,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* Strip per-zone side padding inside container — container owns the gutter */
 .wan-container .zone,
-.wan-container #nameplate,
-.wan-container nav#mode-selector {
+.wan-container #nameplate {
   padding-left: 0;
   padding-right: 0;
 }
@@ -1255,8 +1254,639 @@ input[type="range"]::-moz-range-thumb {
 /* Zone params: was 48px bottom — tightened to 16px */
 .wan-container .zone-params { padding-bottom: 16px; }
 
-/* Zone mode-ctrls: was 48px bottom — tightened to 16px */
-.wan-container .zone-mode-ctrls { padding-bottom: 16px; }
-
 /* Altar: was 80px top+bottom — tightened to 16px each */
 .wan-container .zone-altar { padding-top: 16px; padding-bottom: 16px; }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 14 — DIAL SECTION GEOMETRY
+ *
+ * The axis row (.dial-axis-grid) is a 4-column grid:
+ *   Col 1 (80px):   Axis label — fixed, reads PARAM without truncation
+ *   Col 2 (140px):  Param select — fixed-enough for the longest option text
+ *   Col 3 (1fr):    Range cluster — takes remaining width. Runs its own
+ *                   internal 6-col grid (label/input × 3) via CSS subgrid.
+ *
+ * The 4th reserved ghost column from the LoRA grid is NOT carried here —
+ * axis rows have no lora-row-value analog. The cluster IS the third cell.
+ *
+ * The .dial-seed-row reuses a simpler 3-column layout:
+ *   label | seed display | button cluster
+ *   120px | 1fr          | auto
+ * No slider track — the seed is not a range input.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/* ── DIAL STAGE CARD ───────────────────────────────────────────────────── */
+
+/* dial-stage-body overrides lora-stage-body grid for the axis layout.
+   The lora-stage-body default is 4-col for slider rows.
+   Axis rows need a different track definition — we use single-column
+   here and let each axis-grid child define its own columns.
+   row-gap carries the inter-row breathing. */
+.dial-stage-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+/* ── DIAL SEED ROW ─────────────────────────────────────────────────────── */
+
+.dial-seed-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+  padding: 4px 0;
+}
+
+/* Seed display — mono readout, left-aligned within its 1fr cell */
+.dial-seed-display {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-small);
+  letter-spacing: 0;
+  /* Color: CHROMA_BLEED territory */
+}
+
+/* Button cluster: ROLL + LOCK sit side-by-side, auto width, no flex growth */
+.dial-seed-controls {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Seed action buttons — structural dimensions only */
+.dial-seed-btn {
+  height: 28px;
+  padding: 0 10px;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  border-radius: 0;
+  border-width: 1px;
+  border-style: solid;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background   0.12s var(--ease-snap),
+    border-color 0.12s var(--ease-snap),
+    color        0.12s var(--ease-snap);
+}
+
+/* ── AXIS DIVIDER RULE ─────────────────────────────────────────────────── */
+
+/* Thin horizontal separator with an inset label — structural only.
+   CHROMA_BLEED owns border-color and text color. */
+.dial-axis-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0 4px;
+  border-top-width: 1px;
+  border-top-style: solid;
+  /* Color: CHROMA_BLEED territory */
+}
+
+.dial-axis-divider-label {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  white-space: nowrap;
+  /* Color: CHROMA_BLEED territory */
+}
+
+/* ── AXIS GRID — 3-COLUMN ──────────────────────────────────────────────── */
+
+/* Each axis row: axis-label | param-select | range-cluster
+   The range-cluster carries its own internal grid.
+   Using grid (not display:contents) so the row is a real box — collapsible,
+   dimmed via .axis-inactive, and visually bounded. */
+.dial-axis-grid {
+  display: grid;
+  grid-template-columns: 80px 140px 1fr;
+  align-items: start;
+  column-gap: 10px;
+  row-gap: 0;
+}
+
+/* Axis label — Col 1 */
+.dial-axis-label {
+  grid-column: 1;
+  padding-top: 6px;   /* Align with select field inner text baseline */
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  /* Color: CHROMA_BLEED territory */
+}
+
+/* Param select — Col 2 */
+.dial-axis-param-select {
+  grid-column: 2;
+  width: 100%;
+  padding: 5px 8px;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  border-radius: 0;
+  outline: none;
+  cursor: pointer;
+  /* Color/border: CHROMA_BLEED territory */
+}
+
+/* ── RANGE CLUSTER — internal 6-col grid ────────────────────────────────
+ * Three label+input pairs share a uniform 6-column track set.
+ * Track formula: [label] auto | [input] 1fr — repeated 3 times.
+ * auto collapses to text width. 1fr splits remaining space equally.
+ * This keeps MIN/MAX/STP inputs the same width regardless of label length.
+ * ─────────────────────────────────────────────────────────────────────── */
+
+.dial-range-cluster {
+  grid-column: 3;
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr auto 1fr;
+  align-items: center;
+  column-gap: 6px;
+}
+
+/* Sub-labels: MIN / MAX / STP — purely structural text nodes */
+.dial-range-sublabel {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  padding-right: 2px;
+  user-select: none;
+  /* Color: CHROMA_BLEED territory */
+}
+
+/* Range inputs: MIN, MAX, STEPS */
+.dial-range-input {
+  width: 100%;
+  min-width: 0;         /* Allow grid compression below intrinsic width */
+  padding: 5px 6px;
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-small);
+  border-radius: 0;
+  outline: none;
+  text-align: center;
+  /* Color/border: CHROMA_BLEED territory */
+}
+
+/* Hide number spinners — the inputs are controlled by typed value, not click-spin */
+.dial-range-input::-webkit-outer-spin-button,
+.dial-range-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+.dial-range-input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Steps input: slightly narrower — it's always an integer 2–20.
+   The grid distributes space equally, but we can visually signal its
+   narrower domain by keeping font-weight heavier to fill the field. */
+.dial-range-steps {
+  font-weight: var(--ws-weight-label);
+}
+
+/* ── INACTIVE AXIS STATE ────────────────────────────────────────────────── */
+
+/* JS adds .axis-inactive to .dial-axis-optional when axis2-param is empty.
+   Dims the entire second axis block without display:none — the structure
+   stays visible but communicates "not in use." */
+.dial-axis-optional.axis-inactive {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* ── DIAL RUN ALTAR ────────────────────────────────────────────────────── */
+
+/* The run button sits in its own altar zone, not inside the stage card.
+   8px top margin from the card, 16px bottom before the next section. */
+.dial-run-altar,
+.prod-run-altar {
+  padding-top: 10px;
+  padding-bottom: 16px;
+}
+
+/* The run/batch buttons — smaller altar than go-btn, same mechanical DNA */
+.dial-run-btn,
+.prod-run-btn {
+  display: block;
+  width: 100%;
+  height: 44px;
+  border-radius: 0;
+  cursor: pointer;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  user-select: none;
+  border-width: 1px;
+  border-style: solid;
+  background: transparent;
+  transition:
+    background  0.2s var(--ease-altar-in),
+    color       0.2s var(--ease-altar-in),
+    box-shadow  0.2s var(--ease-altar-in),
+    transform   0.15s var(--ease-surface);
+}
+
+.dial-run-btn:hover:not(:disabled),
+.prod-run-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  transition:
+    background  0.18s var(--ease-altar-in),
+    color       0.18s var(--ease-altar-in),
+    box-shadow  0.18s var(--ease-altar-in),
+    transform   0.18s var(--ease-surface);
+}
+
+.dial-run-btn:active:not(:disabled),
+.prod-run-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  transition:
+    background  0.1s var(--ease-altar-out),
+    transform   0.1s var(--ease-altar-out);
+}
+
+.dial-run-btn:disabled,
+.prod-run-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+  transform: none;
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 15 — PRODUCTION SECTION GEOMETRY
+ *
+ * Production rows reuse a simpler 3-column pattern than axis rows.
+ * There are no range clusters — just label | input/select | hint.
+ * Track: 80px | 1fr | auto
+ * This matches the dial-seed-row pattern, keeping the two sections
+ * visually consistent in their input density.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/* prod-stage-body: column flex, same cadence as dial-stage-body */
+.prod-stage-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+}
+
+/* Production row: 3-column — label | input | hint */
+.prod-row {
+  display: grid;
+  grid-template-columns: 80px 1fr auto;
+  align-items: center;
+  column-gap: 12px;
+}
+
+/* Row label — Col 1, same class lineage as lora-row-label.
+   width+flex-shrink: fallback for display:flex (renderer.js reveals
+   #prod-base-seed-row with style.display='flex', not 'grid'). */
+.prod-row-label {
+  grid-column: 1;
+  width: 80px;
+  flex-shrink: 0;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  /* Color: CHROMA_BLEED territory */
+}
+
+/* Count input — Col 2. flex:1 is the fallback for display:flex context. */
+.prod-count-input {
+  grid-column: 2;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 5px 8px;
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-body);
+  border-radius: 0;
+  outline: none;
+  text-align: left;
+}
+
+.prod-count-input::-webkit-outer-spin-button,
+.prod-count-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+/* Strategy select — Col 2 (same track as count input, different row) */
+.prod-strategy-select {
+  grid-column: 2;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 5px 8px;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  border-radius: 0;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Base seed input — shown only when strategy=sequential */
+.prod-base-seed-input {
+  grid-column: 2;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding: 5px 8px;
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-small);
+  border-radius: 0;
+  outline: none;
+}
+
+.prod-base-seed-input::-webkit-outer-spin-button,
+.prod-base-seed-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+}
+
+/* Hint text — Col 3, secondary label. flex-shrink:0 holds it in flex context. */
+.prod-row-hint {
+  grid-column: 3;
+  flex-shrink: 0;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  letter-spacing: var(--ws-tracking-ui);
+  white-space: nowrap;
+  /* Color: CHROMA_BLEED territory */
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 16 — BATCH PANEL GEOMETRY (ZONE-BATCH-PANEL)
+ *
+ * The batch panel is not collapsible — it is a mission console.
+ * It either exists or it does not. JS controls display.
+ * Internal structure:
+ *   - Console header: flex row, mode-label left / eta right
+ *   - Reactor gauge: full-width 8px track with animated fill
+ *   - Job radar: scrollable list, max-height capped
+ *   - Kill zone: bottom-anchored cancel button, separated by padding
+ *
+ * Zone class: .zone-batch-panel — carries the standard 28px side padding
+ * via the .zone base rule. Internal sections work within that budget.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/* Batch panel zone spacing */
+.zone-batch-panel {
+  padding-top: 0;
+  padding-bottom: 24px;
+}
+
+/* Console header: mode label left, ETA right */
+.batch-console-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0 0 10px;
+}
+
+/* Mode label — e.g. "DIAL: job 3 of 12" */
+.batch-mode-label {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  /* Color: CHROMA_BLEED territory */
+}
+
+/* ETA display — monospace, right-anchored */
+.batch-eta {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-small);
+  /* Color: CHROMA_BLEED territory */
+}
+
+/* Reactor gauge: the batch-level progress bar track */
+.batch-progress-track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 0;
+  margin-bottom: 16px;
+  /* Background: CHROMA_BLEED territory */
+}
+
+/* Fill div — width animated by JS */
+.batch-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 0;
+  transition: width 0.3s linear;
+  /* Background/glow: CHROMA_BLEED territory */
+}
+
+/* Job radar list — scrollable, no list markers */
+.batch-job-list {
+  overflow-y: auto;
+  max-height: 240px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.batch-job-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.batch-job-list::-webkit-scrollbar-thumb {
+  border-radius: 0;
+}
+
+/* Kill zone: the cancel button container.
+   Padding-top creates the structural separation from the job list.
+   The gap IS the weight. 16px of void between list and kill switch. */
+.batch-kill-zone {
+  padding-top: 16px;
+}
+
+/* Cancel batch button */
+.batch-cancel-btn {
+  height: 36px;
+  padding: 0 20px;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  border-radius: 0;
+  border-width: 1px;
+  border-style: solid;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background    0.15s var(--ease-snap),
+    border-color  0.15s var(--ease-snap),
+    color         0.15s var(--ease-snap);
+}
+
+/* Stage toggle button — HIDE / SHOW control in dial/prod stage headers.
+   Sits at the far-right of the header flex row via margin-left: auto.
+   renderer.js sets textContent to '▾ HIDE' or '▾ SHOW' on click. */
+.stage-toggle-btn {
+  margin-left: auto;
+  height: 22px;
+  padding: 0 10px;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  border-radius: 0;
+  border-width: 1px;
+  border-style: solid;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    background   0.12s var(--ease-snap),
+    border-color 0.12s var(--ease-snap),
+    color        0.12s var(--ease-snap);
+  /* Color: CHROMA_BLEED territory */
+}
+
+/* Dial job badge and production count badge spacing — same structural spec */
+.dial-job-badge,
+.prod-count-badge {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: 0.15em;
+  padding: 2px 8px;
+  border-width: 1px;
+  border-style: solid;
+  box-sizing: border-box;
+  user-select: none;
+  flex-shrink: 0;
+  text-transform: uppercase;
+  /* Color: CHROMA_BLEED territory */
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 17 — TWO-COLUMN LAYOUT: APP COLUMNS + RIGHT PANEL
+ *
+ * #app-columns wraps #main-panel (left) and #right-panel (right).
+ * Left column is flexible (1fr), right is fixed at 360px.
+ * The nameplate and ASCII header stay above both columns, full-width.
+ *
+ * Right panel axis grids get a two-row override so inputs don't compress
+ * below usable width at 360px. Axis label+select on row 1, range cluster
+ * spanning full width on row 2.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+#app-columns {
+  display: grid;
+  grid-template-columns: 1fr 440px;
+  align-items: start;
+}
+
+#main-panel {
+  min-width: 0; /* ascii-border white-space:pre would blow out 1fr to min-content (~1000px+) without this */
+}
+
+#right-panel {
+  padding: 0 12px;
+}
+
+/* Right panel axis grid: two-row layout.
+   Original 3-col (label|select|range-cluster) compresses inputs to <20px
+   at 360px column width. Stacking select and range-cluster vertically gives
+   each number input ~77px — comfortable for typed values. */
+#right-panel .dial-axis-grid {
+  grid-template-columns: 60px 1fr;
+}
+
+#right-panel .dial-range-cluster {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+/* Batch panel inside right panel — reuse zone-batch-panel padding logic */
+#right-panel #batch-panel {
+  padding: 12px 0 8px;
+}
+
+/* ── QUEUE PANEL ─────────────────────────────────────────────────────────── */
+
+#queue-panel {
+  display: block;  /* override legacy display:none from Section 11 */
+  margin-top: 16px;
+  border: 1px solid var(--ws-border);
+}
+
+.queue-panel-header {
+  justify-content: space-between;
+}
+
+.queue-panel-title {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+}
+
+.queue-count {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-small);
+  opacity: 0.7;
+}
+
+.queue-empty-state {
+  padding: 16px;
+  text-align: center;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  letter-spacing: var(--ws-tracking-ui);
+  /* Color: CHROMA_BLEED territory */
+}
+
+.queue-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.queue-card {
+  border: 1px solid var(--ws-border);
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.queue-card-label {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-small);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.queue-card-remove {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  padding: 0 4px;
+  flex-shrink: 0;
+  line-height: 1;
+}

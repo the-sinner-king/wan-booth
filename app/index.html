@@ -9,7 +9,9 @@
              font-src 'self' https://fonts.gstatic.com;
              img-src 'self' data: blob:;
              media-src 'self' blob:;
-             connect-src 'self' ws: wss: http://127.0.0.1:* http://localhost:*">
+             connect-src 'self' ws: wss: http://127.0.0.1:* http://localhost:8188;
+             object-src 'none';
+             base-uri 'none'">
   <title>WAN BOOTH</title>
 
   <!-- Typefaces -->
@@ -57,6 +59,7 @@
     #preset-section { padding: 0 0 16px; }
     #preset-bar {
       display: flex;
+      flex-wrap: wrap;
       align-items: center;
       gap: 8px;
       margin-bottom: 8px;
@@ -482,17 +485,10 @@
   </header>
 
   <!-- ══════════════════════════════════════════════════════════
-       ZONE 2 — MODE SELECTOR
+       APP COLUMNS — Left (controls) · Right (DIAL / PROD / queue)
   ══════════════════════════════════════════════════════════ -->
-  <nav id="mode-selector">
-    <button class="mode-tab active" id="single-mode-btn">SINGLE</button>
-    <button class="mode-tab" id="dial-mode-btn">DIAL</button>
-    <button class="mode-tab" id="prod-mode-btn">PRODUCTION</button>
-  </nav>
+  <div id="app-columns">
 
-  <!-- ══════════════════════════════════════════════════════════
-       MAIN PANEL — Zones 3-7
-  ══════════════════════════════════════════════════════════ -->
   <main id="main-panel">
 
     <div class="ascii-border" style="color: var(--ws-muted);">
@@ -550,7 +546,7 @@
 
             <div class="lora-row">
               <label class="lora-row-label" for="s1-dr34mlay-str">DR34MLAY</label>
-              <input type="range" class="lora-row-slider" id="s1-dr34mlay-str" min="0" max="1" step="0.01" value="0.7">
+              <input type="range" class="lora-row-slider" id="s1-dr34mlay-str" min="0" max="1" step="0.01" value="0.7" title="DR34MLAY lora strength · Stage 1">
               <span class="lora-row-value" id="s1-dr34mlay-str-val">0.70</span>
             </div>
 
@@ -568,7 +564,7 @@
 
             <div class="lora-row">
               <label class="lora-row-label" for="s1-cfg">CFG</label>
-              <input type="range" class="lora-row-slider" id="s1-cfg" min="1" max="20" step="0.5" value="7">
+              <input type="range" class="lora-row-slider" id="s1-cfg" min="1" max="20" step="0.5" value="7" title="CFG guidance scale · Stage 1">
               <span class="lora-row-value" id="s1-cfg-val">7.0</span>
             </div>
 
@@ -599,7 +595,7 @@
 
             <div class="lora-row">
               <label class="lora-row-label" for="s2-steps">STEPS</label>
-              <input type="range" class="lora-row-slider" id="s2-steps" min="1" max="50" step="1" value="20">
+              <input type="range" class="lora-row-slider" id="s2-steps" min="1" max="50" step="1" value="20" title="Sampling steps · Stage 2">
               <span class="lora-row-value" id="s2-steps-val">20</span>
             </div>
 
@@ -620,6 +616,54 @@
         <input type="number" id="seed-value" value="42" style="color: var(--ws-pink); border-color: var(--ws-pink);">
       </div>
 
+      <!-- Output card (resolution / fps / runs) -->
+      <div id="output-card">
+        <div id="output-card-header">
+          <span id="output-card-title">OUTPUT</span>
+        </div>
+        <div class="output-row">
+          <label class="output-label" for="resolution-select">RESOLUTION</label>
+          <select class="output-select" id="resolution-select" title="Output video resolution">
+            <option value="832x480" selected>832×480 — landscape</option>
+            <option value="480x832">480×832 — portrait</option>
+            <option value="960x544">960×544 — wide</option>
+            <option value="544x960">544×960 — wide portrait</option>
+            <option value="720x720">720×720 — square</option>
+            <option value="1280x720">1280×720 — HD</option>
+          </select>
+        </div>
+        <div class="output-row">
+          <label class="output-label" for="fps-select">FRAME RATE</label>
+          <select class="output-select" id="fps-select" title="Output frames per second">
+            <option value="8">8 fps</option>
+            <option value="12">12 fps</option>
+            <option value="16" selected>16 fps</option>
+            <option value="24">24 fps</option>
+          </select>
+        </div>
+        <div class="output-row">
+          <label class="output-label" for="runs-select">RUNS</label>
+          <select class="output-select" id="runs-select">
+            <option value="1" selected>1 run</option>
+            <option value="2">2 runs</option>
+            <option value="3">3 runs</option>
+            <option value="5">5 runs</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Chaos card -->
+      <div id="chaos-card">
+        <div id="chaos-card-header">
+          <span id="chaos-card-title">CHAOS</span>
+          <span id="chaos-label-text">parameter randomization</span>
+          <span id="chaos-pct-val">0%</span>
+        </div>
+        <div id="chaos-card-body">
+          <input type="range" id="chaos-pct" min="0" max="100" value="0">
+        </div>
+      </div>
+
     </section><!-- /zone-params -->
 
     <div class="ascii-border" style="color: var(--ws-muted); margin-top: 24px;">
@@ -634,9 +678,24 @@
       <!-- Action row -->
       <div id="action-row">
         <button id="add-to-queue-btn">+ ADD TO QUEUE</button>
+        <button id="save-seed-btn">SAVE SEED</button>
+      </div>
+
+      <!-- Save seed row (shown when save-seed-btn clicked) -->
+      <div id="save-seed-row">
+        <input type="text" id="seed-label-input" placeholder="Label this seed…">
+        <button id="seed-save-confirm">SAVE</button>
+        <button id="seed-save-skip">SKIP</button>
+      </div>
+
+      <!-- Seed bank -->
+      <div id="seed-bank-panel" style="display:none;">
+        <ul id="seed-bank-list"></ul>
       </div>
 
     </section><!-- /zone-altar -->
+
+
 
     <!-- ── ZONE 7 — RESULTS / STATUS ─────────────────────── -->
     <section class="zone zone-results">
@@ -670,9 +729,189 @@
 
   </main><!-- /#main-panel -->
 
+  <!-- ── RIGHT PANEL ──────────────────────────────────────────
+       DIAL, PRODUCTION, queue, and batch console.
+       All permanent — no tab switching.
+  ─────────────────────────────────────────────────────────── -->
+  <aside id="right-panel">
+
+    <!-- DIAL — PARAMETER SWEEP ─────────────────────────── -->
+    <div id="dial-section">
+
+      <div class="lora-stage dial-stage" id="dial-stage-card">
+        <div class="lora-stage-header">
+          <span class="lora-stage-header-title">DIAL &mdash; PARAMETER SWEEP</span>
+          <span class="dial-job-badge stage-badge" id="dial-job-count">0 JOBS</span>
+          <button id="dial-toggle" class="stage-toggle-btn">&#9662; HIDE</button>
+        </div>
+
+        <div class="dial-stage-body" id="dial-body">
+
+          <div class="dial-seed-row">
+            <span class="dial-seed-label lora-row-label">SEED</span>
+            <span class="dial-seed-display" id="dial-seed-display">—</span>
+            <div class="dial-seed-controls">
+              <button class="dial-seed-btn" id="dial-seed-roll">ROLL</button>
+              <button class="dial-seed-btn dial-seed-lock-btn" id="dial-seed-lock">LOCK</button>
+            </div>
+          </div>
+
+          <div class="dial-axis-divider">
+            <span class="dial-axis-divider-label">AXIS 1 &mdash; REQUIRED</span>
+          </div>
+
+          <div class="dial-axis-grid dial-axis-1">
+            <label class="dial-axis-label lora-row-label" for="dial-axis1-param">PARAM</label>
+            <select class="dial-axis-param-select" id="dial-axis1-param">
+              <option value="">— select parameter —</option>
+              <option value="s1.dr34mlayStr">S1 · DR34MLAY STR</option>
+              <option value="s1.k3nkStr">S1 · K3NK STR</option>
+              <option value="s1.steps">S1 · STEPS</option>
+              <option value="s1.cfg">S1 · CFG</option>
+              <option value="s2.dr34mlayStr">S2 · DR34MLAY STR</option>
+              <option value="s2.k3nkStr">S2 · K3NK STR</option>
+              <option value="s2.steps">S2 · STEPS</option>
+              <option value="s2.cfg">S2 · CFG</option>
+            </select>
+            <div class="dial-range-cluster">
+              <label class="dial-range-sublabel" for="dial-axis1-min">MIN</label>
+              <input type="number" class="dial-range-input" id="dial-axis1-min" value="0" step="0.01">
+              <label class="dial-range-sublabel" for="dial-axis1-max">MAX</label>
+              <input type="number" class="dial-range-input" id="dial-axis1-max" value="1" step="0.01">
+              <label class="dial-range-sublabel" for="dial-axis1-steps">STP</label>
+              <input type="number" class="dial-range-input dial-range-steps" id="dial-axis1-steps" value="5" min="2" max="20" step="1">
+            </div>
+          </div>
+
+          <div class="dial-axis-divider dial-axis-divider-optional">
+            <span class="dial-axis-divider-label">AXIS 2 &mdash; OPTIONAL</span>
+          </div>
+
+          <div class="dial-axis-grid dial-axis-2 dial-axis-optional" id="dial-axis2-container">
+            <label class="dial-axis-label lora-row-label" for="dial-axis2-param">PARAM</label>
+            <select class="dial-axis-param-select" id="dial-axis2-param">
+              <option value="">— none —</option>
+              <option value="s1.dr34mlayStr">S1 · DR34MLAY STR</option>
+              <option value="s1.k3nkStr">S1 · K3NK STR</option>
+              <option value="s1.steps">S1 · STEPS</option>
+              <option value="s1.cfg">S1 · CFG</option>
+              <option value="s2.dr34mlayStr">S2 · DR34MLAY STR</option>
+              <option value="s2.k3nkStr">S2 · K3NK STR</option>
+              <option value="s2.steps">S2 · STEPS</option>
+              <option value="s2.cfg">S2 · CFG</option>
+            </select>
+            <div class="dial-range-cluster">
+              <label class="dial-range-sublabel" for="dial-axis2-min">MIN</label>
+              <input type="number" class="dial-range-input" id="dial-axis2-min" value="0" step="0.01">
+              <label class="dial-range-sublabel" for="dial-axis2-max">MAX</label>
+              <input type="number" class="dial-range-input" id="dial-axis2-max" value="1" step="0.01">
+              <label class="dial-range-sublabel" for="dial-axis2-steps">STP</label>
+              <input type="number" class="dial-range-input dial-range-steps" id="dial-axis2-steps" value="3" min="2" max="20" step="1">
+            </div>
+          </div>
+
+        </div><!-- /#dial-body -->
+      </div><!-- /.dial-stage -->
+
+      <div class="dial-run-altar">
+        <button class="dial-run-btn" id="dial-run-btn">[ RUN DIAL ]</button>
+      </div>
+
+    </div><!-- /#dial-section -->
+
+    <!-- PRODUCTION — BATCH RUN ─────────────────────────── -->
+    <div id="prod-section">
+
+      <div class="lora-stage prod-stage" id="prod-stage-card">
+        <div class="lora-stage-header">
+          <span class="lora-stage-header-title">PRODUCTION &mdash; BATCH RUN</span>
+          <button id="prod-toggle" class="stage-toggle-btn">&#9662; HIDE</button>
+        </div>
+
+        <div class="prod-stage-body" id="prod-body">
+
+          <div class="prod-row">
+            <label class="prod-row-label lora-row-label" for="prod-count">RUNS</label>
+            <input type="number"
+                   class="prod-count-input"
+                   id="prod-count"
+                   value="1"
+                   min="1"
+                   max="30"
+                   step="1">
+            <span class="prod-row-hint">max 30</span>
+          </div>
+
+          <div class="prod-row">
+            <label class="prod-row-label lora-row-label" for="prod-seed-strategy">SEED</label>
+            <select class="prod-strategy-select" id="prod-seed-strategy">
+              <option value="random">RANDOM SEED</option>
+              <option value="sequential">SEQUENTIAL</option>
+            </select>
+            <span class="prod-row-hint">per run</span>
+          </div>
+
+          <div class="prod-row prod-base-seed-row" id="prod-base-seed-row" style="display:none;">
+            <label class="prod-row-label lora-row-label" for="prod-base-seed">BASE</label>
+            <input type="number"
+                   class="prod-base-seed-input"
+                   id="prod-base-seed"
+                   value="1000"
+                   min="0"
+                   step="1">
+            <span class="prod-row-hint">seed[0]</span>
+          </div>
+
+        </div><!-- /#prod-body -->
+      </div><!-- /.prod-stage -->
+
+      <div class="prod-run-altar">
+        <button class="prod-run-btn dial-run-btn" id="prod-run-btn">[ RUN BATCH ]</button>
+      </div>
+
+    </div><!-- /#prod-section -->
+
+    <!-- QUEUE PANEL ─────────────────────────────────────── -->
+    <div id="queue-panel">
+      <div class="queue-panel-header stage-card-header">
+        <span class="queue-panel-title">QUEUED CLIPS</span>
+        <span class="queue-count" id="queue-count">0</span>
+      </div>
+      <div class="queue-empty-state" id="queue-empty">[ NO CLIPS QUEUED ]</div>
+      <ul class="queue-list" id="queue-list" role="list" aria-label="Queued clips"></ul>
+      <button id="run-queue-btn" style="display:none;">[ RUN QUEUE ]</button>
+    </div><!-- /#queue-panel -->
+
+    <!-- BATCH CONSOLE — shown when a batch is running ──── -->
+    <section id="batch-panel" style="display:none;">
+
+      <div class="batch-console-header">
+        <span class="batch-mode-label" id="batch-mode-label">DIAL: job 0 of 0</span>
+        <span class="batch-eta" id="batch-eta">ETA: —</span>
+      </div>
+
+      <div class="batch-progress-track">
+        <div class="batch-progress-fill" id="batch-progress-fill"></div>
+      </div>
+
+      <ul class="batch-job-list" id="batch-job-list" role="list" aria-label="Batch job status">
+      </ul>
+
+      <div class="batch-kill-zone">
+        <button class="batch-cancel-btn" id="batch-cancel-btn">[ ABORT BATCH ]</button>
+      </div>
+
+    </section><!-- /#batch-panel -->
+
+  </aside><!-- /#right-panel -->
+
+  </div><!-- /#app-columns -->
   </div><!-- /.wan-container -->
 
+  <script src="debug-clicks.js"></script>
   <script src="comfy.js"></script>
   <script src="renderer.js"></script>
+  <script src="mode-tabs.js"></script>
+  <script src="queue.js"></script>
 </body>
 </html>

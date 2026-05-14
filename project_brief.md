@@ -1,9 +1,31 @@
 # WAN BOOTH — Phase 1 Project Brief
 **Project slug:** wan-booth  
-**Session:** 252  
-**Date:** 2026-05-06  
+**Session:** 252 (Phase 1 MVP) → 262 (ZOETROPE v2 visual) → 263 (two-column layout)
+**Date:** 2026-05-06 (created) → 2026-05-13 (last updated)
 **Authority:** Æris Glitchmuse // Sinner King  
 **North Star:** NORTH_STAR.md (same directory)
+
+---
+
+## S263 UPDATE — Two-Column Layout Redesign (2026-05-13)
+
+**Soulforge CODING — promise: COMPLETE**
+
+Mode tabs (`nav#mode-selector`) eliminated. App now uses a permanent two-column layout:
+
+| Column | Contents |
+|--------|----------|
+| Left (`1fr`) | Drop zone · Prompt · LoRA stages · Seed · EXECUTE_BATCH · ADD TO QUEUE · Results |
+| Right (`360px`) | DIAL section · PRODUCTION section · Queue panel · Batch status panel |
+
+**Files changed:**
+- `index.html` — removed `nav#mode-selector`, removed `zone-mode-ctrls` section, added `#app-columns` wrapper + `<aside id="right-panel">` with permanent DIAL/PROD/queue/batch
+- `layout.css` — `wan-container` 640px → 900px, added Section 17 (`#app-columns` grid, `#right-panel`, axis-grid narrow override, `#queue-panel display:block`)
+- `mode-tabs.js` — stripped to `syncAxis2State` IIFE only (PANEL_MAP/activateMode removed)
+- `queue.js` — NEW: `#add-to-queue-btn` → appends clip cards to `#queue-list`, each with label + × remove
+- `chroma-bleed.css` — Section 21: queue card colors (cyan left border, pink × button)
+
+**Constraints (permanent):** `renderer.js / main.js / preload.js / comfy.js` READ ONLY. CSP `script-src 'self'` — no inline scripts.
 
 ---
 

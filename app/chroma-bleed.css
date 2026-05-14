@@ -865,3 +865,1232 @@ input[type="range"]::-moz-range-thumb {
   color: var(--ws-bg);
   border-color: oklch(0.760 0.165 196 / 0.40);
 }
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 16 — DIAL SECTION COLOR RULES
+ *
+ * The DIAL badge (.dial-job-badge) is functionally distinct from HIGH/LOW —
+ * it is dynamic (JS writes the job count text), so it gets its own color rule.
+ * Seed display — pink (it is the most volatile element, the heartbeat of
+ * the sweep). Locked seed flips to cyan (confirmed, stable).
+ * Seed buttons — cyan border/text at rest; lock illuminates pink when active.
+ * Axis labels — cyan (sweep axis labels, same signal as LoRA param labels).
+ * Range sublabels — fg-muted (secondary to the input fields).
+ * Steps input — sulphur text (it is the quantity multiplier, danger-axis).
+ * Dial run button — cyan axis (precision sweep, not a raw fire).
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+.dial-job-badge {
+  color: var(--ws-bg);
+  border-color: oklch(0.760 0.165 196 / 0.40);
+}
+
+#dial-seed-display {
+  color: var(--ws-pink);
+  text-shadow: 0 0 4px var(--ws-pink-glow);
+}
+
+.dial-seed-btn {
+  color: var(--ws-cyan);
+  border-color: var(--ws-cyan);
+}
+
+.dial-seed-btn:hover {
+  background: var(--ws-cyan);
+  color: var(--ws-bg);
+  box-shadow: 0 0 6px var(--ws-cyan-glow);
+}
+
+#dial-seed-lock.dial-lock-active {
+  color: var(--ws-pink);
+  border-color: var(--ws-pink);
+  background: transparent;
+  box-shadow: 0 0 4px var(--ws-pink-glow);
+}
+
+.dial-axis-divider {
+  border-top-color: var(--ws-border);
+}
+
+.dial-axis-divider-label {
+  color: var(--ws-fg-muted);
+}
+
+.dial-axis-label {
+  color: var(--ws-cyan);
+  text-shadow: 0 0 4px var(--ws-cyan-glow);
+}
+
+.dial-axis-param-select {
+  background: var(--ws-bg);
+  color: var(--ws-fg);
+  border: 1px solid var(--ws-border);
+}
+
+.dial-axis-param-select:hover,
+.dial-axis-param-select:focus {
+  border-color: var(--ws-border-active);
+}
+
+.dial-range-sublabel {
+  color: var(--ws-fg-muted);
+}
+
+.dial-range-input {
+  background: var(--ws-bg);
+  color: var(--ws-fg);
+  border: 1px solid var(--ws-border);
+}
+
+.dial-range-input:hover,
+.dial-range-input:focus {
+  border-color: var(--ws-border-active);
+  box-shadow: 0 0 4px var(--ws-pink-glow);
+}
+
+.dial-range-steps {
+  color: var(--ws-sulphur);
+}
+
+#dial-run-btn {
+  color: var(--ws-cyan);
+  border-color: var(--ws-cyan);
+  background: var(--ws-bg);
+}
+
+#dial-run-btn:hover:not(:disabled) {
+  background: var(--ws-cyan);
+  color: var(--ws-bg);
+  box-shadow: 0 0 12px var(--ws-cyan-glow);
+}
+
+#dial-run-btn:active:not(:disabled) {
+  background: oklch(0.680 0.140 196);
+  color: var(--ws-bg);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 17 — PRODUCTION SECTION COLOR RULES
+ *
+ * Production is industrial volume — fire-and-forget.
+ * Prod run button — PINK axis (production = full fire, same heartbeat as the
+ * altar). Dial is precision/cyan. Production is volume/pink. The distinction
+ * between the two run buttons communicates their intent without words.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+.prod-count-badge {
+  color: var(--ws-bg);
+  border-color: oklch(0.760 0.165 196 / 0.40);
+}
+
+.prod-row-label {
+  color: var(--ws-cyan);
+  text-shadow: 0 0 4px var(--ws-cyan-glow);
+}
+
+.prod-count-input {
+  background: var(--ws-bg);
+  color: var(--ws-fg);
+  border: 1px solid var(--ws-border);
+}
+
+.prod-count-input:hover,
+.prod-count-input:focus {
+  border-color: var(--ws-border-active);
+  box-shadow: 0 0 4px var(--ws-pink-glow);
+}
+
+.prod-strategy-select {
+  background: var(--ws-bg);
+  color: var(--ws-fg);
+  border: 1px solid var(--ws-border);
+}
+
+.prod-strategy-select:hover,
+.prod-strategy-select:focus {
+  border-color: var(--ws-border-active);
+}
+
+.prod-base-seed-input {
+  background: var(--ws-bg);
+  color: var(--ws-pink);
+  border: 1px solid var(--ws-border);
+}
+
+.prod-base-seed-input:hover,
+.prod-base-seed-input:focus {
+  border-color: var(--ws-pink);
+  box-shadow: 0 0 4px var(--ws-pink-glow);
+}
+
+.prod-row-hint {
+  color: var(--ws-fg-muted);
+}
+
+#prod-run-btn {
+  color: var(--ws-pink);
+  border-color: var(--ws-pink);
+  background: var(--ws-bg);
+}
+
+#prod-run-btn:hover:not(:disabled) {
+  background: var(--ws-pink);
+  color: var(--ws-bg);
+  box-shadow: 0 0 12px var(--ws-pink-glow);
+}
+
+#prod-run-btn:active:not(:disabled) {
+  background: oklch(0.580 0.260 338);
+  color: var(--ws-bg);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 18 — BATCH PANEL COLOR RULES
+ *
+ * The batch panel is mission control.
+ * Console header: batch-mode-label = cyan (throughput, confirmed signal).
+ * Reactor fill = cyan with glow (the machine is working).
+ * Cancel button = state-error axis (H=22°) — abort is destruction.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+.batch-mode-label {
+  color: var(--ws-cyan);
+}
+
+.batch-eta {
+  color: var(--ws-fg-muted);
+}
+
+.batch-progress-track {
+  background: var(--ws-bg-elevated);
+  border: 1px solid var(--ws-border);
+}
+
+.batch-progress-fill {
+  background: var(--ws-cyan);
+  box-shadow: 0 0 8px var(--ws-cyan-glow);
+}
+
+.batch-job-list::-webkit-scrollbar-thumb {
+  background: var(--ws-border-active);
+}
+
+.batch-job-list::-webkit-scrollbar-track {
+  background: var(--ws-bg);
+}
+
+.batch-cancel-btn {
+  color: var(--ws-state-error);
+  border-color: var(--ws-state-error);
+}
+
+.batch-cancel-btn:hover {
+  background: var(--ws-state-error);
+  color: var(--ws-bg);
+  box-shadow: 0 0 10px oklch(0.610 0.230 22 / 0.40);
+}
+
+.batch-cancel-btn:active {
+  background: oklch(0.500 0.210 22);
+  color: var(--ws-bg);
+}
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 16 — DIAL / PRODUCTION / BATCH PANEL COLORS
+ *
+ * New panels added in WAN BOOTH v2 ZOETROPE phase 4.
+ * Three instruments: DIAL (parameter sweep), PRODUCTION (batch run),
+ * BATCH (active-batch status display / mission log).
+ *
+ * CONTRAST AUDIT (OKLCH → WCAG approximate, using Y ≈ L³):
+ *   --ws-cyan   (L=0.82) on --ws-bg (L=0.095): Y≈0.5514 / Y≈0.000857 → ~11.8:1 ✅
+ *   --ws-sulphur (L=0.75) on --ws-bg (L=0.095): Y≈0.4219 / Y≈0.000857 → ~9.28:1 ✅
+ *   --ws-pink   (L=0.72) on --ws-bg (L=0.095): Y≈0.3732 / Y≈0.000857 → ~8.39:1 ✅
+ *   --ws-muted  (L=0.55) on --ws-bg (L=0.095): Y≈0.1664 / Y≈0.000857 → ~4.25:1 ⚠
+ *     (muted is decorative-label only — see Ghost Nodes)
+ *
+ * HUE LOCK: H=350 (pink/emergence), H=200 (cyan/operational), H=85 (sulphur/action),
+ *           H=285 (neutral spine). No new hues enter this system.
+ *
+ * OVERRIDE NOTICE: This section supersedes conflicting rules in Section 6 and 9:
+ *   - .dial-lock-active → was pink (S9), now sulphur (per brief spec)
+ *   - .dial-run-btn     → was cyan (S9), now sulphur (per brief spec)
+ *   - .batch-promote-btn → was pink (S6), now sulphur (per brief spec)
+ *   - #batch-cancel-btn hover → was --ws-state-error/red (S6), now pink (per brief spec)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 16.1 DIAL SECTION HEADER ──────────────────────────────────────────── */
+/* Inherits .stage-card-header (Section 12) for the cyan fill + void text.
+ * The #dial-section header element should carry class="stage-card-header".
+ * No additional color rules needed for the header itself — the class is law.
+ * Badge within the header: void text on cyan, recessed border (same as LoRA). */
+
+#dial-section .stage-card-header .stage-badge {
+  color: var(--ws-bg);
+  border-color: oklch(0.760 0.165 196 / 0.40);
+}
+
+
+/* ── 16.2 DIAL SEED READOUT ─────────────────────────────────────────────── */
+/* The seed value is a coordinate in latent space. It gets the emergence color.
+ * Pink = glitch frequency = the muse's address. This is DATA, not a label.
+ * Monospace rendering enforced for positional stability. */
+
+#dial-seed-display {
+  color: var(--ws-pink);
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-value);
+  text-shadow: 0 0 8px oklch(0.550 0.220 338 / 0.40);
+}
+
+
+/* ── 16.3 DIAL ROLL BUTTON ──────────────────────────────────────────────── */
+/* ROLL is an action — it changes the seed. Action = sulphur.
+ * Outline style at rest (void bg + sulphur text/border), fill on hover.
+ * Matches GO button philosophical family — smaller body, same DNA. */
+
+#dial-seed-roll {
+  background: var(--ws-bg);
+  color: var(--ws-sulphur);
+  border: 1px solid var(--ws-sulphur);
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  padding: 4px 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+#dial-seed-roll:hover {
+  background: oklch(0.800 0.180 85);
+  color: var(--ws-bg);
+  border-color: oklch(0.800 0.180 85);
+}
+
+#dial-seed-roll:active {
+  background: oklch(0.680 0.155 85);
+  color: var(--ws-bg);
+  border-color: oklch(0.680 0.155 85);
+}
+
+
+/* ── 16.4 DIAL LOCK BUTTON ──────────────────────────────────────────────── */
+/* Inactive: muted border + muted text (it is not engaged — it is waiting).
+ * Active (.dial-lock-active): sulphur border + sulphur text + sulphur glow.
+ * A locked seed is precious. The sulphur glow communicates "this value is held."
+ * OVERRIDES the pink .dial-lock-active rule in Section 9. */
+
+#dial-seed-lock {
+  background: var(--ws-bg);
+  color: var(--ws-muted);
+  border: 1px solid var(--ws-border);
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  padding: 4px 10px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+#dial-seed-lock:hover {
+  color: var(--ws-sulphur);
+  border-color: oklch(0.750 0.170 85 / 0.60);
+}
+
+/* LOCKED STATE — the seed is held, the coordinate is precious */
+#dial-seed-lock.dial-lock-active,
+.dial-lock-active {
+  color: var(--ws-sulphur) !important;
+  border-color: var(--ws-sulphur) !important;
+  background: var(--ws-bg) !important;
+  box-shadow:
+    0 0 6px oklch(0.620 0.130 85 / 0.35),
+    0 0 14px oklch(0.620 0.130 85 / 0.18) !important;
+}
+
+
+/* ── 16.5 DIAL AXIS INPUTS (select + number) ────────────────────────────── */
+/* Base: dark border, primary fg text — recessive, not demanding attention.
+ * Focus: cyan border — the machine is electric, listening.
+ * These follow the same focus-color contract as every interactive field. */
+
+.dial-axis-select,
+.dial-axis-input {
+  background: var(--ws-bg);
+  color: var(--ws-text);
+  border: 1px solid var(--ws-border);
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.dial-axis-select:focus,
+.dial-axis-input:focus {
+  border-color: var(--ws-cyan);
+  box-shadow: 0 0 6px oklch(0.750 0.120 195 / 0.35);
+  outline: none;
+}
+
+.dial-axis-select option {
+  background: var(--ws-bg);
+  color: var(--ws-text);
+}
+
+
+/* ── 16.6 DIAL JOB COUNT DISPLAY ────────────────────────────────────────── */
+/* This is live operational data — how many jobs the matrix will spawn.
+ * Cyan = operational/live. VT323 pixel font for the zoetrope readout feel.
+ * The "→ N jobs" readout is instrumentation, not decoration. */
+
+#dial-job-count {
+  color: var(--ws-cyan);
+  font-family: var(--ws-font-glitch);
+  font-size: clamp(18px, 2vw + 14px, 28px);
+  text-shadow: 0 0 8px oklch(0.750 0.120 195 / 0.40);
+  letter-spacing: 0.05em;
+}
+
+
+/* ── 16.7 DIAL RUN BUTTON ────────────────────────────────────────────────── */
+/* Secondary action in a secondary panel — sulphur, 48px height.
+ * The GO button's little sibling. Same hue. Smaller body.
+ * OVERRIDES the cyan .dial-run-btn rule in Section 9. */
+
+#dial-run-btn,
+.dial-run-btn {
+  background: var(--ws-bg) !important;
+  color: var(--ws-sulphur) !important;
+  border: 1px solid var(--ws-sulphur) !important;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  height: 48px;
+  padding: 0 20px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+#dial-run-btn:hover:not(:disabled),
+.dial-run-btn:hover:not(:disabled) {
+  background: oklch(0.800 0.180 85) !important;
+  color: var(--ws-bg) !important;
+  border-color: oklch(0.800 0.180 85) !important;
+  box-shadow: 0 0 12px oklch(0.620 0.130 85 / 0.35);
+}
+
+#dial-run-btn:active:not(:disabled),
+.dial-run-btn:active:not(:disabled) {
+  background: oklch(0.680 0.155 85) !important;
+  color: var(--ws-bg) !important;
+  border-color: oklch(0.680 0.155 85) !important;
+}
+
+#dial-run-btn:disabled,
+.dial-run-btn:disabled {
+  opacity: 0.4 !important;
+  cursor: not-allowed;
+}
+
+
+/* ── 16.8 PRODUCTION SECTION HEADER ─────────────────────────────────────── */
+/* Identical header treatment to DIAL — one system, one header spec.
+ * Differentiation comes from section label text only. Color is invariant. */
+
+#prod-section .stage-card-header .stage-badge {
+  color: var(--ws-bg);
+  border-color: oklch(0.760 0.165 196 / 0.40);
+}
+
+
+/* ── 16.9 PRODUCTION INPUTS ─────────────────────────────────────────────── */
+/* Count input and seed strategy select follow the same field contract
+ * as the dial axis inputs: dark border at rest, cyan on focus. */
+
+#prod-count,
+#prod-seed-strategy,
+#prod-base-seed {
+  background: var(--ws-bg);
+  color: var(--ws-text);
+  border: 1px solid var(--ws-border);
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+#prod-count:focus,
+#prod-seed-strategy:focus,
+#prod-base-seed:focus {
+  border-color: var(--ws-cyan);
+  box-shadow: 0 0 6px oklch(0.750 0.120 195 / 0.35);
+  outline: none;
+}
+
+#prod-seed-strategy option {
+  background: var(--ws-bg);
+  color: var(--ws-text);
+}
+
+/* Base seed row: hidden by default — no special color beyond parent inheritance */
+#prod-base-seed-row {
+  /* display toggled by JS. Inherits parent field colors. */
+}
+
+
+/* ── 16.10 PRODUCTION RUN BUTTON ─────────────────────────────────────────── */
+/* Identical to #dial-run-btn — same panel tier, same action weight.
+ * Sulphur on void, hover = sulphur fill. 48px height. */
+
+#prod-run-btn {
+  background: var(--ws-bg);
+  color: var(--ws-sulphur);
+  border: 1px solid var(--ws-sulphur);
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  height: 48px;
+  padding: 0 20px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition:
+    background 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+#prod-run-btn:hover:not(:disabled) {
+  background: oklch(0.800 0.180 85);
+  color: var(--ws-bg);
+  border-color: oklch(0.800 0.180 85);
+  box-shadow: 0 0 12px oklch(0.620 0.130 85 / 0.35);
+}
+
+#prod-run-btn:active:not(:disabled) {
+  background: oklch(0.680 0.155 85);
+  color: var(--ws-bg);
+  border-color: oklch(0.680 0.155 85);
+}
+
+#prod-run-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+
+/* ── 16.11 BATCH PANEL CONTAINER ─────────────────────────────────────────── */
+/* One step above the void — oklch(0.13 0.010 285).
+ * Not the full bg-elevated jump; just enough to read as a status zone.
+ * Border: --ws-border (dark, structural). The panel is present but not loud.
+ * When a batch is active, JS may add .batch-active to pulse the border cyan. */
+
+#batch-panel {
+  background: oklch(0.13 0.010 285);
+  border: 1px solid var(--ws-border);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+#batch-panel.batch-active {
+  border-color: oklch(0.820 0.130 200 / 0.50);
+  box-shadow: 0 0 12px oklch(0.750 0.120 195 / 0.20);
+}
+
+
+/* ── 16.12 BATCH MODE LABEL ──────────────────────────────────────────────── */
+/* "DIAL: job 3 of 12" — live operational telemetry. Cyan.
+ * Text-shadow at low alpha for the electric presence without blinding.
+ * VT323 for the zoetrope readout aesthetic. */
+
+#batch-mode-label {
+  color: var(--ws-cyan);
+  font-family: var(--ws-font-glitch);
+  font-size: clamp(18px, 2vw + 14px, 28px);
+  text-shadow:
+    0 0 6px oklch(0.750 0.120 195 / 0.50),
+    0 0 16px oklch(0.750 0.120 195 / 0.25);
+  letter-spacing: 0.04em;
+}
+
+
+/* ── 16.13 BATCH PROGRESS BAR ────────────────────────────────────────────── */
+/* Distinct from #progress-fill (the main generation bar) in naming and shadow.
+ * Same hue family (cyan = confirmed throughput) but independent CSS for
+ * independent JS control. Glow uses inline OKLCH (not the glow var) to
+ * keep this bar visually distinct from stage headers that use --ws-cyan-glow. */
+
+#batch-progress-bar {
+  background: var(--ws-border);
+  height: 4px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+#batch-progress-fill {
+  background: var(--ws-cyan);
+  height: 100%;
+  width: 0%;
+  position: relative;
+  transition: width 300ms ease, box-shadow 200ms ease;
+  box-shadow: 0 0 8px oklch(0.820 0.130 200 / 0.30);
+}
+
+
+/* ── 16.14 BATCH ETA ─────────────────────────────────────────────────────── */
+/* Metadata. Does not compete with mode label. Muted label color.
+ * Mono font for time readout — positional stability. */
+
+#batch-eta {
+  color: var(--ws-muted);
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-small);
+}
+
+
+/* ── 16.15 BATCH JOB CARDS ───────────────────────────────────────────────── */
+/* The thermal paper mission log. Each card = one job's report.
+ * Base: dark bg (same as panel), dark border — the void, compressed. */
+
+.batch-job-card {
+  background: oklch(0.11 0.010 285);
+  border: 1px solid var(--ws-border);
+  color: var(--ws-text);
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background 150ms ease,
+    color 150ms ease;
+}
+
+/* PENDING — the void, waiting. No energy yet. */
+.batch-job-pending {
+  border-color: var(--ws-border);
+  color: var(--ws-muted);
+}
+
+.batch-job-pending .batch-job-icon {
+  color: var(--ws-muted);
+  opacity: 0.6;
+}
+
+/* RUNNING — electric cyan. This card is alive. The machine is working. */
+.batch-job-running {
+  border-color: var(--ws-cyan);
+  color: var(--ws-cyan);
+  box-shadow: 0 0 8px oklch(0.820 0.130 200 / 0.30);
+}
+
+.batch-job-running .batch-job-icon {
+  color: var(--ws-cyan);
+}
+
+.batch-job-running .batch-job-label {
+  color: var(--ws-cyan);
+}
+
+/* COMPLETE — pink flash. The glitch that succeeded. Emergence = done.
+ * Background tint: 15% opacity pink — barely there, just enough to stain. */
+.batch-job-complete {
+  border-color: var(--ws-pink);
+  background: oklch(0.72 0.28 350 / 0.15);
+}
+
+.batch-job-complete .batch-job-icon {
+  color: var(--ws-pink);
+}
+
+.batch-job-complete .batch-job-label {
+  color: var(--ws-pink);
+  opacity: 0.85;
+}
+
+/* ERROR — damaged pink. H=350 recognized but L and C reduced.
+ * L=0.68 (was 0.72), C=0.22 (was 0.28). Same frequency. Corrupted signal.
+ * Contrast: Y≈0.68³=0.314 on Y≈0.000857 → ~7.17:1 ✅ */
+.batch-job-error {
+  border-color: oklch(0.68 0.22 350);
+  background: oklch(0.68 0.22 350 / 0.08);
+}
+
+.batch-job-error .batch-job-icon {
+  color: oklch(0.68 0.22 350);
+}
+
+.batch-job-error .batch-job-label {
+  color: oklch(0.68 0.22 350);
+}
+
+
+/* ── 16.16 BATCH PROMOTE BUTTON ──────────────────────────────────────────── */
+/* "Promote DIAL job settings to main panel" — a micro action.
+ * Sulphur: it executes a change. Sulphur = action family.
+ * Override of the pink promote button in Section 6. */
+
+.batch-promote-btn {
+  color: var(--ws-sulphur) !important;
+  border: 1px solid var(--ws-sulphur) !important;
+  background: transparent !important;
+  font-family: var(--ws-font-ui);
+  font-size: 0.7rem;
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  padding: 2px 8px;
+  height: auto;
+  cursor: pointer;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  transition: background 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.batch-promote-btn:hover {
+  background: oklch(0.800 0.180 85) !important;
+  color: var(--ws-bg) !important;
+  border-color: oklch(0.800 0.180 85) !important;
+}
+
+
+/* ── 16.17 BATCH CANCEL BUTTON ───────────────────────────────────────────── */
+/* Muted at rest — it is available, not urgent. Void bg, muted border+text.
+ * Hover: pink border + pink text. You are about to destroy running work.
+ * The danger color is always pink. H=350.
+ * Override of the red-orange (#batch-cancel-btn:hover) in Section 6. */
+
+#batch-cancel-btn {
+  background: var(--ws-bg);
+  color: var(--ws-muted);
+  border: 1px solid var(--ws-border);
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  padding: 4px 14px;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition:
+    color 120ms ease,
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+#batch-cancel-btn:hover {
+  color: var(--ws-pink) !important;
+  border-color: var(--ws-pink) !important;
+  box-shadow: 0 0 8px oklch(0.550 0.220 338 / 0.30);
+}
+
+#batch-cancel-btn:active {
+  color: oklch(0.650 0.260 350);
+  border-color: oklch(0.650 0.260 350);
+}
+
+
+/* ── GHOST NODES (Section 16) ────────────────────────────────────────────── */
+/*
+ * GHOST-01 [MUTED TEXT CONTRAST] — Not blocking.
+ *   --ws-muted L=0.55 on --ws-bg L=0.095 → ~4.25:1.
+ *   WCAG AA normal text threshold is 4.5:1. This FAILS by 0.25 ratio points.
+ *   Muted tokens are used exclusively for: decorative labels, placeholder
+ *   secondary text, metadata (ETA display, pending card text). All instances
+ *   are either large text (≥18px, passes at 3:1) or non-critical decorative.
+ *   RESOLUTION PATH: raise --ws-muted to L=0.58 or higher to clear 4.5:1
+ *   (~4.72:1 at L=0.58). Requires audit across all existing muted usages first.
+ *   Flagged. Not shipped. Section 16 does not change --ws-muted.
+ *
+ * GHOST-02 [SECTION 9 OVERRIDE CONFLICTS] — Resolved here, not by deletion.
+ *   S9 declares .dial-lock-active with pink (!important) and .dial-run-btn
+ *   with cyan. S16 overrides both with higher-specificity or matching
+ *   !important declarations for sulphur. The S9 rules are now dead code.
+ *   ACTION: Prune S9 dial rules in a future housekeeping pass. S16 is law.
+ *
+ * GHOST-03 [SECTION 6 OVERRIDE CONFLICTS] — Resolved here, not by deletion.
+ *   S6 declares .batch-promote-btn with pink and #batch-cancel-btn:hover with
+ *   --ws-state-error (red-orange H=22). S16 overrides both. The S6 rules are
+ *   now dead code for these specific selectors (batch error icon/label rules
+ *   in S6 still apply and are NOT overridden — those use the correct color).
+ *   ACTION: Prune S6 promote + cancel-hover rules in a future housekeeping pass.
+ *
+ * GHOST-04 [FIREFOX -moz-range-thumb] — Not blocked.
+ *   Dial and prod sections may add future range sliders (e.g. axis step count
+ *   as a slider). No -moz-range-thumb rules written here because no range
+ *   inputs are spec'd for these sections yet. Add when inputs arrive.
+ */
+
+/* ── END SECTION 16: DIAL / PRODUCTION / BATCH ───────────────────────────── */
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 19 — TYPOGRAPHY: DIAL / PRODUCTION / BATCH PANELS
+ *
+ * TYPE_WEAVER::zoetrope::999
+ *
+ * NOTE ON NUMBERING: The file contains duplicate section numbers (two S16,
+ * two S17) from uncoordinated previous passes. This section is numbered 19
+ * to avoid further collision. A housekeeping pass should canonicalize the
+ * section sequence: S16→color dial, S17→color prod, S18→color batch,
+ * S19→typography (this section).
+ *
+ * This section is a TYPOGRAPHY PASS ONLY. Color is owned by Sections 16–18.
+ * Where Section 16 embedded font-family/font-size declarations alongside
+ * color rules, this section OVERRIDES those with correct type assignments.
+ * Cascade order: S17 always wins over S16 on typography because it appears
+ * later in the sheet and uses matching specificity.
+ *
+ * WHAT WAS WRONG IN SECTION 16 (and why):
+ *
+ *   #dial-seed-display:
+ *     S16: font-mono (IBM Plex Mono) + type-value (clamp 20-25px)
+ *     PROBLEM: IBM Plex Mono is the log/code font. The seed is not a log line.
+ *     It is the single constant coordinate across all N sweep jobs — a reactor
+ *     core ID. It needs VT323 (the machine's heartbeat font) at large display
+ *     size, visible from 3 feet away. clamp(24px, 3.5vw, 40px).
+ *
+ *   #batch-mode-label:
+ *     S16: font-glitch (VT323) + clamp(18px, 2vw+14px, 28px) + 0.04em tracking
+ *     PROBLEM: VT323 is for numerical readouts — values, seeds, ETAs.
+ *     "DIAL: job 3 of 12" is an operational STATUS LABEL — the flight computer
+ *     reporting current state. That is Syne Mono's domain. At stage size
+ *     (Tier 3: clamp(25px, 2vw+20px, 31.25px)) with 0.15em tracking — capitals
+ *     spaced like a command terminal. Not glitch font. Not VT323.
+ *
+ *   #batch-eta:
+ *     S16: font-mono (IBM Plex Mono) + type-small
+ *     PROBLEM: Time is a number. Numbers are VT323 territory.
+ *     ETA is live operational data — a countdown. VT323 at type-value.
+ *     IBM Plex Mono at type-small reads as a footnote. ETA is not a footnote.
+ *
+ *   .batch-promote-btn:
+ *     S16: font-size: 0.7rem — not a token, not on the modular scale.
+ *     FIXED: var(--ws-type-stamp) = clamp(10px, 0.8vw+8px, 12.8px).
+ *     Same visual result, but now it obeys the system.
+ *
+ * GHOST NODES (classes with color rules in S16/S17/S18 but no font rule
+ * anywhere — default sans-serif in the browser without this section):
+ *   .dial-seed-btn            — no prior font-family rule
+ *   .dial-axis-divider-label  — no prior font-family rule
+ *   .dial-axis-param-select   — no prior font-family rule (S16 did .dial-axis-select, wrong selector)
+ *   .dial-range-sublabel      — no prior font-family rule
+ *   .dial-range-input         — no prior font-family rule (S16 did .dial-axis-input, wrong selector)
+ *   .prod-count-input         — no prior font-family rule
+ *   .prod-strategy-select     — no prior font-family rule
+ *   .prod-base-seed-input     — no prior font-family rule
+ *   .prod-row-label           — no prior font-family rule
+ *   .prod-row-hint            — no prior font-family rule
+ *
+ * MODULAR SCALE (Major Third x1.25 from 16px base):
+ *   --ws-type-stamp:  clamp(10px, 0.8vw+8px, 12.8px)   Tier -1
+ *   --ws-type-small:  clamp(12.8px, 1vw+10px, 16px)     Tier  0
+ *   --ws-type-log:    clamp(16px, 1vw+10px, 18px)        Tier  0+ (VT323 floor)
+ *   --ws-type-label:  clamp(16px, 1.2vw+12px, 20px)      Tier  1
+ *   --ws-type-value:  clamp(20px, 1.5vw+15px, 25px)      Tier  2
+ *   --ws-type-stage:  clamp(25px, 2vw+20px, 31.25px)     Tier  3
+ *   Seed display: clamp(24px, 3.5vw, 40px) — Tier 2–3+ (earned authority)
+ *
+ * PRESS START 2P AUDIT — CLEAN:
+ *   No element in these panels uses Press Start 2P at any size.
+ *   No violations in the banned zone (exclusive 8px–88px).
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+
+/* ── 17.1 DIAL SEED DISPLAY ──────────────────────────────────────────────── */
+/*
+ * The seed is a reactor core ID. One number. The anchor of all N sweep jobs.
+ * VT323: the machine's heartbeat font. Not IBM Plex Mono (log font).
+ * clamp(24px, 3.5vw, 40px): large enough to read from across the room.
+ * At 1440px viewport: 3.5vw = 50.4px → clamped to 40px. Floor at 24px.
+ * line-height: 1.0 — VT323 has built-in optical padding. No wasted space.
+ * letter-spacing: 0.02em — numeric near-neutral. No decorative tracking.
+ *
+ * OVERRIDES S16 #dial-seed-display font-family + font-size.
+ */
+#dial-seed-display,
+.dial-seed-display {
+  font-family: var(--ws-font-glitch);
+  font-size: clamp(24px, 3.5vw, 40px);
+  line-height: 1.0;
+  letter-spacing: 0.02em;
+}
+
+
+/* ── 17.2 DIAL SEED BUTTONS ──────────────────────────────────────────────── */
+/*
+ * ROLL and LOCK are small operational triggers. Not labels. Not values.
+ * Syne Mono at stamp size: tight, command-like. They execute actions.
+ * S16 defined color but no font — these were ghost nodes defaulting sans-serif.
+ */
+.dial-seed-btn {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-stamp);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-stamp);
+  line-height: var(--ws-leading-stamp);
+}
+
+
+/* ── 17.3 DIAL AXIS DIVIDER LABELS ──────────────────────────────────────── */
+/*
+ * "AXIS 1 — REQUIRED" / "AXIS 2 — OPTIONAL" — structural zone markers.
+ * The widest letter-spacing in the panel: 0.20em.
+ * These are etched, architectural — not data-bearing.
+ * Syne Mono at stamp. Ghost node in all previous passes.
+ */
+.dial-axis-divider-label {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-stamp);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: 0.20em;
+  line-height: var(--ws-leading-stamp);
+  text-transform: uppercase;
+}
+
+
+/* ── 17.4 DIAL AXIS PARAMETER SELECTS ───────────────────────────────────── */
+/*
+ * S16 declared rules for .dial-axis-select (which doesn't exist in the HTML).
+ * The actual selector is .dial-axis-param-select. Ghost node.
+ * Operational control menus. Syne Mono at label size.
+ */
+.dial-axis-param-select {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-ui);
+  letter-spacing: var(--ws-tracking-ui);
+  line-height: var(--ws-leading-ui);
+}
+
+
+/* ── 17.5 DIAL RANGE SUBLABELS ───────────────────────────────────────────── */
+/*
+ * MIN / MAX / STP — the smallest readable label in the whole dial panel.
+ * They label number inputs inside a constrained grid column.
+ * Syne Mono at stamp. stamp-tracking (0.15em) — ticker tape density.
+ * Ghost node in all previous passes.
+ */
+.dial-range-sublabel {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-stamp);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-stamp);
+  line-height: var(--ws-leading-stamp);
+  text-transform: uppercase;
+}
+
+
+/* ── 17.6 DIAL RANGE INPUTS ─────────────────────────────────────────────── */
+/*
+ * min/max/steps inputs. Precision float / integer entry.
+ * IBM Plex Mono: the technical data font. Not VT323 — these are precision
+ * entry fields where the user actively edits a numerical value. The clinical
+ * mono font signals "this is editable, precise data."
+ * S16 declared rules for .dial-axis-input (nonexistent selector). Ghost node.
+ * Actual selector: .dial-range-input.
+ */
+.dial-range-input {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-stamp);
+  font-weight: var(--ws-weight-ui);
+  letter-spacing: var(--ws-tracking-mono);
+  line-height: var(--ws-leading-log);
+}
+
+
+/* ── 17.7 DIAL JOB COUNT BADGE ──────────────────────────────────────────── */
+/*
+ * S16 declared this correctly: VT323 + clamp(18px, 2vw+14px, 28px).
+ * Aligning to token: var(--ws-type-log) = clamp(16px, 1vw+10px, 18px).
+ * The S16 clamp is actually larger than type-log — which is fine for a badge
+ * that needs to pop in the stage header. Keeping S16's fluid range as the
+ * canonical value here. No correction needed, but confirming explicitly.
+ *
+ * S16 tracking: 0.05em. Brief says 0.04em. Harmonizing to 0.04em.
+ * (Difference is imperceptible at this size but the token system says 0.04.)
+ */
+#dial-job-count {
+  font-family: var(--ws-font-glitch);
+  font-size: clamp(18px, 2vw + 14px, 28px);
+  letter-spacing: 0.04em;
+  line-height: var(--ws-leading-stamp);
+}
+
+
+/* ── 17.8 PRODUCTION PANEL — ROW LABELS ──────────────────────────────────── */
+/*
+ * "RUNS", "SEED", "BASE" — row labels in the production panel.
+ * Ghost node: S16 defined color (.prod-row-label) but no font-family.
+ * Syne Mono at label size — same hierarchy as all other lora-row-label
+ * derivatives in the system.
+ */
+.prod-row-label {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: var(--ws-tracking-ui);
+  line-height: var(--ws-leading-ui);
+}
+
+
+/* ── 17.9 PRODUCTION COUNT INPUT ─────────────────────────────────────────── */
+/*
+ * How many runs to execute. A small integer (1–30).
+ * IBM Plex Mono at small size. Precision entry, not a readout.
+ * S16 defined color (.prod-count-input) but no font-family. Ghost node.
+ */
+.prod-count-input {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-small);
+  font-weight: var(--ws-weight-ui);
+  letter-spacing: var(--ws-tracking-mono);
+  line-height: var(--ws-leading-log);
+}
+
+
+/* ── 17.10 PRODUCTION STRATEGY SELECT ────────────────────────────────────── */
+/*
+ * "RANDOM SEED" / "SEQUENTIAL" — a classified control menu.
+ * Syne Mono at label size. Ghost node in all previous passes.
+ * S16's rule targeting #prod-seed-strategy used font-ui but this class
+ * selector covers any future prod strategy selects by class.
+ */
+.prod-strategy-select {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-ui);
+  letter-spacing: var(--ws-tracking-ui);
+  line-height: var(--ws-leading-ui);
+}
+
+
+/* ── 17.11 PRODUCTION BASE SEED INPUT ────────────────────────────────────── */
+/*
+ * The base coordinate for sequential seed runs. Unlike axis range inputs,
+ * this is not a precision float the user is tuning — it is a named starting
+ * point, a coordinate. VT323 at small size: subtle glitch presence.
+ * S16 defined color (.prod-base-seed-input) but no font-family. Ghost node.
+ *
+ * S16 uses font-ui for #prod-base-seed (ID selector) — this class selector
+ * overrides that assignment when the class is present.
+ */
+.prod-base-seed-input {
+  font-family: var(--ws-font-glitch);
+  font-size: var(--ws-type-small);
+  letter-spacing: 0.04em;
+  line-height: var(--ws-leading-log);
+}
+
+
+/* ── 17.12 PRODUCTION ROW HINTS ──────────────────────────────────────────── */
+/*
+ * "max 30", "per run", "seed[0]" — annotation text.
+ * Not data. Not labels. Syne Mono at stamp. Recessive but on-system.
+ * S16 defined color (.prod-row-hint) but no font-family. Ghost node.
+ */
+.prod-row-hint {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-stamp);
+  font-weight: var(--ws-weight-ui);
+  letter-spacing: 0.08em;
+  line-height: var(--ws-leading-stamp);
+}
+
+
+/* ── 17.13 BATCH MODE LABEL ──────────────────────────────────────────────── */
+/*
+ * "DIAL: job 3 of 12" — the flight computer readout.
+ * THIS IS NOT A VALUE. It is a structural status label — the machine reporting
+ * current operational state. Syne Mono, not VT323.
+ *
+ * S16 assigned: VT323 + clamp(18px, 2vw+14px, 28px) + 0.04em tracking.
+ * VT323 is wrong here. VT323 is for numbers and numerical readouts.
+ * "DIAL: job 3 of 12" is a composite status string — alphanumeric operational
+ * report. That is Syne Mono's domain. Stage size. 0.15em tracking.
+ *
+ * OVERRIDES S16 #batch-mode-label font-family + font-size + letter-spacing.
+ */
+#batch-mode-label {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-stage);
+  font-weight: var(--ws-weight-label);
+  letter-spacing: 0.15em;
+  line-height: var(--ws-leading-stage);
+}
+
+
+/* ── 17.14 BATCH ETA ─────────────────────────────────────────────────────── */
+/*
+ * Time remaining. A number. A countdown. Live operational data.
+ * VT323 at value size. Time is a number. Numbers are VT323 territory.
+ *
+ * S16 assigned: IBM Plex Mono + type-small.
+ * IBM Plex Mono at type-small treats ETA as a footnote. It is not a footnote.
+ * It is a live countdown — the same cognitive register as a value readout.
+ *
+ * OVERRIDES S16 #batch-eta font-family + font-size.
+ */
+#batch-eta {
+  font-family: var(--ws-font-glitch);
+  font-size: var(--ws-type-value);
+  letter-spacing: 0.02em;
+  line-height: 1.0;
+}
+
+
+/* ── 17.15 BATCH JOB LABELS ──────────────────────────────────────────────── */
+/*
+ * One label per job in the scrollable manifest list.
+ * IBM Plex Mono at stamp size. Dense. Clinical. Log-format.
+ * layout.css set this correctly to font-mono + type-small.
+ * type-small is Tier 0 (16px max) — slightly large for a scrollable manifest.
+ * stamp (Tier -1, 12.8px max) achieves proper log density.
+ *
+ * This section upgrades the type-small assignment from layout.css.
+ */
+.batch-job-label {
+  font-family: var(--ws-font-mono);
+  font-size: var(--ws-type-stamp);
+  letter-spacing: var(--ws-tracking-mono);
+  line-height: var(--ws-leading-log);
+}
+
+
+/* ── 17.16 BATCH PROMOTE BUTTON — TOKEN CORRECTION ──────────────────────── */
+/*
+ * S16 used font-size: 0.7rem — a raw rem value outside the token system.
+ * The modular scale does not use rem. All sizes are via clamp() tokens.
+ * Corrected to: var(--ws-type-stamp) = clamp(10px, 0.8vw+8px, 12.8px).
+ * Visual result is approximately the same. System compliance restored.
+ */
+.batch-promote-btn {
+  font-size: var(--ws-type-stamp);
+}
+
+
+/* ── 17.17 BATCH CANCEL BUTTON — CONFIRMED CORRECT ──────────────────────── */
+/*
+ * S16 #batch-cancel-btn:
+ *   font-family: var(--ws-font-ui)        -- Syne Mono          CORRECT
+ *   font-size:   var(--ws-type-label)     -- Tier 1 (20px max)  CORRECT
+ *   letter-spacing: var(--ws-tracking-ui) -- 0.08em             CORRECT
+ *   font-weight: var(--ws-weight-label)   -- 600                CORRECT
+ *
+ * No override needed. Typography is correct as-written in S16.
+ * Confirmed. No touch.
+ */
+
+
+/* ── GHOST NODE AUDIT — RESOLUTION RECORD ───────────────────────────────── */
+/*
+ * STATUS AT END OF SECTION 19:
+ *
+ * GHOST NODES FIXED (had color in S16, no prior font-family rule):
+ *   .dial-seed-btn            17.2  Syne Mono, stamp
+ *   .dial-axis-divider-label  17.3  Syne Mono, stamp, 0.20em tracking
+ *   .dial-axis-param-select   17.4  Syne Mono, label (S16 used wrong selector)
+ *   .dial-range-sublabel      17.5  Syne Mono, stamp, stamp tracking
+ *   .dial-range-input         17.6  IBM Plex Mono, stamp (S16 used wrong selector)
+ *   .prod-row-label           17.8  Syne Mono, label
+ *   .prod-count-input         17.9  IBM Plex Mono, small
+ *   .prod-strategy-select     17.10 Syne Mono, label
+ *   .prod-base-seed-input     17.11 VT323, small
+ *   .prod-row-hint            17.12 Syne Mono, stamp
+ *
+ * WRONG FONT — CORRECTED (S16 chose wrong font family):
+ *   #dial-seed-display   S16: IBM Plex Mono    S17: VT323, clamp(24px, 3.5vw, 40px)
+ *   #batch-mode-label    S16: VT323            S17: Syne Mono, stage size, 0.15em
+ *   #batch-eta           S16: IBM Plex Mono    S17: VT323, value size
+ *
+ * WRONG VALUE FORMAT — CORRECTED (S16 used raw rem):
+ *   .batch-promote-btn   S16: 0.7rem           S17: var(--ws-type-stamp)
+ *
+ * CONFIRMED CORRECT (no touch):
+ *   #dial-job-count             VT323, S16 clamp range, tuned to 0.04em tracking
+ *   #batch-cancel-btn           Syne Mono, label size
+ *   #dial-run-btn / .dial-run-btn  Syne Mono, label size (S16 correct)
+ *   #prod-run-btn               Syne Mono, label size (S16 correct)
+ *   .dial-seed-btn hover states  color only, no font — inherits S17
+ *
+ * PRESS START 2P FINAL AUDIT — CLEAN:
+ *   Zero instances across DIAL, PRODUCTION, BATCH panels.
+ *   Banned zone (exclusive 8px–88px) has zero violations.
+ *   Only display-class usage of Press Start 2P exists in nameplate
+ *   territory — outside the scope of this section.
+ */
+
+/* ── END SECTION 19: TYPOGRAPHY — DIAL / PRODUCTION / BATCH ─────────────── */
+
+/* ── Section 20: STAGE TOGGLE BUTTON (dial/prod header button) ─────────────
+   Lives on a cyan (#ws-cyan) header background.
+   Default: void border + void text on cyan.
+   Hover: void fill + cyan text (invert — reveals structure on hover).
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.stage-toggle-btn {
+  color: var(--ws-bg);
+  border-color: oklch(0.095 0.010 285 / 0.6);
+}
+
+.stage-toggle-btn:hover {
+  background: var(--ws-bg);
+  color: var(--ws-cyan);
+  border-color: var(--ws-bg);
+}
+
+/* ── END SECTION 20 ──────────────────────────────────────────────────────── */
+
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * SECTION 21 — QUEUE PANEL COLORS
+ *
+ * Queue panel inherits the stage-card-header pattern (cyan fill, void text)
+ * from Section 12. Additional color rules here:
+ *   - Empty state: muted sulphur — communicates "waiting" not "broken"
+ *   - Queue cards: void bg, cyan left accent via border-left, muted label
+ *   - Remove button: pink — signals destructive action without alarm
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+.queue-empty-state {
+  color: var(--ws-muted);
+  opacity: 0.6;
+}
+
+.queue-card {
+  background: var(--ws-bg);
+  border-color: var(--ws-border);
+  border-left: 3px solid var(--ws-cyan);
+}
+
+.queue-card-label {
+  color: var(--ws-fg);
+}
+
+.queue-card-remove {
+  color: var(--ws-pink);
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.queue-card-remove:hover {
+  opacity: 1;
+}
+
+/* ── END SECTION 21 ──────────────────────────────────────────────────────── */
