@@ -1,4 +1,4 @@
-# WAN BOOTH
+# ZOETROPE
 
 **Bad Candy Arcade image-to-video generator.**  
 Drop an image. Write a motion prompt. Hit GENERATE — or queue a batch overnight.  
@@ -32,7 +32,7 @@ If you're on the Citadel (PC, RTX 3090 Ti) and just pulled this repo, here's eve
 ### To sync and run
 
 ```bash
-cd D:\WAN_BOOTH        # wherever you cloned the repo
+cd D:\ZOETROPE        # wherever you cloned the repo
 git pull
 
 cd app
@@ -44,11 +44,11 @@ npm start
 
 ### ComfyUI path check
 
-WAN BOOTH defaults to `%USERPROFILE%\Desktop\ComfyUI`. If ComfyUI is elsewhere:
+ZOETROPE defaults to `%USERPROFILE%\Desktop\ComfyUI`. If ComfyUI is elsewhere:
 
 ```powershell
 # PowerShell (per-session):
-$env:COMFYUI_DIR = "D:\COMFYUI_FOR_WAN_BOOTH"
+$env:COMFYUI_DIR = "D:\COMFYUI_FOR_ZOETROPE"
 npm start
 
 # Or set permanently: System → Advanced → Environment Variables
@@ -64,7 +64,7 @@ KJ Nodes (`PatchSageAttentionKJ`) were installed on the Citadel during Phase 2.6
 
 ## What it does
 
-WAN BOOTH is an Electron desktop app that wraps ComfyUI's headless server and exposes a single-purpose UI for Wan 2.2 image-to-video generation. It runs a 2-stage MoE workflow (high-noise pass → refinement pass) with per-stage LoRA controls and a full batch system.
+ZOETROPE is an Electron desktop app that wraps ComfyUI's headless server and exposes a single-purpose UI for Wan 2.2 image-to-video generation. It runs a 2-stage MoE workflow (high-noise pass → refinement pass) with per-stage LoRA controls and a full batch system.
 
 ---
 
@@ -152,18 +152,18 @@ git clone https://github.com/ltdrdata/ComfyUI-Manager
 
 Place all files from the **Model files required** section above into the correct subdirectories under `ComfyUI\models\`.
 
-### 4. Clone WAN BOOTH
+### 4. Clone ZOETROPE
 
 ```bash
-git clone https://github.com/the-sinner-king/wan-booth C:\Users\YourName\Desktop\WAN_BOOTH
-cd C:\Users\YourName\Desktop\WAN_BOOTH\app
+git clone https://github.com/the-sinner-king/wan-booth C:\Users\YourName\Desktop\ZOETROPE
+cd C:\Users\YourName\Desktop\ZOETROPE\app
 npm install
 ```
 
 ### 5. Launch
 
 ```bash
-cd C:\Users\YourName\Desktop\WAN_BOOTH\app
+cd C:\Users\YourName\Desktop\ZOETROPE\app
 npm start
 ```
 
@@ -179,7 +179,7 @@ npm install
 npm start
 ```
 
-WAN BOOTH auto-detects Mac (`darwin`) and uses `i2v_14B_2stage_mac.json` — a variant with `PatchSageAttentionKJ` nodes removed (that node requires KJ Nodes + NVIDIA, neither of which exist on Mac). The Mac venv has a Python 3.14 pip breakage — do not attempt `pip install` inside the ComfyUI venv on Mac. Use `uv` for any future installs.
+ZOETROPE auto-detects Mac (`darwin`) and uses `i2v_14B_2stage_mac.json` — a variant with `PatchSageAttentionKJ` nodes removed (that node requires KJ Nodes + NVIDIA, neither of which exist on Mac). The Mac venv has a Python 3.14 pip breakage — do not attempt `pip install` inside the ComfyUI venv on Mac. Use `uv` for any future installs.
 
 **Mac generation time:** ~2–4 hours per 81-frame video (M3 Max, MPS, 64GB unified memory). Both 14B models cast FP8 → BF16 at load time (~57 GB). Close everything before running.
 
@@ -298,7 +298,7 @@ wan-booth/
   README.md
   NORTH_STAR.md             # Full project specification (architecture, decisions, session log)
   VERIFY_BEFORE_FIRST_RUN.md  # KJ Nodes + TeaCache field verification checklist
-  WAN_BOOTH_ARCHITECTURE.txt  # Source map — all files, all functions, all IPC contracts
+  ZOETROPE_ARCHITECTURE.txt  # Source map — all files, all functions, all IPC contracts
 ```
 
 ---

@@ -1,5 +1,5 @@
 {
-  "name": "wan-booth",
+  "name": "zoetrope",
   "version": "0.1.0",
   "description": "Single-purpose Wan 2.2 TI2V-5B image-to-video Electron appliance",
   "main": "main.js",

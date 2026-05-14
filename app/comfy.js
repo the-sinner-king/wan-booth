@@ -64,7 +64,7 @@
 
   function dbg(msg) {
     try { window.wan.log('[comfy] ' + msg); } catch {}
-    console.log('[WAN BOOTH]', msg);
+    console.log('[ZOETROPE]', msg);
   }
 
   function generateClientId() {

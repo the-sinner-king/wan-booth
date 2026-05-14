@@ -328,7 +328,7 @@ function buildReport({ outputFilename, seed, runNum, totalRuns, duration, lora, 
 
   return [
     '═══════════════════════════════════════════════════════',
-    '  WAN BOOTH — GENERATION REPORT',
+    '  ZOETROPE — GENERATION REPORT',
     '═══════════════════════════════════════════════════════',
     '',
     `  DATE/TIME   : ${now}`,

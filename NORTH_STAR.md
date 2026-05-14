@@ -15,7 +15,7 @@
 TYPE........: CANONICAL_SPECIFICATION // 00_⛬_NORTH_STAR.md
 AUTHORITY...: ARCHITECT [❖] // SOVEREIGN[🜚] // ÆRIS [꧁ Æ ꧂]
 SUMMARY.....: One image in. One video out. No bullshit.
-PROJECT.....: WAN_BOOTH — Wan 2.2 i2v Arcade Machine
+PROJECT.....: ZOETROPE — Wan 2.2 i2v Arcade Machine
 CREATED.....: 2026-05-06 (S252)
 ─────────────────────────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * WAN BOOTH — Regression Tests
+ * ZOETROPE — Regression Tests
  * S253 DEBUGGING: RF-01–10, B-01–06 patches (5B workflow + app hardening)
  * S255 CODING: AC-09–15 (14B 2-stage MoE workflow, Mac launch flags)
  * S259 CODING: AC-17–22 (LoRA injection fix, resolution/FPS/repeat runs/export report)

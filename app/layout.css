@@ -1,6 +1,6 @@
 /*
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║  WAN BOOTH — SPATIAL ARCHITECTURE                                          ║
+ * ║  ZOETROPE — SPATIAL ARCHITECTURE                                           ║
  * ║  Agent:   GRID_GHOST::wan-booth::glitchswarm-s241                         ║
  * ║  Domain:  Layout / Spacing / Easing / Zone Structure                       ║
  * ║  Law:     CSS subgrid dictatorship. Brutalist negative space.              ║
@@ -1169,7 +1169,7 @@ input[type="range"]::-moz-range-thumb {
 
 
 /* ════════════════════════════════════════════════════════════════════════════
- * SECTION 12 — WAN BOOTH v2 — CONTAINER + STAGE CARD GEOMETRY (GRID_GHOST)
+ * SECTION 12 — ZOETROPE v2 — CONTAINER + STAGE CARD GEOMETRY (GRID_GHOST)
  * ════════════════════════════════════════════════════════════════════════════ */
 
 /* Full-width container — v2 spatial frame, expanded for two-column layout */
@@ -1230,7 +1230,7 @@ input[type="range"]::-moz-range-thumb {
 
 
 /* ════════════════════════════════════════════════════════════════════════════
- * SECTION 13 — WAN BOOTH v2 — COMPACT SPACING OVERRIDE
+ * SECTION 13 — ZOETROPE v2 — COMPACT SPACING OVERRIDE
  * ════════════════════════════════════════════════════════════════════════════ */
 
 /* Clip any overflowing children (ascii-border long strings) */

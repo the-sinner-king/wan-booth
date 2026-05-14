@@ -48,7 +48,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 900,
     height: 700,
-    title: 'WAN BOOTH',
+    title: 'ZOETROPE',
     icon: iconPath,
     backgroundColor: '#0d0b12',
     webPreferences: {

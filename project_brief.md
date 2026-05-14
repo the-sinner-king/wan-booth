@@ -1,4 +1,4 @@
-# WAN BOOTH — Phase 1 Project Brief
+# ZOETROPE — Phase 1 Project Brief
 **Project slug:** wan-booth  
 **Session:** 252 (Phase 1 MVP) → 262 (ZOETROPE v2 visual) → 263 (two-column layout)
 **Date:** 2026-05-06 (created) → 2026-05-13 (last updated)
@@ -31,7 +31,7 @@ Mode tabs (`nav#mode-selector`) eliminated. App now uses a permanent two-column 
 
 ## SCOPE IN — What We're Building
 
-A Phase 1 MVP Electron desktop app called WAN BOOTH that wraps ComfyUI's headless REST+WebSocket API to provide a single-purpose Wan 2.2 Image-to-Video interface. The user drops an image, writes a prompt, toggles a seed, hits GO, and gets a video back — inside the app, no browser, no Finder.
+A Phase 1 MVP Electron desktop app called ZOETROPE that wraps ComfyUI's headless REST+WebSocket API to provide a single-purpose Wan 2.2 Image-to-Video interface. The user drops an image, writes a prompt, toggles a seed, hits GO, and gets a video back — inside the app, no browser, no Finder.
 
 **Target platform:** macOS (M3 Max, Apple Silicon, MPS backend)  
 **ComfyUI model:** Wan2.2-TI2V-5B (FP16 safetensors, single-pass i2v)  
@@ -67,7 +67,7 @@ A Phase 1 MVP Electron desktop app called WAN BOOTH that wraps ComfyUI's headles
 ## FILE STRUCTURE (target output)
 
 ```
-WAN_BOOTH/
+ZOETROPE/
 ├── project_brief.md          (this file)
 ├── NORTH_STAR.md             (spec — already written)
 ├── package.json              (Electron app manifest)
