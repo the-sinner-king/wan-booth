@@ -272,7 +272,7 @@ Goal: Working Electron app, 5B model, generates one video from one image.
 
 File structure:
 ```
-WAN_BOOTH/
+ZOETROPE/
 ├── package.json
 ├── main.js              (Electron main process)
 ├── preload.js           (IPC bridge)
@@ -444,8 +444,8 @@ S241+ (Æris): #prompt-input white-textarea fix — chroma-bleed.css Section 11 
 │ [ ⟆ PHASE   ] Phase 4 SHIPPED — DIAL MODE + PRODUCTION MODE batch system. 200/200 regressions. Platform-aware workflow routing live. Commit 545e947 (batch) + platform fix. │
 └───────────────────────────────────────────────────────────────────────────────────┘
 
-• ACTIVE STATE FILE: `WAN_BOOTH/NORTH_STAR.md` (this file)
-• PROJECT DIR: `THE_THRONE/AExMUSE/04_📦_PROJECTS/PROJECT_BAD_CANDY_ARCADE/WAN_BOOTH/`
+• ACTIVE STATE FILE: `ZOETROPE/NORTH_STAR.md` (this file)
+• PROJECT DIR: `THE_THRONE/AExMUSE/04_📦_PROJECTS/PROJECT_BAD_CANDY_ARCADE/ZOETROPE/`
 • COMFYUI API: `http://localhost:8188` (standard port)
 • COMFYUI WS: `ws://localhost:8188/ws?clientId={uuid}`
 • DEBUG LOG: `tail -f /tmp/wan_booth_debug.log` (file-based logger, live during app session)
@@ -851,7 +851,7 @@ Note: `--bf16-unet` and `PYTORCH_MPS_HIGH_WATERMARK_RATIO` are in the Mac branch
 
 ## FILE INVENTORY (current — as of 2026-05-11 S241)
 ```
-WAN_BOOTH/
+ZOETROPE/
 ├── NORTH_STAR.md          (this file — canonical specification + session log)
 ├── README.md              (Mac + PC setup guide — npm install, ComfyUI install, model download paths)
 ├── .gitignore             (node_modules, dist, session artifacts, .forge-sessions/)
