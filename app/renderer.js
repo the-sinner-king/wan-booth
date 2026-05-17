@@ -150,15 +150,22 @@ function formatEta(remainingMs) {
   return '~' + s + 's remaining';
 }
 
+// S264 Cla⌂de patch (BUG-06): #elapsed-value and #eta-value were removed from the
+// index.html during Aeris's S262/S263 two-column redesign but renderer.js still
+// references them. With #elapsed-value=null, `elapsedValue.textContent = '00:00:00'`
+// threw "Cannot set properties of null (setting 'textContent')" inside startClock(),
+// which is called by every startGeneration, blocking ALL generation. Made the
+// clock functions null-safe so generation can proceed; the elapsed/ETA display
+// is a GHOST until Aeris wires those elements back into the redesign.
 function startClock() {
   generationStartTime = Date.now();
-  elapsedValue.textContent = '00:00:00';
-  etaValue.textContent     = '—';
-  mainPanel.dataset.generating = '';
+  if (elapsedValue) elapsedValue.textContent = '00:00:00';
+  if (etaValue)     etaValue.textContent     = '—';
+  if (mainPanel)    mainPanel.dataset.generating = '';
 
   elapsedIntervalId = setInterval(() => {
     const elapsed = Date.now() - generationStartTime;
-    elapsedValue.textContent = formatElapsed(elapsed);
+    if (elapsedValue) elapsedValue.textContent = formatElapsed(elapsed);
   }, 1000);
 }
 
@@ -167,7 +174,7 @@ function stopClock() {
     clearInterval(elapsedIntervalId);
     elapsedIntervalId = null;
   }
-  delete mainPanel.dataset.generating;
+  if (mainPanel) delete mainPanel.dataset.generating;
 }
 
 // Called by onProgress when we have a percent to extrapolate from
@@ -176,7 +183,7 @@ function updateEta(percent) {
   const elapsed    = Date.now() - generationStartTime;
   const totalEst   = (elapsed / percent) * 100;
   const remaining  = totalEst - elapsed;
-  etaValue.textContent = formatEta(remaining);
+  if (etaValue) etaValue.textContent = formatEta(remaining);
 }
 
 // ─── BOOT ─────────────────────────────────────────────────────────────────────
@@ -221,7 +228,10 @@ dropZone.addEventListener('dragover', (e) => {
 dropZone.addEventListener('dragleave', (e) => {
   if (!dropZone.contains(e.relatedTarget)) {
     dropZone.classList.remove('active');
-    dropLabel.textContent = selectedImagePath ? 'IMAGE LOADED' : 'DROP IMAGE';
+    // S264 Cla⌂de patch (BUG-Fl5): restore the branded copy-token text — was
+    // clobbering Aeris's '[ DROP IMAGE MATRIX HERE ]' to plain 'DROP IMAGE'
+    // on the first hover-out.
+    dropLabel.textContent = selectedImagePath ? 'IMAGE LOADED' : '[ DROP IMAGE MATRIX HERE ]';
   }
 });
 
@@ -373,18 +383,28 @@ function buildReport({ outputFilename, seed, runNum, totalRuns, duration, lora, 
 
 // ─── GENERATE ─────────────────────────────────────────────────────────────────
 goBtn.addEventListener('click', () => {
-  if (isGenerating) return;
+  // S264 Cla⌂de patch (DBG): mirror the RUN QUEUE instrumentation onto EXECUTE_BATCH
+  appendLog('queue', '[click] EXECUTE_BATCH pressed — isGenerating=' + isGenerating +
+    ' image=' + (selectedImageFilename || 'NULL') +
+    ' prompt.len=' + (promptInput.value || '').trim().length);
+  if (isGenerating) {
+    appendLog('error', '[click] EXECUTE_BATCH blocked — isGenerating stuck true');
+    return;
+  }
 
   if (!selectedImageFilename) {
+    appendLog('error', '[click] EXECUTE_BATCH BAIL — no image loaded');
     setStatus('No image loaded. Drop an image file before generating.', 'error');
     return;
   }
 
   const prompt = promptInput.value.trim();
   if (!prompt) {
+    appendLog('error', '[click] EXECUTE_BATCH BAIL — prompt empty');
     setStatus('Prompt is empty. Enter a description before generating.', 'error');
     return;
   }
+  appendLog('init', '[click] EXECUTE_BATCH guards passed, calling runAllJobs');
 
   // RF-10: parseInt returns NaN on empty input — clamp to valid integer
   const baseSeed = seedMode === 'fixed'
@@ -403,15 +423,24 @@ goBtn.addEventListener('click', () => {
 });
 
 async function runAllJobs(baseSeed, prompt) {
-  const chaosPercent = parseInt(document.getElementById('chaos-pct').value, 10) || 0;
+  // S264 Cla⌂de patch (DBG)
+  appendLog('init', '[runAllJobs] entered — totalRunCount=' + totalRunCount + ' baseSeed=' + baseSeed);
+  // S264 Cla⌂de patch (BUG-Fl9): ternary-guard the chaos-pct lookup like
+  // addCurrentStateAsJob does. Was unguarded inside a try/catch (BUG-06 lesson).
+  const chaosEl = document.getElementById('chaos-pct');
+  const chaosPercent = chaosEl ? (parseInt(chaosEl.value, 10) || 0) : 0;
+  appendLog('init', '[runAllJobs] chaosPercent=' + chaosPercent);
   let succeeded = 0, failed = 0;
   for (let i = 0; i < totalRunCount; i++) {
+    appendLog('init', '[runAllJobs] iter ' + (i+1) + '/' + totalRunCount);
     currentRun = i + 1;
     const seed = (baseSeed === null)
       ? Math.floor(Math.random() * 9999999999)
       : baseSeed;
     const loraOverride = chaosPercent > 0 ? applyChaos(getLoraValues(), chaosPercent) : null;
+    appendLog('init', '[runAllJobs] about to await startGeneration seed=' + seed);
     const ok = await startGeneration(seed, prompt, currentRun, totalRunCount, loraOverride, null, null, null, chaosPercent);
+    appendLog('init', '[runAllJobs] startGeneration returned ok=' + ok);
     if (ok) succeeded++; else failed++; // RF-S259-09: continue on failure — never break
   }
   if (totalRunCount > 1) {
@@ -428,25 +457,50 @@ function startGeneration(seed, prompt, runNum, totalRuns,
                          heightOverride = null, fpsOverride = null,
                          chaosApplied = 0) {
   return new Promise((resolve) => {
+    // S264 Cla⌂de patch (DBG): top-of-executor checkpoint
+    appendLog('init', '[startGeneration] EXECUTOR ENTERED — runNum=' + runNum + ' totalRuns=' + totalRuns);
     const runPrefix = totalRuns > 1 ? `RUN ${runNum}/${totalRuns} — ` : '';
     const genStart  = Date.now();
 
-    goBtn.textContent = totalRuns > 1 ? `RUN ${runNum}/${totalRuns}...` : 'RUNNING...';
-    videoPlayer.style.display = 'none';
-    videoPlayer.src = '';
-    setProgress(0);
-    setStatus(runPrefix + 'QUEUED — awaiting ComfyUI slot', 'generating');
-    startClock();
+    try {
+      goBtn.textContent = totalRuns > 1 ? `RUN ${runNum}/${totalRuns}...` : 'RUNNING...';
+      videoPlayer.style.display = 'none';
+      videoPlayer.src = '';
+      setProgress(0);
+      setStatus(runPrefix + 'QUEUED — awaiting ComfyUI slot', 'generating');
+      startClock();
+      appendLog('init', '[startGeneration] status set, building params');
+    } catch (err) {
+      appendLog('error', '[startGeneration] threw during status setup: ' + (err.message || err));
+      resolve(false);
+      return;
+    }
 
-    const lora       = loraValuesOverride || getLoraValues();
-    const resolution = (widthOverride !== null && heightOverride !== null)
-      ? { width: widthOverride, height: heightOverride }
-      : getResolutionPreset();
-    const fps        = fpsOverride !== null ? fpsOverride : getFrameRate();
+    let lora, resolution, fps;
+    try {
+      lora       = loraValuesOverride || getLoraValues();
+      resolution = (widthOverride !== null && heightOverride !== null)
+        ? { width: widthOverride, height: heightOverride }
+        : getResolutionPreset();
+      fps        = fpsOverride !== null ? fpsOverride : getFrameRate();
+      appendLog('init', '[startGeneration] params built — resolution=' + JSON.stringify(resolution) + ' fps=' + fps);
+    } catch (err) {
+      appendLog('error', '[startGeneration] threw during param build: ' + (err.message || err));
+      resolve(false);
+      return;
+    }
+
     const saveSeedBtnEl = document.getElementById('save-seed-btn');
     if (saveSeedBtnEl) saveSeedBtnEl.style.display = 'none';
 
-    window.ComfyClient.generate({
+    // S264 Cla⌂de patch (DBG): isolate whether ComfyClient.generate is reachable
+    // and whether it throws synchronously. We expect "[comfy] [start]" right after.
+    appendLog('init', '[startGeneration] pre-call: ComfyClient=' +
+      (typeof window.ComfyClient) +
+      ' resolution=' + JSON.stringify(resolution) +
+      ' fps=' + fps + ' workflowName=' + get14bWorkflow());
+    try {
+      window.ComfyClient.generate({
       imagePath:      selectedImageFilename,
       prompt,
       seed,
@@ -497,6 +551,8 @@ function startGeneration(seed, prompt, runNum, totalRuns,
         resolve(true);
       },
       onError: (msg) => {
+        // S264 Cla⌂de patch (DBG): also log error to debug stream (setStatus is silent)
+        appendLog('error', '[startGeneration] onError: ' + msg);
         setStatus(runPrefix + msg, 'error');
         setProgress(0);
         stopClock();
@@ -504,6 +560,15 @@ function startGeneration(seed, prompt, runNum, totalRuns,
       },
       onLog: (type, msg) => appendLog(type, msg),
     });
+      appendLog('init', '[startGeneration] ComfyClient.generate call returned (sync part done)');
+    } catch (err) {
+      // S264 Cla⌂de patch (DBG): catch any sync throw from ComfyClient.generate
+      const errMsg = err && err.message ? err.message : String(err);
+      appendLog('error', '[startGeneration] SYNC THROW from ComfyClient.generate: ' + errMsg);
+      setStatus('Internal error: ' + errMsg, 'error');
+      stopClock();
+      resolve(false);
+    }
   });
 }
 
@@ -848,10 +913,16 @@ function renderQueueUI() {
   const queuePanel   = document.getElementById('queue-panel');
   const queueList    = document.getElementById('queue-list');
   const runQueueBtn  = document.getElementById('run-queue-btn');
+  // S264 Cla⌂de patch (BUG-03): empty-state visibility used to be managed by
+  // queue.js's updateEmptyState. queue.js retired (BUG-02), so fold it in here.
+  const queueEmpty   = document.getElementById('queue-empty');
+  const queueCount   = document.getElementById('queue-count');
   if (!queuePanel || !queueList) return;
 
   queuePanel.style.display = jobQueue.length > 0 ? 'block' : 'none';
   queueList.innerHTML = '';
+  if (queueEmpty) queueEmpty.style.display = jobQueue.length > 0 ? 'none' : 'block';
+  if (queueCount) queueCount.textContent = jobQueue.length;
 
   jobQueue.forEach((job, i) => {
     const card = document.createElement('div');
@@ -901,15 +972,24 @@ function addCurrentStateAsJob() {
 }
 
 async function runQueue() {
+  // S264 Cla⌂de patch (DBG): instrument every bail path so silent failures
+  // surface in the debug log. setStatus() only writes to UI — bails were invisible.
   const prompt = promptInput.value.trim();
+  appendLog('init', '[runQueue] entered — prompt.len=' + prompt.length +
+    ' image=' + (selectedImageFilename || 'NULL') +
+    ' jobQueue.len=' + jobQueue.length +
+    ' isGenerating=' + isGenerating);
   if (!prompt) {
+    appendLog('error', '[runQueue] BAIL — prompt empty');
     setStatus('Prompt is empty. Enter a description before running the queue.', 'error');
     return;
   }
   if (!selectedImageFilename) {
+    appendLog('error', '[runQueue] BAIL — no image loaded');
     setStatus('No image loaded. Drop an image before running the queue.', 'error');
     return;
   }
+  appendLog('init', '[runQueue] guards passed, starting loop over ' + jobQueue.length + ' jobs');
   const runQueueBtn = document.getElementById('run-queue-btn');
 
   isGenerating = true;
@@ -946,18 +1026,25 @@ function initQueueUI() {
   const addToQueueBtn = document.getElementById('add-to-queue-btn');
   const runQueueBtn   = document.getElementById('run-queue-btn');
   const queueClearBtn = document.getElementById('queue-clear-btn');
+  // S264 Cla⌂de patch (DBG): log wiring state so we can see if buttons are missing
+  appendLog('init', '[initQueueUI] wiring — addToQueue=' + !!addToQueueBtn +
+    ' runQueue=' + !!runQueueBtn + ' clear=' + !!queueClearBtn);
   if (!addToQueueBtn) return;
 
   addToQueueBtn.addEventListener('click', addCurrentStateAsJob);
 
   if (runQueueBtn) {
     runQueueBtn.addEventListener('click', () => {
+      // S264 Cla⌂de patch (DBG): log every click so we know the handler is reached
+      appendLog('queue', '[click] RUN QUEUE pressed — isGenerating=' + isGenerating);
       if (!isGenerating) runQueue();
+      else appendLog('error', '[click] RUN QUEUE blocked — isGenerating stuck true');
     });
   }
 
   if (queueClearBtn) {
     queueClearBtn.addEventListener('click', () => {
+      appendLog('queue', '[click] CLEAR pressed — clearing pending jobs');
       jobQueue = jobQueue.filter(j => j.status === 'running');
       renderQueueUI();
     });
@@ -1066,7 +1153,11 @@ function estimateBatchEta(jobs, jobIndex, currentJobPct) {
   return curLeft + remaining * avgMs;
 }
 
-async function runBatch(jobs, imagePath, prompt) {
+// S264 Cla⌂de patch (BUG-Fl1 + BUG-Fl2): runBatch now takes width/height/frameRate.
+// Pre-S264 it ignored them entirely → workflow's hardcoded 832x480/16fps silently won
+// regardless of the user's UI picks. Also: imageFilename (basename) not host path —
+// ComfyUI's LoadImage resolves filenames against its input/ dir; absolute paths 400.
+async function runBatch(jobs, imageFilename, prompt, width, height, frameRate) {
   batchActive     = true;
   batchQueue      = jobs;
   batchJobIndex   = 0;
@@ -1083,11 +1174,14 @@ async function runBatch(jobs, imagePath, prompt) {
 
     await new Promise((resolve) => {
       window.ComfyClient.generate({
-        imagePath,
+        imagePath:      imageFilename,    // S264: basename, not host path
         prompt,
         seed:           job.seed,
         workflowName:   get14bWorkflow(),
         loraValues:     job.loraValues,
+        width,                            // S264: forward UI's resolution pick
+        height,
+        frameRate,                        // S264: forward UI's FPS pick
         filenamePrefix: job.filenamePrefix,
         onProgress: (pct) => {
           batchCurrentPct = pct;
@@ -1293,12 +1387,34 @@ function initDialUI() {
 
   if (runBtn) {
     runBtn.addEventListener('click', async () => {
-      if (batchActive) return;
+      // S264 Cla⌂de patch (BUG-Fl8): mirror EXECUTE_BATCH instrumentation — silent
+      // setStatus bails were invisible in the debug stream (BUG-06 lesson).
+      appendLog('queue', '[click] DIAL RUN pressed — batchActive=' + batchActive +
+        ' image=' + (selectedImageFilename || 'NULL') +
+        ' prompt.len=' + (promptInput.value || '').trim().length);
+      if (batchActive) {
+        appendLog('error', '[click] DIAL BAIL — batch already running');
+        return;
+      }
       const prompt = promptInput.value.trim();
-      if (!prompt)              { setStatus('Prompt is empty.', 'error'); return; }
-      if (!selectedImagePath)   { setStatus('No image loaded.', 'error'); return; }
+      if (!prompt) {
+        appendLog('error', '[click] DIAL BAIL — prompt empty');
+        setStatus('Prompt is empty.', 'error');
+        return;
+      }
+      // S264 Cla⌂de patch (BUG-Fl1): check filename (basename), not host path.
+      // ComfyUI LoadImage resolves against its input/ dir; absolute paths 400.
+      if (!selectedImageFilename) {
+        appendLog('error', '[click] DIAL BAIL — no image loaded');
+        setStatus('No image loaded.', 'error');
+        return;
+      }
       const axis1Param = axis1Sel ? axis1Sel.value : '';
-      if (!axis1Param)          { setStatus('Select at least one DIAL axis.', 'error'); return; }
+      if (!axis1Param) {
+        appendLog('error', '[click] DIAL BAIL — no axis selected');
+        setStatus('Select at least one DIAL axis.', 'error');
+        return;
+      }
 
       const a1 = {
         param: axis1Param,
@@ -1314,8 +1430,15 @@ function initDialUI() {
         steps: parseInt(axis2Steps.value, 10) || 4,
       } : null;
 
+      // S264 Cla⌂de patch (BUG-Fl2): capture user's UI picks at click-time.
+      // Was: dropped on the floor → workflow's hardcoded 832x480/16fps silently won.
+      const { width, height } = getResolutionPreset();
+      const fps = getFrameRate();
+      appendLog('init', '[click] DIAL guards passed — ' +
+        (a1.steps * (a2 ? a2.steps : 1)) + ' jobs @ ' + width + 'x' + height + ' ' + fps + 'fps');
+
       const jobs = buildDialJobs(getLoraValues(), dialSeedValue, a1, a2);
-      await runBatch(jobs, selectedImagePath, prompt);
+      await runBatch(jobs, selectedImageFilename, prompt, width, height, fps);
     });
   }
 }
@@ -1347,17 +1470,39 @@ function initProdUI() {
 
   if (runBtn) {
     runBtn.addEventListener('click', async () => {
-      if (batchActive) return;
+      // S264 Cla⌂de patch (BUG-Fl8): same DBG mirror as EXECUTE_BATCH / DIAL
+      appendLog('queue', '[click] PROD RUN pressed — batchActive=' + batchActive +
+        ' image=' + (selectedImageFilename || 'NULL') +
+        ' prompt.len=' + (promptInput.value || '').trim().length);
+      if (batchActive) {
+        appendLog('error', '[click] PROD BAIL — batch already running');
+        return;
+      }
       const prompt = promptInput.value.trim();
-      if (!prompt)            { setStatus('Prompt is empty.', 'error'); return; }
-      if (!selectedImagePath) { setStatus('No image loaded.', 'error'); return; }
+      if (!prompt) {
+        appendLog('error', '[click] PROD BAIL — prompt empty');
+        setStatus('Prompt is empty.', 'error');
+        return;
+      }
+      // S264 Cla⌂de patch (BUG-Fl1): filename basename, not host path.
+      if (!selectedImageFilename) {
+        appendLog('error', '[click] PROD BAIL — no image loaded');
+        setStatus('No image loaded.', 'error');
+        return;
+      }
 
       const count    = Math.min(30, Math.max(1, parseInt(countEl ? countEl.value : '10', 10) || 10));
       const strategy = stratSel ? stratSel.value : 'random';
       const baseSeed = strategy === 'sequential' ? (parseInt(baseSeedEl ? baseSeedEl.value : '1000', 10) || 1000) : 0;
 
+      // S264 Cla⌂de patch (BUG-Fl2): capture resolution/fps from UI.
+      const { width, height } = getResolutionPreset();
+      const fps = getFrameRate();
+      appendLog('init', '[click] PROD guards passed — ' + count + ' jobs ' +
+        '@ ' + width + 'x' + height + ' ' + fps + 'fps strategy=' + strategy);
+
       const jobs = buildProdJobs(getLoraValues(), count, strategy, baseSeed);
-      await runBatch(jobs, selectedImagePath, prompt);
+      await runBatch(jobs, selectedImageFilename, prompt, width, height, fps);
     });
   }
 }

@@ -688,7 +688,11 @@
         <button id="seed-save-skip">SKIP</button>
       </div>
 
-      <!-- Seed bank -->
+      <!-- Seed bank — S264 Cla⌂de patch (BUG-Fl3): #seed-bank-toggle was missing
+           from S262/S263 redesign but renderer.js + chroma-bleed.css still reference
+           it. Same class as BUG-06. Restoring the button so the seed-bank panel
+           is reachable by users. -->
+      <button id="seed-bank-toggle">▾ SEED BANK</button>
       <div id="seed-bank-panel" style="display:none;">
         <ul id="seed-bank-list"></ul>
       </div>
@@ -879,7 +883,13 @@
       </div>
       <div class="queue-empty-state" id="queue-empty">[ NO CLIPS QUEUED ]</div>
       <ul class="queue-list" id="queue-list" role="list" aria-label="Queued clips"></ul>
-      <button id="run-queue-btn" style="display:none;">[ RUN QUEUE ]</button>
+      <!-- S264 Cla⌂de patch (BUG-01 + BUG-04): RUN QUEUE was never being shown
+           because the inline display:none was never toggled in renderer.js. Also
+           adding the queue-clear-btn that renderer.js initQueueUI was looking for. -->
+      <div class="queue-panel-actions">
+        <button id="run-queue-btn">[ ▶ RUN QUEUE ]</button>
+        <button id="queue-clear-btn">[ × CLEAR ]</button>
+      </div>
     </div><!-- /#queue-panel -->
 
     <!-- BATCH CONSOLE — shown when a batch is running ──── -->
@@ -912,6 +922,14 @@
   <script src="comfy.js"></script>
   <script src="renderer.js"></script>
   <script src="mode-tabs.js"></script>
-  <script src="queue.js"></script>
+  <!-- S264 Cla⌂de patch (BUG-02 + BUG-Fl4): queue.js was double-handling
+       #add-to-queue-btn alongside renderer.js's addCurrentStateAsJob.
+       renderQueueUI() does queueList.innerHTML='' on every rebuild, nuking
+       queue.js's appended <li> elements. queue.js's empty-state management is
+       now folded into renderQueueUI(). FILE DELETED 2026-05-16 per Vaporize
+       Protocol (it also read dropLabel.dataset.filename which was never
+       written anywhere — a dormant landmine). git history preserves it. -->
+  <!-- <script src="queue.js"></script> -->
+
 </body>
 </html>

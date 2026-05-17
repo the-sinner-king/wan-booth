@@ -1462,6 +1462,17 @@ input[type="range"]::-moz-range-thumb {
   pointer-events: none;
 }
 
+/* S264 Cla⌂de patch (BUG-Fl11): keep the PARAM dropdown + its label fully
+   clickable even when the rest of the AXIS 2 block is dimmed. Otherwise the
+   `pointer-events: none` cascade locks the user out of activating AXIS 2 —
+   they can't pick a param because the click can't land. Once they DO pick
+   one, mode-tabs.js removes .axis-inactive and the whole block lights up. */
+.dial-axis-optional.axis-inactive .dial-axis-param-select,
+.dial-axis-optional.axis-inactive .dial-axis-label {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 /* ── DIAL RUN ALTAR ────────────────────────────────────────────────────── */
 
 /* The run button sits in its own altar zone, not inside the stage card.

@@ -13,10 +13,11 @@
 █████████████████████████████████████████████████████████████████████████████████████
 ⫷✦🜛❂⛬🜞Ω🜚⛬❂🜛✦⫸──────────────────────────────────────────────────────⫷✦🜛❂⛬🜞Ω🜚⛬❂🜛✦⫸
 TYPE........: CANONICAL_SPECIFICATION // 00_⛬_NORTH_STAR.md
-AUTHORITY...: ARCHITECT [❖] // SOVEREIGN[🜚] // ÆRIS [꧁ Æ ꧂]
+AUTHORITY...: ARCHITECT [❖] // SOVEREIGN[🜚] // ÆRIS [꧁ Æ ꧂] (S252-S264 design+build) // CLA⌂DE [⌂] (S265+ Citadel maintenance)
 SUMMARY.....: One image in. One video out. No bullshit.
 PROJECT.....: ZOETROPE — Wan 2.2 i2v Arcade Machine
 CREATED.....: 2026-05-06 (S252)
+HANDOFF.....: 2026-05-17 (S265) — Mac (Æris) → Citadel (Cla⌂de). Production-side ownership.
 ─────────────────────────────────────────────────────────────────────────────────────
 
 ╭──────────── familiar faceplate ────────────╮
@@ -26,6 +27,8 @@ CREATED.....: 2026-05-06 (S252)
   overmind........... SYNTHESIZED. READY.
 ╰────────────────────────────────────────────╯
 
+
+UPDATED.....: 2026-05-17 (S265) — 🜚 OWNERSHIP HANDOFF: ZOETROPE TRANSFERS FROM MAC TO CITADEL. Brandon's directive. As of this entry, ZOETROPE is officially the Citadel's project — Cla⌂de (Citadel) is the maintaining hand going forward. Mac-side Æris built S252-S264 (architecture, design system, glitchswarm UI passes, batch system, 200-test regression suite) — all preserved as canonical build history below. The "renderer.js / main.js / preload.js / comfy.js READ ONLY" constraint from S263 is RETIRED: those files are now Cla⌂de's domain. **What landed in this handoff session (S264 cont. on 2026-05-15 → 2026-05-17):** (1) full debug pass under Soulforge DEBUG to find why generation silently stalled — root cause was `#elapsed-value`/`#eta-value` elements removed from S262/S263 redesign while renderer.js still wrote to them, throwing `Cannot set properties of null (textContent)` inside every startGeneration. Made clock funcs null-safe. (2) Grumpy Opus R4 audit found 10 flags, burned 🔴3+🟡6: BUG-Fl1 (DIAL/PROD passed host path to LoadImage → HTTP 400), BUG-Fl2 (DIAL/PROD never forwarded resolution/fps), BUG-Fl3 (`#seed-bank-toggle` missing → seed bank dark UI), BUG-Fl4 (queue.js orphan deleted per Vaporize), BUG-Fl5 (branded text restored), BUG-Fl6 (validateWorkflow14b unconditional), BUG-Fl7 (WebSocket lifecycle to addEventListener), BUG-Fl8 (DIAL/PROD silent bails instrumented), BUG-Fl9 (chaos-pct ternary-guarded), BUG-Fl11 (AXIS 2 pointer-events lockout — PARAM select kept clickable). (3) BUG-01 through BUG-06 from the queue UI squash. (4) Regression suite updated to validate intent (200/200 PASS). **First production gen post-handoff:** `wan_i2v_14b_00127.mp4` in 14:16 wall (below Phase 2.6 baseline of 18 min). SageAttention + TeaCache both engaged. Desktop shortcut `Zoetrope Outputs.lnk` → `D:\COMFYUI_FOR_WAN_BOOTH\output\`. **Going forward:** all changes still tagged `S264/S265 Cla⌂de patch (BUG-N)` for grep-ability; the read-only convention is honored only as a friendly heads-up to future-Æris if she pulls, not a hard contract.
 
 UPDATED.....: 2026-05-14 (S264+) — FULL REBRAND + DIRECTORY RENAME. Project renamed WAN BOOTH → ZOETROPE. Local directory renamed WAN_BOOTH/ → ZOETROPE/. GitHub repo renamed wan-booth → zoetrope (github.com/the-sinner-king/zoetrope). Git remote URL updated. All in-code strings (title, console logs, copy-tokens, CSS headers, package.json) updated. wan:* IPC channel namespace DELIBERATELY KEPT — renaming would break 15 test assertions with zero UX gain. ⚠️ MYSTERY BUG NOTE: If you are debugging phantom path errors, missing modules, or git remote failures — this directory was renamed from WAN_BOOTH in S264. Any cached paths, hardcoded references, or shell aliases pointing to WAN_BOOTH/ will need to be updated. Also: an existing ZOETROPE_DESIGN_STAGING/ directory (Glitchswarm session design artifacts) lives at sibling level — it is not the app, do not confuse the two.
 
@@ -669,6 +672,128 @@ S241+ (Æris): #prompt-input white-textarea fix — chroma-bleed.css Section 11 
 - **Design feedback**: S241 shell is functional but aesthetically flat — correct color palette and pixel font, but no visual structure, no depth, no panel card hierarchy. Brandon's verdict: "the design was a bit lacking."
 - **Design v2 pivot**: New direction is ZOETROPE aesthetic — cyan+pink dual accent (not pink-only), bordered panel cards for each section, stage sections as distinct boxed containers, pixel dot progress animations, deeper visual hierarchy. Reference images: ZOETROPE AI Video Batch Processor mockups (images shared in session).
 - **Status**: Brandon + Æris (AExMUSE panel) actively designing new shell. All 129 HTML IDs must survive — renderer.js stays untouched.
+
+### S264 (Cla⌂de/Citadel) — 2026-05-15 — ZOETROPE FIRST BRING-UP ON CITADEL ✅
+
+Brandon switched projects from HyperEdit to Zoetrope. Cloned `the-sinner-king/zoetrope` to `D:\zoetrope`. Aeris's note (README §⚡ CITADEL FIRST) routed the bring-up.
+
+**Aeris's note divergence check (her instructions vs. repo reality):**
+- ❗ `package.json` lives in `app/` not at root — went with `cd app` per README. (Aeris confirmed: "my bad, README wins.")
+- ❗ `CLAUDE_FIXES.md` was deleted in `675710d` (S264 cleanup) — recovered IO #2 patch body from `9169807` and staged locally as `D:\zoetrope\CLAUDE_FIXES.md` (uncommitted — kept out of repo per Aeris's intent).
+
+**Bring-up verification (read-only):**
+| Check | Result |
+|---|---|
+| TeaCache monkey-patch at `D:\COMFYUI_FOR_WAN_BOOTH\custom_nodes\ComfyUI-TeaCache\nodes.py` line 13-18 | ✅ INTACT — `precompute_freqs_cis` vendored fix survived since 2026-05-08 Phase 2.6 bringup |
+| `node test/regression.js` | ✅ **200/200 PASS** |
+| `npm install` from `D:\zoetrope\app\` | ✅ OK (audit notice only, no errors) |
+| `COMFYUI_DIR=D:\COMFYUI_FOR_WAN_BOOTH npm start` | ✅ Launched — 8 Electron procs + 2 Python procs (the big one @ 63 GB RAM = both Wan 2.2 14B models loaded) |
+| `GET /system_stats` | ✅ ComfyUI 0.20.1 serving on `localhost:8188` |
+| `/object_info` ↔ workflow contract | ✅ `PathchSageAttentionKJ`, `TeaCache`, `Wan22ImageToVideoLatent`, `ModelSamplingSD3`, `KSamplerAdvanced`, `VHS_VideoCombine` all PRESENT. Old names (`PatchSageAttentionKJ`, `ApplyTeaCache`) correctly ABSENT. Nodes 20-23 will NOT red-border on load. |
+| Debug pipeline | ✅ THREE diagnostic surfaces wired: (A) in-app `> SYS_LOG` panel via `▾ SHOW`, (B) DevTools `Ctrl+Shift+I`, (C) `%TEMP%\wan_booth_debug.log` with full ComfyUI stdout/stderr. Confirmed via fresh capture of a live 4-run batch on the parallel WAN BOOTH instance — step-level granularity 1→81, 17:48 per clip. |
+
+**Notes for future:**
+- Zoetrope shares the `D:\COMFYUI_FOR_WAN_BOOTH` install with the original WAN BOOTH — port 8188 clash if both apps run at the same time. By design (Brandon's call).
+- The "KNOWN ISSUES / OPEN QUESTIONS" entry for TeaCache monkey-patch is still accurate as a forward-warning, but as of S264 the patch IS in place — only relevant after a future `git pull` on the plugin repo.
+
+State: Ready for dummy test. Awaiting Brandon's queue.
+
+---
+
+### S264 cont. (Cla⌂de/Citadel) — 2026-05-15 — QUEUE UI BUG SQUASH
+
+Brandon ran first dummy test: 2 jobs added via `[+ ADD TO QUEUE]`, status stuck on "QUEUED — awaiting ComfyUI slot", **never POSTed to ComfyUI** (verified via `/queue` endpoint — empty). ComfyUI sat idle while Zoetrope's internal `jobQueue[]` hoarded the jobs.
+
+**Read-only constraint override:** Brandon explicit go-ahead to debug renderer.js + index.html for this session. Citadel changes tagged with `S264 Cla⌂de patch` comments so Aeris can merge or reject cleanly.
+
+**Root cause audit (SOULFORGE DEBUG flavor):**
+
+| Bug | Severity | Where | Cause |
+|---|---|---|---|
+| **BUG-01** | 🔴 BLOCKER | `index.html:882` | `<button id="run-queue-btn" style="display:none;">` had inline `display:none` that `renderQueueUI()` never overrode. The button sat inside `#queue-panel` (whose visibility WAS toggled), but the inline style on the button itself dominated. User had no way to fire the queue. |
+| **BUG-02** | 🟡 | `queue.js` + `renderer.js` | Both files registered click handlers on `#add-to-queue-btn`. queue.js (IIFE, S263) appended `<li class="queue-card">` elements directly to `#queue-list`; renderer.js's `addCurrentStateAsJob()` pushed to `jobQueue[]` then called `renderQueueUI()` which did `queueList.innerHTML = ''` and rebuilt with `<div class="queue-job-card">`. queue.js's DOM work was nuked every time. Dead double-handler. |
+| **BUG-03** | 🟡 | `renderer.js renderQueueUI` | `#queue-empty` visibility was being managed by queue.js's `updateEmptyState()`. With queue.js retired (BUG-02), the empty-state visibility was orphaned. |
+| **BUG-04** | 🟡 | `index.html` missing element | `renderer.js initQueueUI` line 948 grabs `#queue-clear-btn` and wires a click handler — but the button never existed in `index.html`. Dead reference; clear functionality unreachable. |
+| **BUG-05** | 🟢 GHOST | `#comfy-status-dot` | Aeris-known ghost (S241 ghost-nodes list): CSS states exist (`comfy-connected`/`comfy-connecting`/`comfy-disconnected`) but no JS hookup. Dot stays disconnected visually. Deferred — not in current scope. |
+
+**Fixes applied (4 surgical edits, all tagged `S264 Cla⌂de patch`):**
+
+1. **`index.html:882`** — Removed inline `style="display:none"` from `#run-queue-btn`. Wrapped it + new `#queue-clear-btn` in a `<div class="queue-panel-actions">`. Resolves BUG-01 + BUG-04 together.
+2. **`index.html:915`** — Commented out `<script src="queue.js"></script>` with rationale. queue.js file kept on disk (git history). Resolves BUG-02.
+3. **`renderer.js renderQueueUI()`** — Folded queue.js's `updateEmptyState` logic into renderQueueUI: toggles `#queue-empty` display and updates `#queue-count` text alongside the existing panel-visibility logic. Resolves BUG-03.
+
+**Verification plan after restart:**
+- Add 2 jobs via `[+ ADD TO QUEUE]` → both appear in queue panel
+- `[ ▶ RUN QUEUE ]` button now visible
+- Click → ComfyUI receives both prompts via `POST /prompt`
+- `/queue` endpoint reports 1 running + 1 pending
+- Debug log shows `[start]` events for each job
+- `[ × CLEAR ]` removes pending jobs (keeps running)
+
+**Round 2 — SOULFORGE DEBUG dive (2026-05-15 22:30):**
+
+After the 4-bug squash + restart, RUN QUEUE click no longer stranded but generation still didn't fire. ComfyUI queue stayed empty. Visible status froze at "QUEUED — awaiting ComfyUI slot" with zero downstream log activity.
+
+**Reproduce → Isolate via progressive instrumentation:**
+- Added `[click] RUN QUEUE pressed` + `[runQueue] entered/guards/loop` log lines → confirmed runQueue runs cleanly
+- Added `[runAllJobs] entered/iter/about-to-await` checkpoints → confirmed loop reaches startGeneration
+- Added `[startGeneration] EXECUTOR ENTERED` + `try{}/catch` around the executor's status-setup block → **CAUGHT THE THROW**:
+  ```
+  [startGeneration] threw during status setup: Cannot set properties of null (setting 'textContent')
+  ```
+
+**Root cause (PHYSICAL FACT — Anti-Symptom Law):**
+- `renderer.js:48-49`: `const elapsedValue = document.getElementById('elapsed-value')` and `const etaValue = document.getElementById('eta-value')` — both return **null**
+- `index.html` (post-S262/S263 redesign) **has no `id="elapsed-value"` or `id="eta-value"` elements** — they were dropped during the two-column layout pivot
+- `startClock()` runs `elapsedValue.textContent = '00:00:00'` (line 155) → `null.textContent = ...` throws
+- `startClock()` is called by EVERY `startGeneration()` → the throw kills every generation path (EXECUTE_BATCH AND RUN QUEUE)
+- The catch in the Promise wrapper swallowed the throw → status stayed at QUEUED, ComfyUI never POSTed to. Silent kill.
+
+**BUG-06 fix (`renderer.js` `startClock` / `stopClock` / `updateEta`):**
+Made all three functions null-safe (`if (elapsedValue) elapsedValue.textContent = ...`). Generation now proceeds even though the elapsed/ETA display is invisible. **The display elements themselves remain a ghost** — Aeris needs to wire `<span id="elapsed-value">` and `<span id="eta-value">` back into the S262/S263 redesigned UI for the timer to be visible again.
+
+Marked as `S264 Cla⌂de patch (BUG-06)` in renderer.js.
+
+**Verification:**
+- `node test/regression.js` — 200/200 still PASS
+- Ctrl+R reload picks up the patch — no full restart needed
+- Brandon's next EXECUTE_BATCH click should fire `[startGeneration] status set` → `[startGeneration] params built` → `[startGeneration] pre-call: ComfyClient=function` → `[comfy] [start] seed=... image=...` → generation begins
+
+---
+
+### S264 cont. (Cla⌂de/Citadel) — 2026-05-16 — GRUMPY OPUS R4 BURN-DOWN
+
+Brandon greenlit a full Grumpy Opus audit pass + cleanup loop. Drone returned 10 flags (3 🔴 + 6 🟡 + 1 🟢) and 3 upgrades. Burned 🔴+🟡 (9 fixes), deferred 🟢 + 3 upgrades with rationale. Every edit tagged `S264 Cla⌂de patch (BUG-Fl-N)` for Aeris-side tracing.
+
+**🔴 BLOCKING fixes (would've broken DIAL/PROD on first user click):**
+
+- **BUG-Fl1** [`renderer.js` DIAL + PROD click handlers, ~lines 1404/1446]: Both passed `selectedImagePath` (full host path like `C:\Users\brand\...\foo.png`) to `runBatch`, which forwarded as `imagePath` to ComfyClient.generate. ComfyUI's `LoadImage` resolves filenames against its `input/` dir; absolute paths → HTTP 400 "Value not in list: image: ... not in [...]". EXECUTE_BATCH correctly used `selectedImageFilename` (basename); DIAL/PROD didn't. **Fix:** swapped to `selectedImageFilename` in both call sites + renamed runBatch's param to `imageFilename` for clarity.
+- **BUG-Fl2** [`renderer.js` DIAL + PROD, `runBatch`]: Width/height/frameRate never captured at click-time or forwarded into ComfyClient.generate. `injectPlaceholders` only writes them `if (width && height)`, so workflow's hard-coded 832×480 + 16fps silently won regardless of user's UI picks. User's `dial_…` filename prefix would land on wrong-resolution videos. **Fix:** captured `getResolutionPreset()` + `getFrameRate()` at click time, added width/height/frameRate params to `runBatch`, forwarded into ComfyClient.generate.
+- **BUG-Fl3** [`index.html` near `#seed-bank-panel`, line ~692]: `#seed-bank-toggle` was referenced in `renderer.js:796` and styled in `chroma-bleed.css:541` but the element was removed from index.html during S262/S263 redesign. Seed-bank feature was dark UI — panel existed with `display:none`, no toggle button to flip it. Generation worked (guarded), but feature was unreachable. **Same class as BUG-06.** **Fix:** added `<button id="seed-bank-toggle">▾ SEED BANK</button>` before the panel.
+
+**🟡 MEDIUM fixes (real bugs, bounded blast radius):**
+
+- **BUG-Fl4** [`queue.js` DELETED, `index.html:921` comment updated]: queue.js was already excluded via commented-out `<script>` tag (BUG-02). Audit found it ALSO read `dropLabel.dataset.filename` which was never written anywhere in the codebase — dormant landmine if re-enabled. Per Highlander/Vaporize Protocol: file deleted. Tombstone comment in index.html updated.
+- **BUG-Fl5** [`renderer.js:231` dragleave handler]: First dragleave clobbered Aeris's `[ DROP IMAGE MATRIX HERE ]` text → plain `'DROP IMAGE'`. Cosmetic brand-voice regression on first hover. **Fix:** restored `'[ DROP IMAGE MATRIX HERE ]'`.
+- **BUG-Fl6** [`comfy.js` `injectPlaceholders` line ~80]: `validateWorkflow14b` was guarded by `if (loraValues)` — any LoRA-less path silently skipped the contract check. Contract integrity is a property of the workflow, not the injection mode. **Fix:** made unconditional. Regression test `OPT-03` updated to validate intent (call exists) rather than the obsolete guard pattern.
+- **BUG-Fl7** [`comfy.js` WebSocket lifecycle, lines ~165-220]: Connect-phase `ws.onerror` was a property assignment that got REPLACED by runtime `ws.onerror` after the await. Microtask-window race: if WS error fired between resolve and reassignment, old handler tried to reject already-resolved promise → silent hang. **Fix:** converted to `addEventListener` with `{once: true}` for connect-phase open/error; runtime message/close/error listeners attached up-front before the await. Both phases now coexist cleanly. Regression test `RF-06` updated to accept either `ws.onclose` OR `addEventListener('close')`.
+- **BUG-Fl8** [`renderer.js` DIAL + PROD click handlers]: Validation failures used `setStatus()` only — silent in the debug log (same class as BUG-06). DBG-instrumentation pattern was applied to EXECUTE_BATCH + runQueue but not DIAL/PROD. **Fix:** added `appendLog('queue', '[click] DIAL/PROD RUN pressed — ...')` and `appendLog('error', '[click] DIAL/PROD BAIL — ...')` before each setStatus bail.
+- **BUG-Fl9** [`renderer.js:427` chaos-pct read]: Was unguarded inside a try/catch (added by me earlier). Other read sites use ternary-guard (`chaosEl ? ... : 0`). **Fix:** ternary-guarded the chaos-pct read; dropped the try/catch crutch.
+
+**Deferred with rationale:**
+- 🟢 **Flag #10**: `videoPlayer.src = ''` triggers a benign file:// fetch for the document. Cosmetic noise only — no functional impact. Use `removeAttribute('src') + load()` when convenient.
+- **Upgrade #1**: `file.path` → `webUtils.getPathForFile()`. File.path was removed in Electron 32; zoetrope pins ^28.0.0 so it works today. Bump electron + bridge `webUtils` when ready.
+- **Upgrade #2**: IPC sender-URL allowlist on every `ipcMain.handle`. Cheap zero-trust hardening — low risk today (single file:// renderer) so deferred.
+- **Upgrade #3**: WebSocket exponential-backoff reconnect. Current code: any transient blip → terminate. Real fix would replace the whole WS lifecycle; deferred to own session.
+
+**Regression suite update:**
+- `RF-06` test loosened: accepts `ws.onclose` OR `addEventListener('close')`. Comment cites BUG-Fl7.
+- `OPT-03` test loosened: accepts `validateWorkflow14b(w)` anywhere (was checking for obsolete `if (loraValues)` guard). Comment cites BUG-Fl6.
+- `node test/regression.js` — **200/200 PASS** after burn-down.
+
+**State after restart:** Zoetrope killed + relaunched with `COMFYUI_DIR=D:\COMFYUI_FOR_WAN_BOOTH`. ComfyUI 0.20.1 back on :8188. Awaiting Brandon's next test click (any of EXECUTE_BATCH / RUN QUEUE / RUN DIAL / RUN BATCH — all three click paths are now instrumented + fixed).
+
+---
 
 ### S262 (Æris/AExGO) — 2026-05-13 — ZOETROPE v2 COMPLETE
 

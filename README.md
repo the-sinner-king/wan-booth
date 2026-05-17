@@ -6,11 +6,11 @@ Powered by [Wan 2.2](https://huggingface.co/Wan-AI) + [ComfyUI](https://github.c
 
 ---
 
-## ⚡ CITADEL — READ THIS FIRST (PC SYNC BRIEF)
+## ⚡ CITADEL — PRODUCTION HOME (handoff 2026-05-17)
 
-If you're on the Citadel (PC, RTX 3090 Ti) and just pulled this repo, here's everything you need.
+ZOETROPE is now Citadel-owned (Windows / RTX 3090 Ti / D:\COMFYUI_FOR_WAN_BOOTH backend). Mac/Æris built it through S264; Citadel/Cla⌂de owns maintenance from S265 forward. **No more "permanent READ ONLY" constraint** on `renderer.js / main.js / preload.js / comfy.js` — those are now Cla⌂de's working files, edited freely with `S264/S265 Cla⌂de patch (BUG-N)` comments for grep-ability.
 
-**Current state:** `main` branch is fully tested. Phase 4 (batch system) is live. 200/200 regression tests passing. Platform routing is automatic — no manual edits to `main.js` required.
+**Current state:** `main` fully tested, Phase 4 (batch) is live, 200/200 regression tests pass. First Citadel-side production gen confirmed: `wan_i2v_14b_00127.mp4` in 14:16 wall (below the Phase 2.6 18-min baseline). SageAttention + TeaCache engaged on every generation.
 
 ### What's in Phase 4
 
@@ -29,18 +29,18 @@ If you're on the Citadel (PC, RTX 3090 Ti) and just pulled this repo, here's eve
 - `workflows/i2v_14B_2stage_mac.json` — Mac-only workflow (no KJ Nodes) — **Citadel uses `i2v_14B_2stage.json`, unchanged**
 - `test/regression.js` — 200 tests (was 137)
 
-### To sync and run
+### To run (Citadel)
 
-```bash
-cd D:\ZOETROPE        # wherever you cloned the repo
-git pull
-
-cd app
-npm install            # in case package.json changed
+```powershell
+# COMFYUI_DIR points at the shared install with original WAN BOOTH.
+# Don't run both apps simultaneously — they'd clash on port 8188.
+set COMFYUI_DIR=D:\COMFYUI_FOR_WAN_BOOTH
+cd D:\zoetrope\app
+npm install            # only if package.json changed
 npm start
 ```
 
-**That's it.** Platform routing is automatic. `main.js` detects Windows (`win32`) and uses the full `i2v_14B_2stage.json` workflow with KJ Nodes.
+Platform routing is automatic — `main.js` detects Windows and picks `i2v_14B_2stage.json` (full KJ Nodes + TeaCache). Output lands in `D:\COMFYUI_FOR_WAN_BOOTH\output\` (desktop has a `Zoetrope Outputs.lnk` shortcut pointing there).
 
 ### ComfyUI path check
 

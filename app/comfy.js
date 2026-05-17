@@ -77,7 +77,10 @@
 
   function injectPlaceholders(workflow, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix) {
     const w = JSON.parse(JSON.stringify(workflow));
-    if (loraValues) validateWorkflow14b(w);
+    // S264 Cla⌂de patch (BUG-Fl6): validate ALWAYS — was `if (loraValues)`, which
+    // meant any LoRA-less path silently skipped the contract check. Workflow integrity
+    // is a property of the workflow itself, not the injection mode.
+    validateWorkflow14b(w);
     for (const [nodeId, node] of Object.entries(w)) {
       if (!node.inputs) continue;
 
@@ -162,13 +165,12 @@
       wsUrl.searchParams.set('clientId', clientId);
       ws = new WebSocket(wsUrl.href);
 
-      await new Promise((resolve, reject) => {
-        const timer = setTimeout(() => reject(new Error('WebSocket timeout')), 5000);
-        ws.onopen  = () => { clearTimeout(timer); emit('init', 'WebSocket connected'); resolve(); };
-        ws.onerror = () => { clearTimeout(timer); reject(new Error('WebSocket connection failed')); };
-      });
-
-      ws.onmessage = (event) => {
+      // S264 Cla⌂de patch (BUG-Fl7): use addEventListener with {once:true} for the
+      // connect-phase open/error handlers, attach the runtime message/close/error
+      // listeners up-front. Was: property-assigned onopen/onerror reassigned across
+      // the await — microtask-window race could leave a connection error firing on
+      // an already-resolved promise → silent hang. addEventListener stacks cleanly.
+      ws.addEventListener('message', (event) => {
         let msg;
         try { msg = JSON.parse(event.data); } catch { return; }
 
@@ -210,15 +212,30 @@
         if (msg.type === 'execution_interrupted') {
           terminate('Generation interrupted');
         }
-      };
+      });
 
-      ws.onclose = (ev) => {
+      ws.addEventListener('close', (ev) => {
         if (!terminated) terminate('WebSocket closed unexpectedly (code ' + ev.code + ')');
-      };
+      });
 
-      ws.onerror = () => {
+      ws.addEventListener('error', () => {
         if (!terminated) terminate('WebSocket error during generation');
-      };
+      });
+
+      // S264 Cla⌂de patch (BUG-Fl7): connect-phase await — open/error are one-shot.
+      // Runtime listeners above stay attached for the whole generation.
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error('WebSocket timeout')), 5000);
+        ws.addEventListener('open', () => {
+          clearTimeout(timer);
+          emit('init', 'WebSocket connected');
+          resolve();
+        }, { once: true });
+        ws.addEventListener('error', () => {
+          clearTimeout(timer);
+          reject(new Error('WebSocket connection failed'));
+        }, { once: true });
+      });
 
       emit('init', 'POSTing via IPC (no Origin header)');
       const result = await window.wan.queuePrompt({ prompt: injected, client_id: clientId });

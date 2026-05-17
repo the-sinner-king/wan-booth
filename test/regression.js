@@ -176,9 +176,14 @@ test('workflow node 17 is VHS_VideoCombine', () => {
 // ── RF-06: terminal state handling ───────────────────────────────────────────
 console.log('\nRF-06 — comfy.js: no hung UI on disconnect / interrupt');
 
-test('comfy.js has ws.onclose handler', () => {
-  assert.ok(combSrc.includes('ws.onclose'),
-    'ws.onclose must be registered to catch socket drops');
+test('comfy.js has ws close handler', () => {
+  // S264 Cla⌂de patch (BUG-Fl7): converted ws.onclose → ws.addEventListener('close', ...)
+  // to fix microtask-window race between connect-phase and runtime handlers.
+  // Test now validates intent (close event IS handled) rather than exact syntax.
+  const hasOnClose      = combSrc.includes('ws.onclose');
+  const hasAddListener  = /ws\.addEventListener\(\s*['"]close['"]/.test(combSrc);
+  assert.ok(hasOnClose || hasAddListener,
+    'a close handler (ws.onclose or addEventListener("close")) must be registered to catch socket drops');
 });
 test('comfy.js handles execution_interrupted', () => {
   assert.ok(combSrc.includes("'execution_interrupted'"),
@@ -744,9 +749,13 @@ test('OPT-03: validateWorkflow14b function is defined in comfy.js', () => {
   assert.ok(combSrc.includes('function validateWorkflow14b'),
     'validator function must exist');
 });
-test('OPT-03: injectPlaceholders calls validateWorkflow14b when loraValues provided', () => {
-  assert.ok(combSrc.includes('if (loraValues) validateWorkflow14b(w)'),
-    'validator must be called before injection when loraValues is present');
+test('OPT-03: injectPlaceholders calls validateWorkflow14b', () => {
+  // S264 Cla⌂de patch (BUG-Fl6): validateWorkflow14b is now UNCONDITIONAL.
+  // Was guarded by `if (loraValues)` which silently skipped contract check on any
+  // LoRA-less path. Test validates intent: the call happens at all in the file
+  // (it lives only inside injectPlaceholders by design — there's no other caller).
+  assert.ok(/validateWorkflow14b\s*\(\s*w\s*\)/.test(combSrc),
+    'validateWorkflow14b(w) must be invoked in comfy.js (lives inside injectPlaceholders)');
 });
 
 // ── RF-S259-02/03: step clamping + sentinel preservation ─────────────────────
