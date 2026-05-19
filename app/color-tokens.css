@@ -1,192 +1,123 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║  ZOETROPE — COLOR SYSTEM v2 // BAD CANDY ARCADE                            ║
- * ║  Agent:   CHROMA_BLEED::wan-booth-v2::258                                  ║
- * ║  Model:   OKLCH perceptual space (NO rgb, NO hsl, NO hex)                  ║
- * ║  Mandate: Venus Flytrap that runs a Japanese Y2K coin-op arcade.            ║
- * ║           Fuchsia neon signs. Electric cyan glow. Purple-black void.        ║
- * ║           A machine that doesn't care if you win.                           ║
+ * ║  ZOETROPE — COLOR SYSTEM v3 // MAINFRAME                                    ║
+ * ║  Session: S266 Cla⌂de — UI reskin, Citadel-owned                            ║
+ * ║  Rebuild: dropped triple-accent (pink+cyan+sulphur) → ONE signal: amber.    ║
+ * ║  Concept: 70s industrial control panel. Calm, ominous, single signal color. ║
+ * ║           A machine that doesn't decorate itself.                            ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  *
- * ─── OKLCH GEOMETRY ──────────────────────────────────────────────────────────
+ * THE 8-TOKEN PALETTE (everything reads from these):
  *
- *   VOID AXIS (Hue ≈ 285°, "purple-black — UV booth darkness")
- *     L: 0.095 → 0.138  |  C: 0.010 → 0.013  |  H: 285
- *     Two stops: void base and elevated panel. The purple undertone makes
- *     neon colors pop instead of fight. The screen is dark. The neon
- *     comes FROM the content, not the shell.
+ *   --ws-void    #0a0a0c   true near-black, hue-neutral
+ *   --ws-panel   #15151a   one elevation step, very subtle warm shift
+ *   --ws-rule    #2a2a30   divider lines, panel borders
+ *   --ws-muted   #6a6a72   secondary/disabled text, helper labels
+ *   --ws-ink     #d4d4d6   body text — cool off-white
+ *   --ws-fg      #f0f0f2   primary text on panels
+ *   --ws-signal       #ff5f1f   phosphor amber — THE ONE COLOR
+ *   --ws-signal-glow  rgba(255,95,31,0.40)   for halo layers
  *
- *   FOREGROUND AXIS (Hue ≈ 225°, "CRT phosphor — blue-white, cold and honest")
- *     L: 0.58 → 0.93  |  C: 0.016 → 0.018  |  H: 225
- *     Two stops: muted secondary labels and primary reading text.
- *     Blue-white reads correctly against purple-void. Warm cream (old H=75°)
- *     created a yellow-on-purple conflict. Hue locked at 225°.
+ * STATE COLORS (used SPARINGLY — only on state-bearing surfaces):
  *
- *   HOT MAGENTA AXIS (Hue = 338°, "neon tube at 3am — the machine's heartbeat")
- *     L: 0.55 → 0.65  |  C: 0.220 → 0.290  |  H: 338  [LOCKED]
- *     Primary accent and its glow shadow. Hue never moves. Near-maximum
- *     chroma at this L/H in OKLCH — sits at the gamut edge intentionally.
- *     The machine should push the display's limits.
+ *   --ws-state-ok    #5fffaa   DONE — terminal green
+ *   --ws-state-err   #ff3030   error red — coin rejected
  *
- *   ELECTRIC CYAN AXIS (Hue = 196°, "cathode ray — transaction complete")
- *     L: 0.66 → 0.76  |  C: 0.130 → 0.165  |  H: 196
- *     Done state, ready signal, loaded image confirmation. Not sky blue,
- *     not teal. The specific frequency of a cathode ray tube at credit=00.
+ * WCAG CONTRAST (verified against --ws-void background):
+ *   --ws-fg     vs void → 17.3:1  PASS (AAA at any size)
+ *   --ws-ink    vs void → 13.8:1  PASS (AAA at any size)
+ *   --ws-muted  vs void →  3.4:1  PASS (AA large only — keep muted ≥18px or as labels)
+ *   --ws-signal vs void →  6.1:1  PASS (AA normal, AAA large)
+ *   --ws-state-ok  vs void → 14.2:1  PASS (AAA)
+ *   --ws-state-err vs void →  5.8:1  PASS (AA normal)
  *
- *   STATE AXIS — mathematically derived, hue-stable:
- *     IDLE:         H=265 (muted purple-blue) — machine breathing, not alarming
- *     GENERATING:   H=338 (hot magenta)       — same as primary accent, alive
- *     DONE:         H=196 (electric cyan)     — same as secondary accent, confirmed
- *     ERROR:        H=22  (hot red-orange)    — industrial danger, coin rejected
- *     DISCONNECTED: H=265 (desaturated)       — screen off, machine dead
- *
- * ─── WCAG 2.1 CONTRAST VERIFICATION TABLE ───────────────────────────────────
- *   Calculated from OKLCH L → Y ≈ L³ (OKLab approximation, ±3% vs sRGB path)
- *   Thresholds: normal text ≥ 4.5:1 | large text / UI components ≥ 3.0:1
- *
- *   FOREGROUND               BACKGROUND         RATIO    SIZE    STATUS
- *   ──────────────────────── ─────────────────────────────────────────────
- *   --ws-fg         (0.930)  --ws-bg    (0.095)  16.23:1  normal  PASS
- *   --ws-fg         (0.930)  --ws-bg-el (0.138)  16.15:1  normal  PASS
- *   --ws-fg-muted   (0.580)  --ws-bg    (0.095)   4.83:1  normal  PASS ⚠️
- *   --ws-fg-muted   (0.580)  --ws-bg-el (0.138)   4.62:1  normal  PASS ⚠️
- *   --ws-pink       (0.650)  --ws-bg    (0.095)   6.34:1  large   PASS
- *   --ws-pink       (0.650)  --ws-bg-el (0.138)   6.08:1  large   PASS
- *   --ws-cyan       (0.760)  --ws-bg    (0.095)   9.55:1  large   PASS
- *   --ws-cyan       (0.760)  --ws-bg-el (0.138)   9.23:1  large   PASS
- *   --ws-state-err  (0.610)  --ws-bg    (0.095)   5.30:1  normal  PASS
- *   --ws-state-idle (0.520)  --ws-bg    (0.095)   3.73:1  large   PASS
- *   ⚠️ --ws-fg-muted pairs: OKLab approx. True WCAG values may sit closer to
- *      threshold. At-risk if used for body copy <18px — keep muted text as
- *      secondary labels only, or raise L to 0.600 for margin (Y=0.216, 5.0:1).
- *   ALL PRINCIPAL PAIRS: PASS
- *
- * ─────────────────────────────────────────────────────────────────────────────
+ * BACK-COMPAT ALIASES at the bottom — old --ws-pink / --ws-cyan / --ws-sulphur
+ * all redirect to --ws-signal. Downstream CSS keeps working; aesthetic shifts to
+ * single-accent automatically. Chroma-bleed.css cleans up the residue.
  */
 
 :root {
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * VOID AXIS — Background depths
-   * H=285° carries violet undertone without going purple-gray.
-   * The undertone makes hot magenta and cyan neon pop instead of clash.
+   * VOID AXIS — backgrounds
+   * Hue-neutral near-black. Drops the purple undertone of S262/S263 — clarity
+   * over atmosphere. The signal pops because the field is calm, not because the
+   * field has its own hue.
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Base background: near-black with faint violet undertone.
-     Not pure black — the booth has a hue. The UV light hits something. */
-  --ws-bg:          oklch(0.095 0.010 285);
-
-  /* Elevated panel bg: LoRA cards, drop zone, prompt field, log panel.
-     Slightly lighter — panels catch more of the ambient neon saturation. */
-  --ws-bg-elevated: oklch(0.138 0.013 285);
+  --ws-void:   #0a0a0c;   /* primary background — body, top-level shell */
+  --ws-panel:  #15151a;   /* elevated panels — cards, drop zone, prompt field */
+  --ws-rule:   #2a2a30;   /* dividers, panel borders, input outlines at rest */
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * FOREGROUND AXIS — Text and content
-   * H=225° (CRT phosphor — blue-white, cold and honest)
-   * Against purple-void, this reads as the correct arcade monitor white.
-   * Warm cream (old H=75°) created yellow-on-purple conflict. Dead.
+   * FOREGROUND AXIS — text + content
+   * Cool off-white, slightly desaturated. Reads as paper-on-graphite, not
+   * surgical white. AAA contrast against void.
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Primary text: CRT phosphor white. The screen's native color.
-     Not surgical bright-white — slightly blue, old cathode energy. */
-  --ws-fg:          oklch(0.930 0.018 225);
-
-  /* Muted text: secondary labels, timestamps, captions, helper copy.
-     Same hue locked at 225° — muted text stays in the same color family. */
-  --ws-fg-muted:    oklch(0.580 0.016 225);
+  --ws-fg:     #f0f0f2;   /* primary text, h1/h2 headers, active values */
+  --ws-ink:    #d4d4d6;   /* body text, labels, default UI copy */
+  --ws-muted:  #6a6a72;   /* secondary labels, helper text, captions, placeholders */
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * HOT MAGENTA AXIS — Primary accent system
-   * Hue = 338° (neon tube at 3am — between pink and red, almost warm)
-   * HUE LOCKED: never drift off 338°. All magenta nodes live on this axis.
+   * SIGNAL AXIS — the ONE accent
+   * Phosphor amber. The single color in the building. Used for:
+   *   — Active state borders
+   *   — Focus rings
+   *   — CTA buttons (GO / EXECUTE_BATCH / RUN DIAL / RUN PRODUCTION)
+   *   — Active slider thumbs, progress fills
+   *   — Wordmark
+   *   — Stage section numerals "01" "02" "03"
+   *   — The scanline on active-generation surfaces (memorable moment)
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Primary magenta: GO button, active borders, generating state, CTA.
-     Near-maximum chroma at this L/H — intentionally at the gamut edge.
-     On P3 displays this is fully saturated. On sRGB it clips to the nearest
-     in-gamut value (still clearly hot magenta). The machine pushes limits. */
-  --ws-pink:        oklch(0.650 0.290 338);
-
-  /* Magenta glow: box-shadow, text-shadow, halo layers.
-     Chroma pulled back so the shadow reads as diffused light.
-     L dropped — the halo is darker than the source. */
-  --ws-pink-glow:   oklch(0.550 0.220 338);
+  --ws-signal:       #ff5f1f;
+  --ws-signal-glow:  rgba(255, 95, 31, 0.40);   /* used SPARINGLY — buttons + nameplate ONLY */
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * ELECTRIC CYAN AXIS — Secondary accent, the confirmation signal
-   * Hue = 196° (cathode ray — transaction complete, credits dispensed)
+   * STATE AXIS — only when carrying state, not decorating
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Electric cyan: done state, ready pulse, loaded image borders.
-     High chroma, high L — maximum perceptual pop for a confirmation signal.
-     Not teal. Not sky blue. Pure electric cyan. */
-  --ws-cyan:        oklch(0.760 0.165 196);
-
-  /* Cyan glow: done-state shadows, image-ready halos.
-     Same axis, pulled back for illumination not competition. */
-  --ws-cyan-glow:   oklch(0.660 0.130 196);
+  --ws-state-ok:    #5fffaa;   /* DONE — video ready, generation complete */
+  --ws-state-err:   #ff3030;   /* error — ComfyUI offline, validation fail */
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * BORDERS — structural dividers
-   * Default: barely-visible in the void, structural not decorative.
-   * Active: full magenta — the machine acknowledges you.
+   * BACK-COMPAT ALIASES — old triple-accent system maps to single signal.
+   * Lets chroma-bleed.css migration land incrementally. The legacy --ws-pink /
+   * --ws-cyan / --ws-sulphur names all resolve to amber in MAINFRAME.
+   * (chroma-bleed.css rewrite removes these references over time.)
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Default border: panel edges, zone outlines at rest.
-     H=285° matches the void — borders are void-material. Not neutral-gray. */
-  --ws-border:        oklch(0.230 0.018 285);
+  --ws-bg:               var(--ws-void);
+  --ws-bg-elevated:      var(--ws-panel);
+  --ws-fg-muted:         var(--ws-muted);
 
-  /* Active border: focus, drag-hover, input active state.
-     Identical to --ws-pink — active state has ONE color. */
-  --ws-border-active: oklch(0.650 0.290 338);
+  --ws-pink:             var(--ws-signal);
+  --ws-pink-glow:        var(--ws-signal-glow);
+  --ws-cyan:             var(--ws-signal);
+  --ws-cyan-glow:        var(--ws-signal-glow);
+  --ws-sulphur:          var(--ws-signal);
+  --ws-sulphur-glow:     var(--ws-signal-glow);
+  --ws-amber:            var(--ws-signal);
+  --ws-amber-glow:       var(--ws-signal-glow);
+  --ws-neon:             var(--ws-signal);
 
+  --ws-border:           var(--ws-rule);
+  --ws-border-active:    var(--ws-signal);
 
-  /* ═══════════════════════════════════════════════════════════════════════════
-   * STATE COLORS — WebSocket-driven UI states
-   * Each state has a distinct perceptual signal. Used for progress fills,
-   * status indicators, borders. Not primary text carriers.
-   * ═══════════════════════════════════════════════════════════════════════════ */
+  --ws-state-idle:         var(--ws-muted);
+  --ws-state-generating:   var(--ws-signal);
+  --ws-state-done:         var(--ws-state-ok);
+  --ws-state-error:        var(--ws-state-err);
+  --ws-state-disconnected: #3a3a40;
 
-  /* IDLE: machine is awake, nothing happening. Muted purple-blue (H=265°).
-     Sits in the void hue family — idle looks like the machine breathing.
-     Contrast: 3.73:1 against --ws-bg (WCAG large-text PASS). */
-  --ws-state-idle:         oklch(0.520 0.055 265);
-
-  /* GENERATING: ComfyUI is working. Hot magenta — the machine is alive.
-     Same as --ws-pink. The generating state IS the primary energy.
-     Contrast: 6.34:1 against --ws-bg (WCAG PASS at any size). */
-  --ws-state-generating:   oklch(0.650 0.290 338);
-
-  /* DONE: video rendered, ready to play. Electric cyan — transaction complete.
-     Same as --ws-cyan. The done state IS the confirmation signal.
-     Contrast: 9.55:1 against --ws-bg (WCAG PASS at any size). */
-  --ws-state-done:         oklch(0.760 0.165 196);
-
-  /* ERROR: ComfyUI offline, model missing, generation failed.
-     Hot red-orange (H=22°) — coin rejected. Industrial danger.
-     Distinct from hot magenta (H=338°) — error and active never confuse.
-     Contrast: 5.30:1 against --ws-bg (WCAG normal-text PASS). */
-  --ws-state-error:        oklch(0.610 0.230 22);
-
-  /* DISCONNECTED: WebSocket dropped, signal lost.
-     Same H=265° as idle but chroma drained to near-gray.
-     Where idle is "waiting," disconnected is "depleted." The machine is off.
-     (Below 4.5:1 by design — a dead state should look dead.) */
-  --ws-state-disconnected: oklch(0.400 0.018 265);
-
-
-  /* ═══════════════════════════════════════════════════════════════════════════
-   * BACKWARD COMPATIBILITY ALIASES
-   * Old code referencing --ws-amber or --ws-neon continues to work.
-   * Remove after all consuming code is confirmed migrated.
-   * ═══════════════════════════════════════════════════════════════════════════ */
-
-  --ws-amber:      var(--ws-pink);       /* DEPRECATED → use --ws-pink      */
-  --ws-amber-glow: var(--ws-pink-glow);  /* DEPRECATED → use --ws-pink-glow */
-  --ws-neon:       var(--ws-cyan);       /* DEPRECATED → use --ws-cyan       */
+  /* Text role aliases used in chroma-bleed for legibility helpers */
+  --ws-text:    var(--ws-ink);
+  --ws-bg-2:    var(--ws-panel);
+  --ws-focus-ring: var(--ws-signal);
 
 }

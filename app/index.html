@@ -17,7 +17,8 @@
   <!-- Typefaces -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Syne+Mono&family=IBM+Plex+Mono:wght@400;600&family=VT323&display=swap" rel="stylesheet">
+  <!-- S266 Cla⌂de — MAINFRAME reskin: 2-font system (JetBrains Mono via CDN + optional locally-installed Departure Mono for display) -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
   <!-- Note: Monaspace Argon to be loaded locally, falls back to monospace -->
 
   <!-- Design tokens -->
@@ -477,7 +478,7 @@
 ╚═════════════════════════════════════════════════════════════════════════════════════════════════════════╝
   </div>
   <header id="nameplate">
-    <h1 style="font-family: var(--ws-font-display); font-size: var(--ws-type-display); color: var(--ws-pink); text-shadow: 0 0 15px var(--ws-pink); letter-spacing: var(--ws-tracking-display);">ZOETROPE</h1>
+    <h1>ZOETROPE</h1>
     <div class="nameplate-status">
       <div id="comfy-status-dot" class="comfy-disconnected"></div>
       <span id="comfy-status-label">OFFLINE</span>
@@ -491,16 +492,14 @@
 
   <main id="main-panel">
 
-    <div class="ascii-border" style="color: var(--ws-muted);">
-─── DATA INGESTION ────────────────────────────────────────────────────────────────────────────────────────
-    </div>
+    <div class="ascii-border" data-label="DATA INGESTION"></div>
 
     <!-- ── ZONE 3 — INPUT BLOCK ──────────────────────────── -->
     <section class="zone zone-input">
 
       <!-- Drop zone -->
       <div id="drop-zone">
-        <span id="drop-label" style="color: var(--ws-cyan);">[ DROP IMAGE MATRIX HERE ]</span>
+        <span id="drop-label">[ DROP IMAGE MATRIX HERE ]</span>
       </div>
 
       <!-- Prompt -->
@@ -508,9 +507,7 @@
 
     </section><!-- /zone-input -->
 
-    <div class="ascii-border" style="color: var(--ws-muted); margin-top: 24px;">
-─── PARAMETER BLOCK ───────────────────────────────────────────────────────────────────────────────────────
-    </div>
+    <div class="ascii-border" data-label="PARAMETERS"></div>
 
     <!-- ── ZONE 4 — PARAMETER BLOCK ─────────────────────── -->
     <section class="zone zone-params">
@@ -611,9 +608,9 @@
 
       <!-- Seed row -->
       <div id="seed-row">
-        <label id="seed-label" style="color: var(--ws-cyan); text-shadow: 0 0 4px var(--ws-cyan);">SEED</label>
+        <label id="seed-label">SEED</label>
         <button id="seed-toggle">RANDOM</button>
-        <input type="number" id="seed-value" value="42" style="color: var(--ws-pink); border-color: var(--ws-pink);">
+        <input type="number" id="seed-value" value="42">
       </div>
 
       <!-- Output card (resolution / fps / runs) -->
@@ -666,9 +663,7 @@
 
     </section><!-- /zone-params -->
 
-    <div class="ascii-border" style="color: var(--ws-muted); margin-top: 24px;">
-─── SYSTEM EXECUTION ──────────────────────────────────────────────────────────────────────────────────────
-    </div>
+    <div class="ascii-border" data-label="EXECUTE"></div>
 
     <!-- ── ZONE 6 — ALTAR / CTA ──────────────────────────── -->
     <section class="zone zone-altar">
@@ -704,13 +699,11 @@
     <!-- ── ZONE 7 — RESULTS / STATUS ─────────────────────── -->
     <section class="zone zone-results">
 
-      <div class="ascii-border" style="color: var(--ws-pink);">
-███████████████████████████████████████████████████████████████████████████████████████████████████████████
-      </div>
+      <div class="ascii-border" data-label="RESULTS"></div>
 
       <!-- Progress bar -->
-      <div id="progress-bar" style="background: rgba(0,255,255,0.1); border: 1px solid var(--ws-cyan);">
-        <div id="progress-fill" style="background: var(--ws-cyan); box-shadow: 0 0 10px var(--ws-cyan);"></div>
+      <div id="progress-bar">
+        <div id="progress-fill"></div>
         <div id="progress-shimmer"></div>
       </div>
 
@@ -719,15 +712,15 @@
 
       <!-- Log bar + panel -->
       <div id="log-bar">
-        <span id="log-bar-label" style="color: var(--ws-pink);">> SYS_LOG</span>
+        <span id="log-bar-label">SYS_LOG</span>
         <button id="log-toggle">▾ SHOW</button>
       </div>
       <div id="log-panel">
-        <div id="log-output" style="background: #050505; border: 1px solid var(--ws-pink); color: var(--ws-cyan);"></div>
+        <div id="log-output"></div>
       </div>
 
       <!-- Video player -->
-      <video id="video-player" controls autoplay loop style="display:none; border: 2px solid var(--ws-cyan); box-shadow: 0 0 15px var(--ws-cyan);"></video>
+      <video id="video-player" controls autoplay loop style="display:none;"></video>
 
     </section><!-- /zone-results -->
 

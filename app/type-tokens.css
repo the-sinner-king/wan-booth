@@ -1,143 +1,152 @@
 /**
  * ╔══════════════════════════════════════════════════════════════════════════════╗
- * ║  ZOETROPE — TYPOGRAPHY SYSTEM v3 // SULPHUR KAWAII TERMINAL                  ║
- * ║  Agent:   TYPE_WEAVER::zoetrope::999                                       ║
- * ║  Fonts:   Syne Mono (Hero), Monaspace Argon (UI), IBM Plex Mono (Logs)     ║
- * ║  Mandate: High-voltage, brutally functional hacker terminal built by a     ║
- * ║           magical girl. Dense data interfaces require Major Third (1.25).  ║
+ * ║  ZOETROPE — TYPOGRAPHY SYSTEM v4 // MAINFRAME                               ║
+ * ║  Session: S266 Cla⌂de — UI reskin                                           ║
+ * ║  Fonts:   Departure Mono (display) + JetBrains Mono (UI/body)               ║
+ * ║  Mandate: Two fonts. Period. Display has character; UI is hi-DPI legible.   ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  *
- * ─── FONT INVENTORY ──────────────────────────────────────────────────────────
+ * THE TWO-FONT LAW:
+ *   Display → 'Departure Mono' (preferred — install via departuremono.com if you
+ *             want the exact pixel-grid lab vibe). Falls back to JetBrains Mono.
+ *   UI/Body → 'JetBrains Mono' (loaded via Google Fonts in index.html).
  *
- *   Syne Mono
- *     Role: DISPLAY / HERO HEADINGS.
- *     At sizes >= 48px, these headings earn their weight.
- *     Tracking: -0.04em (tight).
+ * Why these two:
+ *   — Departure Mono has scientific-instrument character at large sizes (≥24px).
+ *     It's the one moment of CHARACTER per screen — section numerals, nameplate.
+ *   — JetBrains Mono is the workhorse. Reads cleanly at 12-22px. Multiple weights
+ *     for hierarchy. Built for developers staring at code all day = built for
+ *     Brandon staring at parameter sliders.
  *
- *   Monaspace Argon
- *     Role: INTERFACE / NAVIGATION / LABELS.
- *     Grid alignment enforced.
- *     Tracking: +0.08em (loose for small caps or labels).
+ * Dropped from v3: Syne Mono, Monaspace Argon, IBM Plex Mono, VT323 — all four.
+ * The pixel-font violence (VT323) was the single biggest cognitive-load source.
  *
- *   IBM Plex Mono
- *     Role: MONO / TERMINAL LOGS.
- *     Technical density. Information ingestion.
- *
- *   VT323
- *     Role: GLITCH / SYSTEM READOUTS.
- *     Sacred font. Aesthetic violence.
- *     Size limit enforced: 16px - 22px in body contexts.
- *
- * ─── SCALE MATH ──────────────────────────────────────────────────────────────
- *
- *   Scale: Major Third (×1.25)
- *   Base: 16px
- *
- *   Tier -1: 12.8px (Stamp/Micro)
- *   Tier  0: 16.0px (Base/Small)
- *   Tier  1: 20.0px (Label/Status)
- *   Tier  2: 25.0px (Value/Button)
- *   Tier  3: 31.25px (Stage)
- *   Tier  5: 48.8px -> 76.2px (Hero/Display)
- *
- *   Fluidity: All sizes scale via clamp().
- *
- * ─── GHOST NODES (CHROMA_BLEED) ──────────────────────────────────────────────
- *   [GHOST: high : TYPE_WEAVER introduced text roles (label, text, pink, cyan, muted).
- *    CHROMA_BLEED must map --ws-text, --ws-muted, --ws-cyan, --ws-pink, --ws-bg to
- *    an OKLCH-proven void-black/neon-kawaii color pair.]
- *   [GHOST: high : Focus ring requires --ws-focus-ring color. CHROMA_BLEED to map.]
- * ─────────────────────────────────────────────────────────────────────────────
+ * SCALE: Major Third (×1.25) — preserved from v3. Same tier semantics so layout
+ * keeps working without re-spacing.
  */
 
 :root {
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * FONT FAMILY AXES
+   * FONT FAMILY AXES — TWO FONTS, period
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* DISPLAY — Syne Mono */
-  --ws-font-display: 'Syne Mono', monospace;
+  /* DISPLAY — Departure Mono (preferred, system-installed) → JetBrains Mono fallback.
+     Use for: nameplate, section numerals "01"/"02", hero headings ≥24px.
+     If Departure Mono isn't installed locally, falls through to JetBrains Mono —
+     same monospace metric, similar weight, the layout doesn't shift. */
+  --ws-font-display: 'Departure Mono', 'JetBrains Mono', ui-monospace, monospace;
 
-  /* UI — Monaspace Argon */
-  --ws-font-ui: 'Monaspace Argon', monospace;
+  /* UI — JetBrains Mono. The workhorse. Used for: labels, controls, buttons,
+     status text, values, log output, prompt textarea, everything that isn't display. */
+  --ws-font-ui:    'JetBrains Mono', ui-monospace, monospace;
 
-  /* MONO — IBM Plex Mono */
-  --ws-font-mono: 'IBM Plex Mono', monospace;
-
-  /* GLITCH — VT323 */
-  --ws-font-glitch: 'VT323', monospace;
+  /* MONO + GLITCH aliases — both resolve to JetBrains Mono now.
+     Legacy CSS that references --ws-font-mono or --ws-font-glitch keeps working;
+     visually they unify to the single body face. */
+  --ws-font-mono:    var(--ws-font-ui);
+  --ws-font-glitch:  var(--ws-font-ui);
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * SIZE SCALE (Major Third 1.25) + Fluid clamp()
+   * SIZE SCALE — Major Third (×1.25) + fluid clamp()
+   * Preserved from v3 so layout.css spacing math stays valid.
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  /* Tier -1: Stamp/Micro (12.8px) */
-  --ws-type-stamp: clamp(10px, 0.8vw + 8px, 12.8px);
-
-  /* Tier 0: 16px (Base/Log/Small) */
-  --ws-type-small: clamp(12.8px, 1vw + 10px, 16px);
-  --ws-type-log:   clamp(16px, 1vw + 10px, 18px); /* VT323 min 16px, max 22px */
-
-  /* Tier 1: 20px (Label/Status/Body) */
-  --ws-type-label:  clamp(16px, 1.2vw + 12px, 20px);
-  --ws-type-body:   clamp(16px, 1.2vw + 12px, 20px);
-  --ws-type-status: clamp(16px, 1.2vw + 12px, 20px);
-
-  /* Tier 2: 25px (Value/Button) */
-  --ws-type-value:  clamp(20px, 1.5vw + 15px, 25px);
-  --ws-type-button: clamp(20px, 1.5vw + 15px, 25px);
-
-  /* Tier 3: 31.25px (Stage Headers) */
-  --ws-type-stage:  clamp(25px, 2vw + 20px, 31.25px);
-
-  /* HERO: 76.2px (Nameplate) */
-  --ws-type-display: clamp(48px, 5vw + 32px, 76.2px);
+  --ws-type-stamp:   clamp(10px,    0.7vw + 8px,  12px);   /* micro-tags, timestamps */
+  --ws-type-small:   clamp(12px,    0.9vw + 10px, 14px);   /* helper, captions */
+  --ws-type-log:     clamp(13px,    1vw + 10px,   15px);   /* terminal log lines */
+  --ws-type-label:   clamp(13px,    1.1vw + 11px, 16px);   /* control labels */
+  --ws-type-body:    clamp(14px,    1.1vw + 11px, 16px);   /* general body copy */
+  --ws-type-status:  clamp(14px,    1.2vw + 11px, 17px);   /* status bar text */
+  --ws-type-value:   clamp(18px,    1.5vw + 13px, 22px);   /* slider readouts */
+  --ws-type-button:  clamp(14px,    1.2vw + 11px, 17px);   /* button face copy */
+  --ws-type-stage:   clamp(20px,    1.8vw + 15px, 26px);   /* section headers */
+  --ws-type-display: clamp(40px,    4vw + 28px,   64px);   /* nameplate, hero */
+  --ws-type-numeral: clamp(28px,    2.5vw + 18px, 40px);   /* "01" / "02" section stamps */
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * WEIGHT TOKENS
+   * WEIGHT TOKENS — JetBrains Mono ships 400/500/600/700
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  --ws-weight-display: 800;  /* Syne Mono */
-  --ws-weight-ui:      400;  /* Monaspace Argon */
-  --ws-weight-label:   600;  /* Hierarchy demand */
-  --ws-weight-stamp:   400;  
+  --ws-weight-body:    400;
+  --ws-weight-label:   500;
+  --ws-weight-stage:   600;
+  --ws-weight-display: 700;
+  --ws-weight-numeral: 600;
+  /* legacy aliases — old chroma-bleed references */
+  --ws-weight-ui:      400;
+  --ws-weight-stamp:   500;
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * LETTER-SPACING (TRACKING) TOKENS
+   * LETTER-SPACING (tracking)
+   * Mono fonts don't need much tracking — they have intrinsic spacing.
+   * Tight on display (let the characters breathe), neutral on body.
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  --ws-tracking-display: -0.04em; /* Tight display */
-  --ws-tracking-stage:    0.05em; /* Loose for tension */
-  --ws-tracking-ui:       0.08em; /* Loose labels/UI */
-  --ws-tracking-mono:     0.0em;  /* Neutral for dense reading */
-  --ws-tracking-stamp:    0.15em; /* Micro-tags very loose */
+  --ws-tracking-display: -0.02em;    /* tight on big display */
+  --ws-tracking-numeral:  0;
+  --ws-tracking-stage:    0.04em;    /* loose on section headers for authority */
+  --ws-tracking-ui:       0;          /* neutral on body/labels */
+  --ws-tracking-mono:     0;
+  --ws-tracking-stamp:    0.08em;     /* loose on micro-tags */
 
 
   /* ═══════════════════════════════════════════════════════════════════════════
-   * LINE HEIGHT (LEADING) TOKENS
+   * LINE-HEIGHT (leading)
    * ═══════════════════════════════════════════════════════════════════════════ */
 
-  --ws-leading-display: 1.1;   /* Tight for headings */
-  --ws-leading-stage:   1.2;   /* Tight for stage */
-  --ws-leading-ui:      1.5;   /* Loose for body rhythm */
-  --ws-leading-prompt:  1.6;   /* Reading block */
-  --ws-leading-log:     1.4;   /* Technical scanning */
-  --ws-leading-stamp:   1.0;   
+  --ws-leading-display:  1.05;
+  --ws-leading-stage:    1.2;
+  --ws-leading-ui:       1.5;
+  --ws-leading-prompt:   1.6;
+  --ws-leading-log:      1.45;
+  --ws-leading-stamp:    1.0;
+
 
   /* ═══════════════════════════════════════════════════════════════════════════
    * TRANSITIONS
    * ═══════════════════════════════════════════════════════════════════════════ */
-  --ws-type-transition: all 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+  --ws-type-transition: color 120ms ease, text-shadow 160ms ease;
+
 }
 
-/* ─── FLUID INTERACTIVITY ────────────────────────────────────────────────── */
+
+/* ─── BASE TYPOGRAPHY ────────────────────────────────────────────────────────
+   Establish body font + base size globally so every element inherits sensible
+   defaults without explicit declarations everywhere. */
+
+html {
+  font-family: var(--ws-font-ui);
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: "calt" 1, "ss01" 1;   /* JetBrains Mono ligatures + stylistic set */
+}
+
+body {
+  color: var(--ws-ink);
+  background: var(--ws-void);
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-body);
+  font-weight: var(--ws-weight-body);
+  line-height: var(--ws-leading-ui);
+}
+
+
+/* ─── FOCUS RING — global accessibility default ─────────────────────────── */
 
 input:focus, select:focus, textarea:focus, button:focus {
-  outline: 2px solid var(--ws-focus-ring, transparent);
+  outline: 2px solid var(--ws-signal);
   outline-offset: 2px;
-  transition: var(--ws-type-transition);
+}
+
+button:focus:not(:focus-visible),
+input:focus:not(:focus-visible),
+select:focus:not(:focus-visible),
+textarea:focus:not(:focus-visible) {
+  outline: none;
 }
