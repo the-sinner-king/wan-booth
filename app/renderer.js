@@ -587,16 +587,12 @@ function setProgress(pct) {
 
 function setStatus(msg, state) {
   statusText.textContent = msg;
-
-  const stateColors = {
-    idle:         'var(--ws-state-idle)',
-    generating:   'var(--ws-state-generating)',
-    done:         'var(--ws-state-done)',
-    error:        'var(--ws-state-error)',
-    disconnected: 'var(--ws-state-disconnected)',
-  };
-
-  progressFill.style.background = stateColors[state] || 'var(--ws-state-idle)';
+  // S266 P2 — Grumpy R6 Flag #4: write a data-state attribute and let CSS handle
+  // the color. Previous inline `progressFill.style.background = ...` defeated the
+  // chroma-bleed amber default permanently and left a residual amber glow ghost
+  // on top of whatever color we wrote inline.
+  progressFill.dataset.state = state || 'idle';
+  statusText.dataset.state = state || 'idle';
 }
 
 // ─── CHAOS MATH ──────────────────────────────────────────────────────────────
@@ -927,6 +923,10 @@ function renderQueueUI() {
   jobQueue.forEach((job, i) => {
     const card = document.createElement('div');
     card.className = 'queue-job-card';
+    // S266 P2 — Grumpy R6 Flag #3: chroma-bleed has [data-status=...] selectors
+    // for running/complete/error state colors. Without this attribute, the state
+    // color rules never fire and queue cards render in default ink color forever.
+    card.dataset.status = job.status;
     const statusDot = job.status === 'running'  ? '◈' :
                       job.status === 'complete' ? '✓' :
                       job.status === 'error'    ? '✗' : '○';
@@ -1259,7 +1259,12 @@ function updateBatchPanel() {
   listEl.innerHTML = '';
   jobs.forEach((job, i) => {
     const card = document.createElement('div');
-    card.className = 'batch-job-card batch-job-' + job.status;
+    // S266 P2 — Grumpy R6 Flag #3: renamed `batch-job-card` → `batch-job-row` so
+    // chroma-bleed's `.queue-job-card, .batch-job-row { display:grid; ... }` rule
+    // actually matches. Also write dataset.status to fire state color selectors.
+    // Keeping `batch-job-card` as an additional class for any legacy JS hooks.
+    card.className = 'batch-job-row batch-job-card';
+    card.dataset.status = job.status;
 
     const icon = job.status === 'complete' ? '✓'
                : job.status === 'error'    ? '✗'

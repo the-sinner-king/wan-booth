@@ -102,13 +102,14 @@ html {
 }
 
 body {
-  width: 900px;
+  /* S266 P2 — Grumpy R6 Flag #1: was width:900px hard-cap; defeated chroma-bleed's
+     .wan-container max-width:1440px. Released to width:100% so the container max-width owns the canvas. */
+  width: 100%;
+  min-width: 0;
   margin: 0 auto;
   height: auto;
   overflow-x: hidden;
-  /* Background from CHROMA_BLEED color-tokens.css */
   background: var(--ws-bg);
-  /* Font stack from TYPE_WEAVER type-tokens.css */
   font-family: var(--ws-font-ui);
   color: var(--ws-fg);
 }
@@ -1172,9 +1173,10 @@ input[type="range"]::-moz-range-thumb {
  * SECTION 12 — ZOETROPE v2 — CONTAINER + STAGE CARD GEOMETRY (GRID_GHOST)
  * ════════════════════════════════════════════════════════════════════════════ */
 
-/* Full-width container — v2 spatial frame, expanded for two-column layout */
+/* Full-width container — v2 spatial frame.
+   S266 P2 — Grumpy R6 Flag #1: width:900px removed. chroma-bleed owns the canvas
+   width via .wan-container { max-width: 1440px; width: 100% }. */
 .wan-container {
-  width: 900px;
   margin: 0 auto;
   padding: 24px;
   position: relative;
@@ -1233,8 +1235,9 @@ input[type="range"]::-moz-range-thumb {
  * SECTION 13 — ZOETROPE v2 — COMPACT SPACING OVERRIDE
  * ════════════════════════════════════════════════════════════════════════════ */
 
-/* Clip any overflowing children (ascii-border long strings) */
-.wan-container { overflow: hidden; }
+/* S266 P2 — Grumpy R6 Flag #9: overflow:hidden was clipping the scanline halo
+   bloom. The ascii-border long-string clipping it was originally meant for is now
+   moot — ASCII border literals are replaced by [data-label]::after pseudo-elements. */
 
 /* Nameplate: was 64px bottom margin — collapsed to 8px */
 .wan-container #nameplate {

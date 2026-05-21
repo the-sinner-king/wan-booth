@@ -33,20 +33,35 @@ body {
 }
 
 .wan-container {
-  max-width: 1280px;
+  max-width: 1440px;
   width: 100%;
   margin: 0 auto;
-  padding: 24px 32px 80px;
+  padding: 24px 36px 80px;
   background: transparent;
   border: 0;
   box-shadow: none;
+  /* S266 P2 — Upgrade #2: container queries — declare the wan-container as the
+     query scope so #app-columns responds to its own width, not the viewport. */
+  container-type: inline-size;
+  container-name: app-shell;
 }
 
+/* Default (narrow): single column. */
 #app-columns {
   display: grid;
-  grid-template-columns: 1fr 440px;
-  gap: 32px;
+  grid-template-columns: 1fr;
+  gap: 24px;
   align-items: start;
+}
+
+/* S266 P2 — Upgrade #2: ≥1100px container width gets the two-column layout.
+   Below threshold, layout gracefully collapses to single-column (right panel
+   wraps under the main controls). Survives Electron window resize without breaking. */
+@container app-shell (min-width: 1100px) {
+  #app-columns {
+    grid-template-columns: 1fr 460px;
+    gap: 36px;
+  }
 }
 
 #main-panel {
@@ -185,12 +200,13 @@ body {
 }
 #drop-zone:hover {
   border-color: var(--ws-signal);
-  background: #1a1a20;
+  /* S266 P2 — Upgrade #1: ad-hoc tint hex replaced by token-driven color-mix(). */
+  background: color-mix(in oklab, var(--ws-panel) 88%, var(--ws-fg) 12%);
 }
 #drop-zone.active,
 #drop-zone.dragover {
   border-color: var(--ws-signal);
-  background: #1f1a16;   /* warm tint of signal */
+  background: color-mix(in oklab, var(--ws-panel) 82%, var(--ws-signal) 18%);
   border-style: solid;
 }
 
@@ -228,8 +244,10 @@ body {
 #prompt-input::placeholder {
   color: var(--ws-muted);
 }
-#prompt-input:hover  { border-color: #3a3a42; }
-#prompt-input:focus  { border-color: var(--ws-signal); outline: none; }
+#prompt-input:hover { border-color: color-mix(in oklab, var(--ws-rule) 60%, var(--ws-fg) 40%); }
+/* S266 P2 — Grumpy R6 Flag #5: removed outline:none on :focus to let
+   type-tokens.css's :focus-visible-keyed outline ring fire for keyboard users (WCAG 2.4.7). */
+#prompt-input:focus { border-color: var(--ws-signal); }
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -239,11 +257,19 @@ body {
    panel without screaming "DONE" semantically.
 ─────────────────────────────────────────────────────────────────────────── */
 
-.lora-section,
-.lora-stage,
-#lora-stage1,
-#lora-stage2 {
+/* S266 P2 — Grumpy R6 Flag #6:
+   - `.lora-section` removed — it's just a layout wrapper, not a card.
+   - `#lora-stage1` / `#lora-stage2` (no hyphen) selectors deleted — they never
+     matched (HTML uses id="lora-stage-1" / id="lora-stage-2" with hyphen).
+   Only `.lora-stage` carries the panel chrome now. No more cards-inside-cards. */
+.lora-section {
+  background: transparent;
+  border: 0;
+  padding: 0;
   margin: 0 0 24px;
+}
+.lora-stage {
+  margin: 0 0 16px;
   padding: 16px 20px 20px;
   background: var(--ws-panel);
   border: 1px solid var(--ws-rule);
@@ -285,28 +311,27 @@ body {
   border-radius: 2px;
 }
 
-/* LoRA row layout — labels + slider + value */
-.lora-row {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 14px;
-  padding: 6px 0;
-}
+/* LoRA row layout — DO NOT redefine .lora-row here.
+   layout.css owns the subgrid pattern: .lora-stage-body is a 4-col grid
+   (120px | 1fr | 64px | 32px), and .lora-row { display: contents } dissolves
+   each row so its children participate as direct grid cells. Overriding
+   display:contents would re-nest the children and break the subgrid. */
 .lora-row-label {
   font-family: var(--ws-font-ui);
   font-size: var(--ws-type-label);
   font-weight: var(--ws-weight-label);
   letter-spacing: var(--ws-tracking-ui);
   color: var(--ws-ink);
+  text-shadow: none;
+  padding: 8px 0;
 }
 .lora-row-value {
   font-family: var(--ws-font-ui);
   font-size: var(--ws-type-value);
   font-weight: var(--ws-weight-stage);
   color: var(--ws-signal);
-  min-width: 64px;
   text-align: right;
+  line-height: 1;
 }
 
 
@@ -384,8 +409,9 @@ select, input[type="text"], input[type="number"] {
   transition: border-color 160ms ease;
 }
 select { padding-right: 32px; cursor: pointer; }
-select:hover, input[type="text"]:hover, input[type="number"]:hover { border-color: #3a3a42; }
-select:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: var(--ws-signal); outline: none; }
+select:hover, input[type="text"]:hover, input[type="number"]:hover { border-color: color-mix(in oklab, var(--ws-rule) 60%, var(--ws-fg) 40%); }
+/* S266 P2 — Grumpy R6 Flag #5: removed outline:none to preserve WCAG keyboard focus from type-tokens. */
+select:focus, input[type="text"]:focus, input[type="number"]:focus { border-color: var(--ws-signal); }
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -414,7 +440,8 @@ button {
 button:hover {
   border-color: var(--ws-signal);
   color: var(--ws-signal);
-  background: #1a1a20;
+  /* S266 P2 — Upgrade #1: token-driven tint via color-mix(). */
+  background: color-mix(in oklab, var(--ws-panel) 88%, var(--ws-fg) 12%);
 }
 button:active { transform: translateY(1px); }
 button:disabled {
@@ -444,8 +471,9 @@ button:disabled {
 .dial-run-btn:hover,
 .prod-run-btn:hover,
 #run-queue-btn:hover {
-  background: #ff7a3a;
-  border-color: #ff7a3a;
+  /* S266 P2 — Upgrade #1: signal lightened via color-mix() instead of hardcoded #ff7a3a. */
+  background: color-mix(in oklab, var(--ws-signal) 80%, white 20%);
+  border-color: color-mix(in oklab, var(--ws-signal) 80%, white 20%);
   color: var(--ws-void);
   box-shadow: 0 0 32px var(--ws-signal-glow);
 }
@@ -543,8 +571,37 @@ button:disabled {
   width: 0%;
   background: var(--ws-signal);
   box-shadow: 0 0 12px var(--ws-signal-glow);
-  transition: width 200ms ease, background 200ms ease;
+  transition: width 200ms ease, background 200ms ease, box-shadow 200ms ease;
 }
+
+/* S266 P2 — Grumpy R6 Flag #4: state-driven progress fill, replaces the inline
+   `progressFill.style.background = ...` writes that defeated the amber default.
+   renderer.js sets progressFill.dataset.state — these rules read it. */
+#progress-fill[data-state="idle"] {
+  background: var(--ws-muted);
+  box-shadow: none;
+}
+#progress-fill[data-state="generating"] {
+  background: var(--ws-signal);
+  box-shadow: 0 0 12px var(--ws-signal-glow);
+}
+#progress-fill[data-state="done"] {
+  background: var(--ws-state-ok);
+  box-shadow: 0 0 12px rgba(95, 255, 170, 0.35);
+}
+#progress-fill[data-state="error"] {
+  background: var(--ws-state-err);
+  box-shadow: 0 0 12px rgba(255, 48, 48, 0.35);
+}
+#progress-fill[data-state="disconnected"] {
+  background: #3a3a40;
+  box-shadow: none;
+}
+
+/* Status text gets a subtle color cue from state too */
+#status-text[data-state="error"] { color: var(--ws-state-err); }
+#status-text[data-state="done"]  { color: var(--ws-state-ok); }
+#status-text[data-state="generating"] { color: var(--ws-signal); }
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -580,13 +637,14 @@ button:disabled {
   display: none;
   margin: 0;
 }
-#log-panel.visible,
-#log-bar + #log-panel { display: block; }
+/* S266 P2 — Grumpy R6 Flag #2: removed unconditional #log-bar + #log-panel rule
+   that made the panel always-open on first paint. Only the .visible class drives display now. */
+#log-panel.visible { display: block; }
 
 #log-output {
   max-height: 320px;
   padding: 12px 14px;
-  background: #050505 !important;
+  background: #050505;
   border: 1px solid var(--ws-rule);
   border-top: 0;
   border-radius: 0 0 3px 3px;
@@ -627,8 +685,19 @@ button:disabled {
    SECTION 15 — RIGHT PANEL (DIAL + PROD + QUEUE + BATCH)
 ─────────────────────────────────────────────────────────────────────────── */
 
+/* S266 P2 — Grumpy R6 Flag #6 (right-panel half):
+   #dial-section and #prod-section are wrappers around .lora-stage.dial-stage / .lora-stage.prod-stage
+   which already carry full panel chrome via the `.lora-stage` rule above. Outer panel chrome on
+   the section would be a Russian doll. They become bare layout slots; the inner stage owns the surface.
+   #queue-panel + #batch-panel have NO inner panel child — they keep the chrome themselves. */
 #dial-section,
-#prod-section,
+#prod-section {
+  margin: 0 0 20px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
 #queue-panel,
 #batch-panel {
   margin: 0 0 20px;
@@ -707,6 +776,50 @@ button:disabled {
 .batch-job-row[data-status="complete"]  .batch-job-label  { color: var(--ws-state-ok); }
 .queue-job-card[data-status="error"]    .queue-job-label,
 .batch-job-row[data-status="error"]     .batch-job-label  { color: var(--ws-state-err); }
+
+/* S266 P2 — Grumpy R6 Flag #7: batch + queue child elements that renderer.js
+   generates but chroma-bleed had not yet styled. */
+.batch-job-icon {
+  text-align: center;
+  color: var(--ws-muted);
+  font-size: var(--ws-type-body);
+}
+.batch-job-row[data-status="running"]  .batch-job-icon { color: var(--ws-signal); }
+.batch-job-row[data-status="complete"] .batch-job-icon { color: var(--ws-state-ok); }
+.batch-job-row[data-status="error"]    .batch-job-icon { color: var(--ws-state-err); }
+
+.batch-promote-btn {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: var(--ws-type-stamp);
+  color: var(--ws-signal);
+  border-color: var(--ws-signal);
+}
+.batch-promote-btn:hover {
+  background: var(--ws-signal);
+  color: var(--ws-void);
+}
+
+.queue-job-chaos {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-stamp);
+  letter-spacing: var(--ws-tracking-stamp);
+  text-transform: uppercase;
+  color: var(--ws-muted);
+}
+.queue-job-remove {
+  min-height: 24px;
+  padding: 0 8px;
+  font-size: var(--ws-type-body);
+  line-height: 1;
+  color: var(--ws-muted);
+  border-color: var(--ws-rule);
+}
+.queue-job-remove:hover {
+  color: var(--ws-void);
+  background: var(--ws-state-err);
+  border-color: var(--ws-state-err);
+}
 
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -825,6 +938,68 @@ button:disabled {
 }
 #seed-bank-list { list-style: none; padding: 0; margin: 0; }
 
+/* S266 P2 — Grumpy R6 Flag #7: seed-bank entry chrome.
+   renderer.js:858 generates these classes; previously unstyled, rendered as a wall of bare spans. */
+.seed-bank-entry {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 10px;
+  margin: 4px 0;
+  background: var(--ws-panel);
+  border: 1px solid var(--ws-rule);
+  border-radius: 3px;
+}
+.seed-bank-entry-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.seed-bank-entry-seed {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-value);
+  font-weight: var(--ws-weight-stage);
+  color: var(--ws-signal);
+}
+.seed-bank-entry-label {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  color: var(--ws-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seed-bank-entry-date {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-stamp);
+  letter-spacing: var(--ws-tracking-stamp);
+  text-transform: uppercase;
+  color: var(--ws-muted);
+}
+.seed-bank-entry-actions { display: flex; gap: 6px; }
+.seed-entry-load,
+.seed-entry-delete {
+  min-height: 28px;
+  padding: 2px 10px;
+  font-size: var(--ws-type-stamp);
+}
+.seed-entry-delete {
+  color: var(--ws-state-err);
+}
+.seed-entry-delete:hover {
+  color: var(--ws-void);
+  background: var(--ws-state-err);
+  border-color: var(--ws-state-err);
+}
+.seed-bank-empty {
+  padding: 12px;
+  text-align: center;
+  font-size: var(--ws-type-small);
+  color: var(--ws-muted);
+}
+
 
 /* ────────────────────────────────────────────────────────────────────────────
    SECTION 20 — SAVE SEED + SAVE PRESET INLINE ROWS
@@ -880,6 +1055,40 @@ button:disabled {
   border: 1px solid var(--ws-rule);
   border-radius: 3px;
 }
+/* S266 P2 — Grumpy R6 Flag #7+#8: chaos card internal chrome was unstyled.
+   Header is a 3-span flex (title | description | percentage). Body holds the slider. */
+#chaos-card-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+#chaos-card-title {
+  font-family: var(--ws-font-display);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-stage);
+  letter-spacing: var(--ws-tracking-stage);
+  text-transform: uppercase;
+  color: var(--ws-fg);
+}
+#chaos-label-text {
+  flex: 1;
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-small);
+  color: var(--ws-muted);
+}
+#chaos-pct-val {
+  font-family: var(--ws-font-ui);
+  font-size: var(--ws-type-value);
+  font-weight: var(--ws-weight-stage);
+  color: var(--ws-signal);
+  min-width: 48px;
+  text-align: right;
+}
+#chaos-card-body { width: 100%; }
+#chaos-pct { width: 100%; }
+
 .chaos-row {
   display: grid;
   grid-template-columns: auto 1fr auto;
@@ -892,6 +1101,27 @@ button:disabled {
    SECTION 23 — OUTPUT SETTINGS (resolution + fps + runs)
 ─────────────────────────────────────────────────────────────────────────── */
 
+#output-card {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--ws-panel);
+  border: 1px solid var(--ws-rule);
+  border-radius: 3px;
+}
+/* S266 P2 — Grumpy R6 Flag #7: output card chrome was unstyled. */
+#output-card-header {
+  padding: 0 0 8px;
+  margin: 0 0 8px;
+  border-bottom: 1px solid var(--ws-rule);
+}
+#output-card-title {
+  font-family: var(--ws-font-display);
+  font-size: var(--ws-type-label);
+  font-weight: var(--ws-weight-stage);
+  letter-spacing: var(--ws-tracking-stage);
+  text-transform: uppercase;
+  color: var(--ws-fg);
+}
 .output-row {
   display: grid;
   grid-template-columns: 120px 1fr;
@@ -965,14 +1195,12 @@ kbd {
 
 
 /* ────────────────────────────────────────────────────────────────────────────
-   SECTION 26 — REDUCE NOISE FROM LEGACY DECLARATIONS
-   Anything that the old chroma-bleed laid down with text-shadow, gradients,
-   or color-shifts needs to be neutralized. These overrides catch the residue.
+   SECTION 26 — LEGACY RESIDUE
+   S266 P2 — Grumpy R6 Flag #10: universal *{text-shadow:none} sledgehammer removed.
+   The MAINFRAME rewrite never introduces text-shadow except the wordmark's
+   `filter: drop-shadow(...)` below — which is filter, not text-shadow. The rule
+   was preventing a problem that no longer exists, and was a future maintenance landmine.
 ─────────────────────────────────────────────────────────────────────────── */
-
-*, *::before, *::after {
-  text-shadow: none;
-}
 
 #nameplate h1 {
   filter: drop-shadow(0 0 8px var(--ws-signal-glow));   /* the one allowed glow */
