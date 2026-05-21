@@ -1340,6 +1340,67 @@ test('T-REPORT-03: report emits FRAMES line with duration calc', () => {
     'report must include FRAMES field with ~Ns duration computed from length/fps');
 });
 
+// ── S267.1 — Grumpy R8 burn tests ─────────────────────────────────────────
+console.log('\nS267.1 — Grumpy R8 burn (CFG migration, seed helper, chaos icon, valueAsNumber)');
+
+test('T-R8-MIGRATION: electron-store migrations block exists with 0.2.0 CFG cleanup', () => {
+  assert.ok(/migrations:\s*{[\s\S]{0,400}'0\.2\.0':/.test(mainSrc),
+    'main.js must declare migrations[\'0.2.0\'] for CFG default cleanup');
+  assert.ok(/s1\s*===\s*7\s*&&\s*s2\s*===\s*7/.test(mainSrc),
+    'migration must only clear CFG when BOTH stages still hold the old 7.0 default');
+});
+test('T-R8-VERSION: package.json bumped to 0.2.0 for migration to fire', () => {
+  const pkg = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'package.json'), 'utf8'));
+  assert.strictEqual(pkg.version, '0.2.0', 'package.json version must be 0.2.0 for the migration');
+});
+test('T-R8-SEEDHELPER: applySeedMode helper extracted (Anti-Generalization fix)', () => {
+  assert.ok(/function applySeedMode\(mode,\s*value\)/.test(renderSrc),
+    'applySeedMode helper must exist');
+  // Verify it is actually CALLED (not just defined and orphaned)
+  const callCount = (renderSrc.match(/applySeedMode\s*\(/g) || []).length;
+  assert.ok(callCount >= 3,
+    `applySeedMode must be called from 3+ sites (restorePrefs + toggle + seed-bank LOAD), found ${callCount} calls including the declaration`);
+});
+test('T-R8-NO-SEEDMODE-TRIPLET: removed the inline seed-mode state-transition triplet', () => {
+  // The forbidden pattern: setting seedMode + seedToggle.textContent + seedValue.style.display
+  // back-to-back in raw form is the anti-pattern we extracted. Sites that still do this
+  // are likely missed copies that bypass the helper.
+  const triplet = /seedMode\s*=\s*['"]fixed['"][\s\S]{0,80}seedToggle\.textContent[\s\S]{0,80}seedValue\.style\.display/;
+  assert.ok(!triplet.test(renderSrc),
+    'Inline seed-mode triplet must not appear — route through applySeedMode instead');
+});
+test('T-R8-CHAOS-ICON: LOG_ICONS table includes chaos glyph', () => {
+  assert.ok(/LOG_ICONS\s*=\s*{[^}]*chaos\s*:\s*['"]/.test(renderSrc),
+    'LOG_ICONS must include a chaos entry so band clamps render with a distinct glyph');
+});
+test('T-R8-VALUEASNUMBER: wirePersistence uses valueAsNumber, not parseFloat', () => {
+  assert.ok(/el\.valueAsNumber/.test(renderSrc),
+    'persistence must use HTMLInputElement.valueAsNumber to avoid float-step drift');
+  // The OLD parseFloat path inside wirePersistence is gone — only structured uses elsewhere.
+  // Check there's no `parseFloat(el.value)` in any input-event handler that persists.
+  const persistBlock = renderSrc.match(/function wirePersistence\([\s\S]*?\n\}/);
+  assert.ok(persistBlock, 'wirePersistence function must be defined');
+  assert.ok(!/parseFloat\(el\.value\)/.test(persistBlock[0]),
+    'wirePersistence body must not parseFloat(el.value) — use valueAsNumber');
+});
+test('T-R8-INTEGER-ROUNDING: integer-schema keys get Math.round before persist', () => {
+  assert.ok(/INTEGER_PREF_KEYS/.test(renderSrc),
+    'INTEGER_PREF_KEYS set must be defined');
+  assert.ok(/INTEGER_PREF_KEYS\.has\(key\)[\s\S]{0,50}Math\.round/.test(renderSrc),
+    'persistence must Math.round integer-schema values to prevent touch-device float drift');
+});
+test('T-R8-LENGTH-NOENUM: length-select schema has no enum constraint (matches other dropdowns)', () => {
+  // length-select schema line should be bare {type:string, default:81} like the
+  // other dropdowns; previously had enum:['49','81','97','121'] which created
+  // a plan-vs-impl drift + clearInvalidConfig wipe risk.
+  assert.ok(/'length-select':\s*{\s*type:\s*'string',\s*default:\s*'81'\s*}/.test(mainSrc),
+    'length-select schema must be enum-free (matches resolution/fps/runs dropdowns)');
+});
+test('T-R8-ABORT-CLEAR: _persistAbort.clear() called after beforeunload aborts', () => {
+  assert.ok(/_persistAbort\.values\(\)[\s\S]{0,80}_persistAbort\.clear\(\)/.test(renderSrc),
+    'beforeunload must clear the abort map after iterating (hygiene)');
+});
+
 // ── Summary ──────────────────────────────────────────────────────────────────
 console.log(`\n${'─'.repeat(56)}`);
 if (failed > 0) {

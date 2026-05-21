@@ -8,6 +8,15 @@ const { pathToFileURL } = require('url');
 const { randomUUID } = require('crypto');
 const Store = require('electron-store');
 
+// ── Debug logger ───────────────────────────────────────────────────────────────
+// Declared BEFORE electron-store ctor (which fires migrations that call dbg).
+const DEBUG_LOG = path.join(os.tmpdir(), 'wan_booth_debug.log');
+function dbg(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}\n`;
+  fs.appendFileSync(DEBUG_LOG, line);
+  process.stdout.write(line);
+}
+
 // ── S267 — Universal value persistence (electron-store backed) ─────────────────
 // Schema-validated. Atomic-write on Windows. JSON-schema rejection guards against
 // NaN / out-of-range / wrong-type writes from buggy upstream chains. Storage path:
@@ -27,7 +36,7 @@ const PREFS_SCHEMA = {
   'resolution-select': { type: 'string', default: '832x480' },
   'fps-select':      { type: 'string', default: '16' },
   'runs-select':     { type: 'string', default: '1' },
-  'length-select':   { type: 'string', enum: ['49','81','97','121'], default: '81' },
+  'length-select':   { type: 'string', default: '81' },
   'stage-1-toggle':  { type: 'boolean', default: true },
   'stage-2-toggle':  { type: 'boolean', default: true },
   'seed-mode':       { type: 'string',  enum: ['random','fixed'], default: 'random' },
@@ -38,15 +47,27 @@ const prefs = new Store({
   name: 'config',
   schema: PREFS_SCHEMA,
   clearInvalidConfig: true,
+  // S267.1 — Grumpy R8 Flag #2: CFG default migration. Pre-S267 HTML default
+  // was 7.0 for both stages, which contradicts the workflow JSON's correct
+  // 3.5 (S1) / 6.0 (S2). Story 2 fixed the HTML default but every existing
+  // config.json still had {s1-cfg:7, s2-cfg:7} which is valid in the new
+  // [1,10] schema — so without migration, upgraders never see the fix.
+  //
+  // Heuristic: ONLY clear if BOTH stages still equal 7 (the literal old
+  // default). If user intentionally moved either stage to 7, we don't
+  // know if it was intentional — leave both alone. Conservative.
+  migrations: {
+    '0.2.0': store => {
+      const s1 = store.get('s1-cfg');
+      const s2 = store.get('s2-cfg');
+      if (s1 === 7 && s2 === 7) {
+        store.delete('s1-cfg');
+        store.delete('s2-cfg');
+        dbg('S267.1 migration 0.2.0: cleared stale CFG=7/7 → schema defaults (3.5/6.0)');
+      }
+    },
+  },
 });
-
-// ── Debug logger ───────────────────────────────────────────────────────────────
-const DEBUG_LOG = path.join(os.tmpdir(), 'wan_booth_debug.log');
-function dbg(msg) {
-  const line = `[${new Date().toISOString()}] ${msg}\n`;
-  fs.appendFileSync(DEBUG_LOG, line);
-  process.stdout.write(line);
-}
 
 function getComfyDir() {
   return process.env.COMFYUI_DIR || path.join(os.homedir(), 'Desktop', 'ComfyUI');

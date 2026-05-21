@@ -104,7 +104,10 @@ function getLoraValues() {
 // ─── LOG PANEL ────────────────────────────────────────────────────────────────
 let logVisible = false;
 
-const LOG_ICONS = { start:'▶', init:'⊳', queue:'⊳', node:'◈', step:'∘', complete:'✓', error:'✗' };
+// S267.1 — Grumpy R8 Flag #3: added 'chaos' so the visible-clamp UX has a
+// distinct glyph. Without this, applyChaos's appendLog('chaos', ...) calls
+// inherited the '·' fallback and clamp messages were invisible inside busy logs.
+const LOG_ICONS = { start:'▶', init:'⊳', queue:'⊳', node:'◈', step:'∘', complete:'✓', error:'✗', chaos:'◊' };
 
 function appendLog(type, msg) {
   const ts    = new Date().toLocaleTimeString('en-US', { hour12: false });
@@ -231,6 +234,10 @@ const PERSIST_KEYS = [
 // never leak a callback past the window close.
 const _persistAbort = new Map();
 
+// S267.1 — Grumpy R8 Flag #5: integer-schema keys must be Math.round'd before
+// persistence, else step="1" range slider float-drift can reject the schema.
+const INTEGER_PREF_KEYS = new Set(['s1-steps', 's2-steps', 'chaos-pct', 'seed-value']);
+
 function persistPref(key, value) {
   const prior = _persistAbort.get(key);
   if (prior) prior.abort();
@@ -248,7 +255,21 @@ function persistPref(key, value) {
 
 window.addEventListener('beforeunload', () => {
   for (const ctrl of _persistAbort.values()) ctrl.abort();
+  _persistAbort.clear();   // S267.1 — Grumpy R8 Flag #9 hygiene
 });
+
+// S267.1 — Grumpy R8 Flag #1 + #7: applySeedMode is the SINGLE SOURCE OF TRUTH
+// for the seed-toggle state machine. Was previously duplicated 3 times across
+// restorePrefs / toggle click handler / seed-bank LOAD. Now: ONE function, three
+// callers — Anti-Generalization Mandate satisfied.
+function applySeedMode(mode, value) {
+  seedMode = (mode === 'fixed') ? 'fixed' : 'random';
+  seedToggle.textContent = (seedMode === 'fixed') ? 'FIXED' : 'RANDOM';
+  seedValue.style.display = (seedMode === 'fixed') ? 'inline-block' : 'none';
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    seedValue.value = value;
+  }
+}
 
 async function restorePrefs() {
   let stored;
@@ -271,24 +292,13 @@ async function restorePrefs() {
     el.dispatchEvent(new Event('input',  { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
   }
-  // Seed state — paired (mode + value). Mode drives UI display.
-  if (stored['seed-mode'] === 'fixed') {
-    seedMode = 'fixed';
-    seedToggle.textContent = 'FIXED';
-    seedValue.style.display = 'inline-block';
-  } else {
-    seedMode = 'random';
-    seedToggle.textContent = 'RANDOM';
-    seedValue.style.display = 'none';
-  }
-  if (typeof stored['seed-value'] === 'number') {
-    seedValue.value = stored['seed-value'];
-  }
+  // Seed state (paired) — routed through applySeedMode helper.
+  applySeedMode(stored['seed-mode'], stored['seed-value']);
 }
 
 function wirePersistence() {
   // Numeric sliders + dropdowns use 'input' (continuous) for snappy feel.
-  // Checkboxes fire 'change' (no input event on checkbox state toggle in some browsers).
+  // Checkboxes fire 'change' (no input event on checkbox state toggle).
   for (const key of PERSIST_KEYS) {
     const el = document.getElementById(key);
     if (!el) continue;
@@ -296,23 +306,29 @@ function wirePersistence() {
       el.addEventListener('change', () => persistPref(key, el.checked));
     } else {
       el.addEventListener('input', () => {
-        const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
-        persistPref(key, el.tagName === 'SELECT' ? el.value : v);
+        let v;
+        if (el.tagName === 'SELECT') {
+          v = el.value;   // dropdowns persist as strings (schema 'string')
+        } else {
+          // S267.1 — Grumpy R8 Flags #4+#5: valueAsNumber respects step + avoids
+          // parseFloat drift like 0.7500000000000001. For integer-schema keys,
+          // explicitly Math.round to prevent rare touch-device float-step drift.
+          v = el.valueAsNumber;
+          if (!Number.isFinite(v)) return;   // empty/invalid input — skip persist
+          if (INTEGER_PREF_KEYS.has(key)) v = Math.round(v);
+        }
+        persistPref(key, v);
       });
     }
   }
-  // Seed mode — fires when seedToggle is clicked. Persist both keys.
-  seedToggle.addEventListener('click', () => {
-    // Listener order: this fires AFTER the existing toggle handler (which
-    // updates seedMode + button text), so seedMode reflects the new state.
-    persistPref('seed-mode', seedMode);
-    persistPref('seed-value', parseInt(seedValue.value, 10) || 42);
-  });
-  // Seed value input — only meaningful when mode is fixed, but always persist.
+  // Seed-value typed input — only meaningful in fixed mode, but always persist.
   seedValue.addEventListener('input', () => {
     const v = parseInt(seedValue.value, 10);
     if (Number.isFinite(v)) persistPref('seed-value', v);
   });
+  // NOTE: seed-mode persistence is NOT wired here. The seedToggle click handler
+  // (defined at module scope) now calls applySeedMode + persistPref directly —
+  // single listener, no dual-handler race (Grumpy R8 Flag #1 fix).
 }
 
 async function checkComfyStatus() {
@@ -408,15 +424,17 @@ async function loadImage(filePath) {
 }
 
 // ─── SEED TOGGLE ──────────────────────────────────────────────────────────────
+// S267.1 — Grumpy R8 Flags #1 + #7: single listener (was previously two — a
+// top-level state-mutator + a wirePersistence persist-fire). Routes through
+// applySeedMode helper. Persists ONLY seed-mode here, never the seed-value
+// (that has its own input listener in wirePersistence). Kills the silent
+// "persist 42 on every click" bug.
 seedToggle.addEventListener('click', () => {
-  if (seedMode === 'random') {
-    seedMode = 'fixed';
-    seedToggle.textContent = 'FIXED';
-    seedValue.style.display = 'inline-block';
-  } else {
-    seedMode = 'random';
-    seedToggle.textContent = 'RANDOM';
-    seedValue.style.display = 'none';
+  const next = (seedMode === 'random') ? 'fixed' : 'random';
+  applySeedMode(next);
+  // window.wan may not be ready during module-load races — defensive guard.
+  if (window.wan && typeof window.wan.setPref === 'function') {
+    persistPref('seed-mode', seedMode);
   }
 });
 
@@ -1069,11 +1087,13 @@ async function refreshSeedBank() {
         setSlider('s2-k3nk-str',     lv.stage2.k3nkStr);
         setSlider('s2-steps',        lv.stage2.steps);
         setSlider('s2-cfg',          lv.stage2.cfg);
-        // Set seed to fixed mode with this seed value
-        seedMode = 'fixed';
-        seedToggle.textContent = 'FIXED';
-        seedValue.style.display = 'inline-block';
-        seedValue.value = String(s.seed);
+        // S267.1 — Grumpy R8 Flag #7: route through single helper, was triplet copy.
+        applySeedMode('fixed', s.seed);
+        // Persist the now-fixed mode + value so the loaded seed survives restart.
+        if (window.wan && typeof window.wan.setPref === 'function') {
+          persistPref('seed-mode', 'fixed');
+          persistPref('seed-value', s.seed);
+        }
         appendLog('init', 'Seed loaded: ' + s.seed + ' (' + s.label + ')');
       });
       // DELETE
