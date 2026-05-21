@@ -1,13 +1,22 @@
 /*
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║  ZOETROPE — SPATIAL ARCHITECTURE                                           ║
- * ║  Agent:   GRID_GHOST::wan-booth::glitchswarm-s241                         ║
- * ║  Domain:  Layout / Spacing / Easing / Zone Structure                       ║
- * ║  Law:     CSS subgrid dictatorship. Brutalist negative space.              ║
- * ║           Kinetic math governs every transition.                           ║
+ * ║  Original Agent:  GRID_GHOST::wan-booth::glitchswarm-s241 (Æris, S241-S263)║
+ * ║  Maintainer:      Cla⌂de (Citadel, S265+)                                  ║
+ * ║  Domain:          Layout / Spacing / Easing / Zone Structure               ║
+ * ║  Law:             CSS subgrid. Brutalist negative space. Easing math owns  ║
+ * ║                   every transition.                                        ║
  * ║                                                                            ║
- * ║  CHROMA_BLEED territory: color-tokens.css (READ ONLY — no color here)     ║
- * ║  TYPE_WEAVER territory:  type-tokens.css  (READ ONLY — no font px here)   ║
+ * ║  Sibling files (no aesthetic decisions here — defer to them):              ║
+ * ║    color-tokens.css   — palette + alias chain (MAINFRAME, S266)            ║
+ * ║    type-tokens.css    — 2-font system + scale (MAINFRAME, S266)            ║
+ * ║    chroma-bleed.css   — visual dialect, single-signal MAINFRAME (S266)     ║
+ * ║                                                                            ║
+ * ║  S266 P2 surgical edits (NOT a rewrite):                                   ║
+ * ║    L104-114    body width:900px → 100% (released cap for 1440px container) ║
+ * ║    L1175-1181  .wan-container width:900px removed                          ║
+ * ║    L1236-1238  .wan-container overflow:hidden removed (scanline halo)      ║
+ * ║  Everything else is Æris's untouched S262/S263 structural work.            ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  *
  * ARCHITECTURE: 7-ZONE SINGLE-COLUMN

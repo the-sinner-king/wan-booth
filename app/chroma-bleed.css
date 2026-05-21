@@ -2,9 +2,10 @@
  * ╔══════════════════════════════════════════════════════════════════════════════╗
  * ║  ZOETROPE — CHROMA_BLEED v3 // MAINFRAME                                    ║
  * ║  Session: S266 Cla⌂de — UI reskin, Citadel-owned                            ║
+ * ║         + S266 P2 — Grumpy R6 burn (10 flags + color-mix + @container)      ║
  * ║  Mandate: 70s industrial control panel. ONE signal color (phosphor amber).  ║
  * ║           Sharp dividers, generous spacing, calm + clear + easy.            ║
- * ║  License: same selectors as v2 (S262/S263). New visual dialect.              ║
+ * ║  License: same selectors as v2 (S262/S263). New visual dialect.             ║
  * ╚══════════════════════════════════════════════════════════════════════════════╝
  *
  * RULES OF MAINFRAME:
@@ -14,8 +15,19 @@
  *   3. NO gradients on functional surfaces. Solid fills only.
  *   4. Borders carry hierarchy: 1px rule for sections, 2px signal for active.
  *   5. Spacing > decoration. Generous breathing room over visual noise.
- *   6. Touch targets ≥ 44px on buttons and click surfaces.
+ *   6. Touch targets ≥ 36px (secondary) / ≥ 56px (primary CTAs).
  *   7. Hover/focus/active states are visually distinct, not subtle.
+ *   8. NO sledgehammer universal rules (e.g. *{text-shadow:none}). Be specific.
+ *   9. Tint hexes are FORBIDDEN — use color-mix(in oklab, var(--ws-X), …) so
+ *      retuning a token propagates everywhere instead of dying in 5 hardcoded sites.
+ *  10. State-driven styling lives in [data-state="…"] selectors, NOT inline
+ *      `element.style.background = …` writes from renderer.js. CSS owns paint.
+ *
+ * LAYOUT BOUNDARY:
+ *   Spatial / structural rules live in layout.css (sibling). This file only
+ *   handles visual dialect: color, type appliqué, borders, glow, spacing
+ *   within a card, state transitions. If you find yourself writing grid-template
+ *   columns or absolute positioning here, you're in the wrong file.
  */
 
 
