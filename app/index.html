@@ -136,26 +136,26 @@
 
             <div class="lora-row">
               <label class="lora-row-label" for="s1-dr34mlay-str">DR34MLAY</label>
-              <input type="range" class="lora-row-slider" id="s1-dr34mlay-str" min="0" max="1" step="0.01" value="0.7" title="DR34MLAY lora strength · Stage 1">
+              <input type="range" class="lora-row-slider" id="s1-dr34mlay-str" min="0" max="2" step="0.05" value="0.7" title="DR34MLAY lora strength · Stage 1 (max 2.0 for motion-pattern LoRAs per S267)">
               <span class="lora-row-value" id="s1-dr34mlay-str-val">0.70</span>
             </div>
 
             <div class="lora-row">
               <label class="lora-row-label" for="s1-k3nk-str">K3NK</label>
-              <input type="range" class="lora-row-slider" id="s1-k3nk-str" min="0" max="1" step="0.01" value="0.5">
+              <input type="range" class="lora-row-slider" id="s1-k3nk-str" min="0" max="2" step="0.05" value="0.5">
               <span class="lora-row-value" id="s1-k3nk-str-val">0.50</span>
             </div>
 
             <div class="lora-row">
               <label class="lora-row-label" for="s1-steps">STEPS</label>
-              <input type="range" class="lora-row-slider" id="s1-steps" min="1" max="50" step="1" value="20">
+              <input type="range" class="lora-row-slider" id="s1-steps" min="5" max="50" step="1" value="20">
               <span class="lora-row-value" id="s1-steps-val">20</span>
             </div>
 
             <div class="lora-row">
               <label class="lora-row-label" for="s1-cfg">CFG</label>
-              <input type="range" class="lora-row-slider" id="s1-cfg" min="1" max="20" step="0.5" value="7" title="CFG guidance scale · Stage 1">
-              <span class="lora-row-value" id="s1-cfg-val">7.0</span>
+              <input type="range" class="lora-row-slider" id="s1-cfg" min="1" max="10" step="0.1" value="3.5" title="CFG guidance scale · Stage 1 (safe zone 3.5-5.5; workflow JSON default)">
+              <span class="lora-row-value" id="s1-cfg-val">3.5</span>
             </div>
 
           </div>
@@ -173,26 +173,26 @@
 
             <div class="lora-row">
               <label class="lora-row-label" for="s2-dr34mlay-str">DR34MLAY</label>
-              <input type="range" class="lora-row-slider" id="s2-dr34mlay-str" min="0" max="1" step="0.01" value="0.7">
+              <input type="range" class="lora-row-slider" id="s2-dr34mlay-str" min="0" max="1.5" step="0.05" value="0.7">
               <span class="lora-row-value" id="s2-dr34mlay-str-val">0.70</span>
             </div>
 
             <div class="lora-row">
               <label class="lora-row-label" for="s2-k3nk-str">K3NK</label>
-              <input type="range" class="lora-row-slider" id="s2-k3nk-str" min="0" max="1" step="0.01" value="0.5">
+              <input type="range" class="lora-row-slider" id="s2-k3nk-str" min="0" max="1.5" step="0.05" value="0.5">
               <span class="lora-row-value" id="s2-k3nk-str-val">0.50</span>
             </div>
 
             <div class="lora-row">
               <label class="lora-row-label" for="s2-steps">STEPS</label>
-              <input type="range" class="lora-row-slider" id="s2-steps" min="1" max="50" step="1" value="20" title="Sampling steps · Stage 2">
+              <input type="range" class="lora-row-slider" id="s2-steps" min="5" max="50" step="1" value="20" title="Sampling steps · Stage 2">
               <span class="lora-row-value" id="s2-steps-val">20</span>
             </div>
 
             <div class="lora-row">
               <label class="lora-row-label" for="s2-cfg">CFG</label>
-              <input type="range" class="lora-row-slider" id="s2-cfg" min="1" max="20" step="0.5" value="7">
-              <span class="lora-row-value" id="s2-cfg-val">7.0</span>
+              <input type="range" class="lora-row-slider" id="s2-cfg" min="1" max="10" step="0.1" value="6" title="CFG guidance scale · Stage 2 (safe zone ≤ 6.0; workflow JSON default)">
+              <span class="lora-row-value" id="s2-cfg-val">6.0</span>
             </div>
 
           </div>
@@ -223,8 +223,17 @@
           </select>
         </div>
         <div class="output-row">
+          <label class="output-label" for="length-select">LENGTH</label>
+          <select class="output-select" id="length-select" title="Wan 2.2 frame count (4n+1 rule; 16fps native)">
+            <option value="49">49 frames — ~3s</option>
+            <option value="81" selected>81 frames — ~5s</option>
+            <option value="97">97 frames — ~6s</option>
+            <option value="121">121 frames — ~7.5s (max)</option>
+          </select>
+        </div>
+        <div class="output-row">
           <label class="output-label" for="fps-select">FRAME RATE</label>
-          <select class="output-select" id="fps-select" title="Output frames per second">
+          <select class="output-select" id="fps-select" title="Playback frame rate (Wan 2.2 generates at native 16fps; higher rates = sped-up playback unless interpolated externally)">
             <option value="8">8 fps</option>
             <option value="12">12 fps</option>
             <option value="16" selected>16 fps</option>

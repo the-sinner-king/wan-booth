@@ -680,10 +680,10 @@ test('AC-20: renderer.js calls window.wan.writeReport in onComplete', () => {
     'writeReport must be called in completion handler');
 });
 test('AC-20: buildReport includes seed + resolution (NOT prompt — privacy)', () => {
-  assert.ok(renderSrc.includes("'  SEED'") || renderSrc.includes("SEED        :"),
-    'report must include seed');
-  assert.ok(renderSrc.includes("RESOLUTION") || renderSrc.includes("resolution"),
-    'report must include resolution');
+  // S267: loosened to semantic match (was brittle to whitespace padding changes
+  // when field names lengthened for the FRAMES + CHAOS sections).
+  assert.ok(/SEED\s+:/.test(renderSrc), 'report must include seed');
+  assert.ok(/RESOLUTION\s+:/i.test(renderSrc), 'report must include resolution');
 });
 test('AC-28 (privacy): buildReport must NOT write prompt to disk', () => {
   // Prompts are sensitive content — they must never land in any saved file.
@@ -970,17 +970,25 @@ test('AC-32b: renderer.js init() calls all 4 phase-3 init functions', () => {
 // ── AC-33: Chaos slider ───────────────────────────────────────────────────────
 console.log('\nAC-33 — chaos slider');
 
-test('AC-33a: chaosFloat defined with dampener 0.3', () => {
-  assert.ok(renderSrc.includes('chaosFloat') && renderSrc.includes('0.3'),
-    'chaosFloat missing or wrong dampener');
+// S267: AC-33a/b/c retired. The old three-flavor chaos helpers (chaosFloat /
+// chaosCfg / chaosSteps with hand-picked dampeners 0.3 / 0.2 / 0.15) are
+// replaced by a single CHAOS_BANDS registry + chaosWithinBand helper —
+// research-validated safe-zone clamping. The new system is covered by
+// T-CHAOS-01..05 below.
+test('AC-33a (retired → S267): chaos uses CHAOS_BANDS registry + chaosWithinBand', () => {
+  assert.ok(renderSrc.includes('CHAOS_BANDS') && renderSrc.includes('chaosWithinBand'),
+    'S267 chaos architecture must be present');
 });
-test('AC-33b: chaosCfg defined with dampener 0.2', () => {
-  assert.ok(renderSrc.includes('chaosCfg') && renderSrc.includes('0.2'),
-    'chaosCfg missing or wrong dampener');
+test('AC-33b (retired → S267): CFG bands stay in research safe zone (3.5-6.0)', () => {
+  // S1 CFG band: [3.5, 5.5]; S2 CFG band: [4.0, 6.0]
+  assert.ok(/'s1\.cfg':\s*{[^}]*min:\s*3\.5[^}]*max:\s*5\.5/.test(renderSrc),
+    'S1 CFG band must be [3.5, 5.5]');
+  assert.ok(/'s2\.cfg':\s*{[^}]*min:\s*4[^}]*max:\s*6/.test(renderSrc),
+    'S2 CFG band must be [4.0, 6.0]');
 });
-test('AC-33c: chaosSteps defined with dampener 0.15', () => {
-  assert.ok(renderSrc.includes('chaosSteps') && renderSrc.includes('0.15'),
-    'chaosSteps missing or wrong dampener');
+test('AC-33c (retired → S267): steps bands respect 12-step S1 floor', () => {
+  assert.ok(/'s1\.steps':\s*{[^}]*min:\s*12/.test(renderSrc),
+    'S1 steps band must floor at 12 (motion-collapse threshold per research)');
 });
 test('AC-33d: applyChaos function defined', () => {
   assert.ok(renderSrc.includes('function applyChaos'), 'applyChaos missing');
@@ -1197,6 +1205,139 @@ test('T-BATCH-02: applyOverrides does not mutate the base loraValues object', ()
   const baseCfg = base.stage1.cfg;
   applyOverrides(deepClone(base), 's1.cfg', 99.9, null, null);
   assert.strictEqual(base.stage1.cfg, baseCfg, 'base loraValues must not be mutated');
+});
+
+// ── S267 INTELLIGENCE PASS — new tests ──────────────────────────────────────
+console.log('\nS267 — Intelligence Pass (length, chaos bands, DIAL invariant, persistence)');
+
+// T-PERSIST — Story 1 ───────────────────────────────────────────────────────
+test('T-PERSIST-01: main.js declares electron-store schema for all 17 Tier A keys', () => {
+  const expectedKeys = [
+    's1-dr34mlay-str','s2-dr34mlay-str','s1-k3nk-str','s2-k3nk-str',
+    's1-steps','s2-steps','s1-cfg','s2-cfg','chaos-pct',
+    'resolution-select','fps-select','runs-select','length-select',
+    'stage-1-toggle','stage-2-toggle','seed-mode','seed-value',
+  ];
+  for (const key of expectedKeys) {
+    assert.ok(mainSrc.includes(`'${key}'`), `schema must include key ${key}`);
+  }
+});
+test('T-PERSIST-02: prefs IPC handlers registered (getPrefs/setPref/resetPrefs)', () => {
+  assert.ok(mainSrc.includes("'wan:getPrefs'"),   'wan:getPrefs handler must exist');
+  assert.ok(mainSrc.includes("'wan:setPref'"),    'wan:setPref handler must exist');
+  assert.ok(mainSrc.includes("'wan:resetPrefs'"), 'wan:resetPrefs handler must exist');
+});
+test('T-PERSIST-03: electron-store schema rejects out-of-range CFG (validate-then-persist)', () => {
+  assert.ok(/'s1-cfg':\s*{[^}]*minimum:\s*1[^}]*maximum:\s*10/.test(mainSrc),
+    'S1 CFG schema must specify min/max bounds (rejects NaN + out-of-range)');
+});
+test('T-PERSIST-04: clearInvalidConfig set true (Grumpy R7 #6 — graceful corruption recovery)', () => {
+  assert.ok(/clearInvalidConfig:\s*true/.test(mainSrc),
+    'electron-store must use clearInvalidConfig to recover from malformed config.json');
+});
+test('T-PERSIST-05: renderer wires AbortController-aware debounce (Upgrade #2)', () => {
+  assert.ok(renderSrc.includes('_persistAbort') && renderSrc.includes('AbortController'),
+    'persistPref must use AbortController for cancellation on beforeunload');
+});
+
+// T-LENGTH — Story 3 ────────────────────────────────────────────────────────
+test('T-LENGTH-01: comfy.js injectPlaceholders accepts length param', () => {
+  assert.ok(/function injectPlaceholders\([^)]*\blength\b/.test(combSrc),
+    'injectPlaceholders signature must accept length');
+});
+test('T-LENGTH-02: length injected by class_type on WanImageToVideo/Wan22ImageToVideoLatent (Grumpy R7 #2)', () => {
+  // Must be class_type-based, NOT a {{LENGTH}} token (the fictional mechanism)
+  assert.ok(/class_type === 'WanImageToVideo'[\s\S]{0,500}node\.inputs\.length\s*=\s*length/.test(combSrc),
+    'length must be injected on the latent class_type, matching width/height pattern');
+});
+test('T-LENGTH-03: 4n+1 rule validation present', () => {
+  assert.ok(/length\s*-\s*1\)\s*%\s*4/.test(combSrc),
+    'injectPlaceholders must validate length satisfies 4n+1');
+});
+test('T-LENGTH-04: NO {{LENGTH}} token in workflow JSON (literal stays valid)', () => {
+  const wfRaw = fs.readFileSync(path.join(WORKFLOW_DIR, 'i2v_14B_2stage.json'), 'utf8');
+  assert.ok(!wfRaw.includes('{{LENGTH}}'),
+    'workflow must NOT contain a {{LENGTH}} token — class_type injection only');
+});
+test('T-LENGTH-05: length-select dropdown offers 4n+1 values (49/81/97/121)', () => {
+  for (const v of ['49','81','97','121']) {
+    assert.ok(indexHtml.includes(`value="${v}"`), `length-select must include value="${v}"`);
+  }
+});
+test('T-LENGTH-06: index.html length-select id present in OUTPUT card', () => {
+  assert.ok(indexHtml.includes('id="length-select"'), 'length-select dropdown must exist');
+});
+
+// T-RANGE — Story 2 ─────────────────────────────────────────────────────────
+test('T-RANGE-01: S1 LoRA strength max extended to 2.0', () => {
+  assert.ok(/id="s1-dr34mlay-str"[^>]*max="2"/.test(indexHtml), 'S1 DR34MLAY max=2');
+  assert.ok(/id="s1-k3nk-str"[^>]*max="2"/.test(indexHtml),     'S1 K3NK max=2');
+});
+test('T-RANGE-02: S2 LoRA strength max extended to 1.5', () => {
+  assert.ok(/id="s2-dr34mlay-str"[^>]*max="1\.5"/.test(indexHtml), 'S2 DR34MLAY max=1.5');
+  assert.ok(/id="s2-k3nk-str"[^>]*max="1\.5"/.test(indexHtml),     'S2 K3NK max=1.5');
+});
+test('T-RANGE-03: CFG defaults corrected to workflow JSON values (Grumpy R7 #7)', () => {
+  assert.ok(/id="s1-cfg"[^>]*value="3\.5"/.test(indexHtml), 'S1 CFG default 3.5 (matches workflow node 13)');
+  assert.ok(/id="s2-cfg"[^>]*value="6"/.test(indexHtml),    'S2 CFG default 6.0 (matches workflow node 14)');
+});
+test('T-RANGE-04: CFG max capped at 10 (no exposure of pure blowout zone)', () => {
+  assert.ok(/id="s1-cfg"[^>]*max="10"/.test(indexHtml), 'S1 CFG max=10');
+  assert.ok(/id="s2-cfg"[^>]*max="10"/.test(indexHtml), 'S2 CFG max=10');
+});
+test('T-RANGE-05: steps floor lifted to 5 (sub-5 is guaranteed nonsense)', () => {
+  assert.ok(/id="s1-steps"[^>]*min="5"/.test(indexHtml), 'S1 steps min=5');
+  assert.ok(/id="s2-steps"[^>]*min="5"/.test(indexHtml), 'S2 steps min=5');
+});
+
+// T-CHAOS — Story 4 ─────────────────────────────────────────────────────────
+test('T-CHAOS-01: CHAOS_BANDS registry exists with 8 entries (Grumpy R7 #5)', () => {
+  const expectedPaths = [
+    's1.dr34mlayStr','s2.dr34mlayStr','s1.k3nkStr','s2.k3nkStr',
+    's1.cfg','s2.cfg','s1.steps','s2.steps',
+  ];
+  for (const p of expectedPaths) {
+    assert.ok(renderSrc.includes(`'${p}'`), `CHAOS_BANDS must include path ${p}`);
+  }
+});
+test('T-CHAOS-02: applyChaos returns clampLog attached to result', () => {
+  assert.ok(/_chaosClampLog\s*=\s*clampLog/.test(renderSrc),
+    'applyChaos must attach clampLog to returned loraValues for report inclusion');
+});
+test('T-CHAOS-03: applyChaos calls appendLog when clamps fire (visible to user)', () => {
+  assert.ok(/clampLog\.length\s*>\s*0[\s\S]{0,150}appendLog/.test(renderSrc),
+    'visible appendLog must fire when chaos clamps any value');
+});
+test('T-CHAOS-04: chaosWithinBand respects band.integer flag for steps', () => {
+  assert.ok(/band\.integer\s*\?\s*Math\.round/.test(renderSrc),
+    'steps must be Math.round, others parseFloat-toFixed(2)');
+});
+test('T-CHAOS-05: CHAOS_BANDS doc comment names current LoRA configuration', () => {
+  assert.ok(/CHAOS_BANDS[\s\S]{0,400}DR34MLAY[\s\S]{0,200}action/i.test(renderSrc),
+    'CHAOS_BANDS must document that bands are tuned for current action LoRAs');
+});
+
+// T-DIAL-NOCLAMP — Story 4 invariant (Grumpy R7 #1) ─────────────────────────
+test('T-DIAL-NOCLAMP: runBatch must NOT call applyChaos (DIAL/PROD bypass invariant)', () => {
+  // Extract the runBatch function body and verify applyChaos is NOT called inside
+  const m = renderSrc.match(/async function runBatch\([^]*?\n\}/);
+  assert.ok(m, 'runBatch must be defined');
+  assert.ok(!/applyChaos\s*\(/.test(m[0]),
+    'runBatch must never call applyChaos — DIAL/PROD jobs explore outside chaos bands');
+});
+
+// T-REPORT — buildReport v2 (Grumpy R7 #3) ──────────────────────────────────
+test('T-REPORT-01: buildReport accepts length + chaosPercent + chaosClampLog', () => {
+  assert.ok(/function buildReport\([^)]*length[^)]*chaosPercent[^)]*chaosClampLog/.test(renderSrc),
+    'buildReport signature must include length, chaosPercent, chaosClampLog');
+});
+test('T-REPORT-02: REPORT_VERSION header present (future diff compatibility)', () => {
+  assert.ok(/REPORT_VERSION\s*:\s*2/.test(renderSrc),
+    'report must include REPORT_VERSION : 2 header');
+});
+test('T-REPORT-03: report emits FRAMES line with duration calc', () => {
+  assert.ok(/FRAMES\s+:.*length/.test(renderSrc) && /length\s*\/\s*fps/.test(renderSrc),
+    'report must include FRAMES field with ~Ns duration computed from length/fps');
 });
 
 // ── Summary ──────────────────────────────────────────────────────────────────

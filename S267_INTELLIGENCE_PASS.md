@@ -1,380 +1,376 @@
-# S267 — INTELLIGENCE PASS
-> **Council deliverable. NO CODE YET. Audit-ready plan grounded in NotebookLM research + verified code state.**
+# S267 — INTELLIGENCE PASS (v3 — Post Grumpy R7)
+> **Council deliverable, FORGE-READY. Grumpy R7 burned (4🔴 + 4🟡 + 2🟢). All flags addressed in this revision.**
 
 ```
-TYPE........: COUNCIL_PLAN // S267_INTELLIGENCE_PASS.md
+TYPE........: COUNCIL_PLAN_v3 // S267_INTELLIGENCE_PASS.md
 AUTHORITY...: ARCHITECT [❖] // CARTOGRAPHER [⌂] (Cla⌂de, Citadel)
-SUMMARY.....: Retune Zoetrope's defaults, slider ranges, and chaos math
-              using community-validated Wan 2.2 14B research. Apply MoE
-              stage-aware LoRA presets. Solve the 24fps problem properly.
 SESSION.....: S267
 CREATED.....: 2026-05-21
-PRECEDED BY.: S266 P2 (MAINFRAME reskin) — commit 624cd5b, shipped + approved
-SUCCEEDS....: BACKLOG v-next-001 through v-next-005 (all folded in below)
+REVISIONS...: v1 → v2 (Brandon's "no defaults" + "leave FPS" calls)
+              v2 → v3 (Grumpy R7 — 10 flags, 2 upgrades, all adopted)
+PRECEDED BY.: S266 P2 (commit 624cd5b) + baseline lock (0f49a14)
+FORGE STATUS: GREEN — Brandon delegated full architect autonomy
+              "i have no CLUE what any of this means, you're in charge brotha"
 ```
 
 ---
 
-## ⛬ THE THESIS
+## ⛬ THE FOUR STORIES (forge-ready)
 
-Zoetrope's UI is now beautiful (S266) and structurally sound. But **the defaults, slider ranges, and chaos math underneath are naive**. Three rounds of NotebookLM research on Wan 2.2 14B revealed:
+### Story 1 — Universal value persistence (electron-store backed)
 
-1. **We're shipping CFG defaults that trigger color blowout** (renderer 7.0 / 7.0 vs workflow's correct 3.5 / 6.0).
-2. **We're treating the MoE architecture as if it's symmetric** when the model expects asymmetric stage routing — and the LoRAs themselves ship separate HIGH/LOW tensor files that prove it.
-3. **The 24fps option in our FPS dropdown is a lie** (Wan 2.2 14B can't generate at 24fps; that setting only re-encodes the same frames faster).
-4. **The chaos dampener constants are guesses** (0.3 / 0.2 / 0.15) when validated safe zones now exist.
-5. **The length is hardcoded to 81** with no UI exposure of the model's 4n+1 sweet spots.
+**Goal:** Every Tier A UI knob remembers its last position across launches. Persistence layer is JSON-schema-validated, atomic-write-safe on Windows, and survives kill-9 mid-write.
 
-S267 — INTELLIGENCE PASS — applies the research. The model's wisdom becomes UI wisdom.
+**Tier A controls (13 total — Grumpy Flag #4 promoted toggles):**
+| Key | Element | Type |
+|---|---|---|
+| `s1-dr34mlay-str` | LoRA strength slider | number |
+| `s2-dr34mlay-str` | LoRA strength slider | number |
+| `s1-k3nk-str` | LoRA strength slider | number |
+| `s2-k3nk-str` | LoRA strength slider | number |
+| `s1-steps` | Steps slider | integer |
+| `s2-steps` | Steps slider | integer |
+| `s1-cfg` | CFG slider | number |
+| `s2-cfg` | CFG slider | number |
+| `chaos-pct` | Chaos % slider | integer |
+| `resolution-select` | Resolution dropdown | string |
+| `fps-select` | FPS dropdown | integer (string-coerced) |
+| `runs-select` | Runs dropdown | integer (string-coerced) |
+| `length-select` | Length dropdown (added Story 3) | integer (string-coerced) |
+| `stage-1-toggle` | Stage 1 enable checkbox | boolean (Grumpy #4) |
+| `stage-2-toggle` | Stage 2 enable checkbox | boolean (Grumpy #4) |
+| `seed-mode` | RANDOM/fixed seed mode | enum: "random" \| "fixed" (Grumpy #4) |
+| `seed-value` | Fixed seed value (when mode=fixed) | integer (Grumpy #4) |
+
+**Storage:** `electron-store` writes to `app.getPath('userData')` → `%APPDATA%\zoetrope\config.json` on Windows (Grumpy #9 — electron-store handles atomic write + EPERM retry on Windows).
+
+**Implementation (Upgrades #1 + #2 adopted):**
+
+*main.js:*
+```js
+const Store = require('electron-store');
+const prefsSchema = {
+  's1-dr34mlay-str': { type: 'number', minimum: 0, maximum: 2,    default: 0.7 },
+  's2-dr34mlay-str': { type: 'number', minimum: 0, maximum: 1.5,  default: 0.7 },
+  's1-k3nk-str':     { type: 'number', minimum: 0, maximum: 2,    default: 0.5 },
+  's2-k3nk-str':     { type: 'number', minimum: 0, maximum: 1.5,  default: 0.5 },
+  's1-steps':        { type: 'integer', minimum: 5,  maximum: 50,  default: 20 },
+  's2-steps':        { type: 'integer', minimum: 5,  maximum: 50,  default: 20 },
+  's1-cfg':          { type: 'number', minimum: 1,  maximum: 10,  default: 3.5 },
+  's2-cfg':          { type: 'number', minimum: 1,  maximum: 10,  default: 6.0 },
+  'chaos-pct':       { type: 'integer', minimum: 0,  maximum: 100, default: 0  },
+  'resolution-select': { type: 'string', default: '832x480' },
+  'fps-select':      { type: 'string', default: '16' },
+  'runs-select':     { type: 'string', default: '1' },
+  'length-select':   { type: 'string', default: '81' },
+  'stage-1-toggle':  { type: 'boolean', default: true },
+  'stage-2-toggle':  { type: 'boolean', default: true },
+  'seed-mode':       { type: 'string', enum: ['random','fixed'], default: 'random' },
+  'seed-value':      { type: 'integer', minimum: 0, default: 42 },
+};
+const prefs = new Store({ name: 'config', schema: prefsSchema, clearInvalidConfig: true });
+
+ipcMain.handle('wan:getPrefs',  () => prefs.store);
+ipcMain.handle('wan:setPref',   (e, key, value) => { prefs.set(key, value); });
+ipcMain.handle('wan:resetPrefs', () => { prefs.clear(); });
+```
+
+*preload.js bridge:*
+```js
+getPrefs:  () => ipcRenderer.invoke('wan:getPrefs'),
+setPref:   (key, value) => ipcRenderer.invoke('wan:setPref', key, value),
+resetPrefs:() => ipcRenderer.invoke('wan:resetPrefs'),
+```
+
+*renderer.js init (AbortController-aware debounce — Upgrade #2):*
+```js
+let _persistAbort = null;
+function persistPref(key, value) {
+  if (_persistAbort) _persistAbort.abort();
+  _persistAbort = new AbortController();
+  const signal = _persistAbort.signal;
+  setTimeout(() => {
+    if (signal.aborted) return;
+    window.wan.setPref(key, value).catch(err => appendLog('error', `persist ${key}: ${err.message}`));
+  }, 200);
+}
+window.addEventListener('beforeunload', () => { _persistAbort?.abort(); });
+
+async function restorePrefs() {
+  const stored = await window.wan.getPrefs();
+  for (const [key, value] of Object.entries(stored)) {
+    const el = document.getElementById(key);
+    if (!el) continue;
+    if (el.type === 'checkbox') el.checked = value;
+    else el.value = value;
+    el.dispatchEvent(new Event('input',  { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  // seed-mode + seed-value handled separately — they're a paired state machine
+  applySeedMode(stored['seed-mode'], stored['seed-value']);
+}
+```
+
+**Wire-up:** every Tier A control's existing change/input listener gets a `persistPref(el.id, el.value)` call appended. For toggles, `persistPref('stage-1-toggle', el.checked)`. For seed-mode/seed-value, the `seedToggle` button click handler writes both keys.
+
+**Validation note (Grumpy Flag #6):** electron-store's JSON schema validates every `set()`. NaN, out-of-range, or wrong-type values are REJECTED by the schema — the call throws, persistPref catches, appendLog logs, prior value untouched. **Validate-then-persist is enforced by the store itself.** No custom validation layer needed.
+
+**Coexistence with Presets + Seed Bank:** ambient prefs load first on init (`restorePrefs`). If user clicks "Load Preset" after, preset values overlay ambient — same `dispatchEvent` cascade, persistPref fires on each, ambient updates to match. No race.
+
+**Acceptance criteria:**
+- AC-PERSIST-01: Change any Tier A control → close app → relaunch → control restored to changed value
+- AC-PERSIST-02: Toggle `stage-1-toggle` OFF → close → relaunch → still OFF (Grumpy #4)
+- AC-PERSIST-03: Set fixed seed = 12345 → close → relaunch → fixed-seed mode restored with value 12345 (Grumpy #4)
+- AC-PERSIST-04: Delete `%APPDATA%\zoetrope\config.json` → launch → all controls restore from schema defaults
+- AC-PERSIST-05: Manually corrupt `config.json` (random bytes) → launch → schema rejects, `clearInvalidConfig: true` resets to defaults, app doesn't crash
+- AC-PERSIST-06: Schema rejection of out-of-range value (e.g. CFG = 99) doesn't overwrite prior good stored value
+
+**Manual smoke gate (Grumpy Flag #8):** Between Story 1 commit and Story 2 commit, run this exact sequence:
+1. Kill Electron
+2. Delete `%APPDATA%\zoetrope\config.json` if it exists
+3. Launch
+4. Touch every Tier A control with deliberate values (CFG=4.2, LoRA=0.85, chaos=23, etc.)
+5. Kill Electron
+6. Verify `config.json` exists and contains all 13+ keys
+7. Launch
+8. Confirm every slider/toggle/dropdown matches the deliberate values
+9. **Only then proceed to Story 2.**
 
 ---
 
-## 📚 THE RESEARCH (verbatim from NotebookLM, 2026-05-21)
+### Story 2 — Slider range extension + CFG default correction
 
-> Captured here in full because future Cla⌂de will need to re-justify decisions and the research is the source of truth. If anything in this plan contradicts the research below, the research wins.
+**Goal:** Sliders can reach the research-validated meaningful ranges. **CFG HTML defaults corrected to match the workflow JSON** (Grumpy Flag #7 — data correctness, not default-programming).
 
-### Q1 — Higher-fps output pipeline
+**HTML edits in `index.html` (line numbers from current state):**
 
-**(a) Frame-Rate-Aware Conditioning in Wan 2.2**
-Wan 2.2 14B does NOT have frame-rate-aware conditioning. Hard-limited to **16 FPS native** generation. No parameter or prompt adjustment can change this. The Wan 2.2 **5B TI2V** hybrid model IS natively 24fps-capable — but that's a different model entirely.
+| Selector | Line | Current | New | Reason |
+|---|---|---|---|---|
+| `#s1-dr34mlay-str` | 139 | `min="0" max="1" step="0.01" value="0.7"` | `min="0" max="2" step="0.05" value="0.7"` | Action-LoRA S1 reaches 1.5-2.0; coarser step per research |
+| `#s2-dr34mlay-str` | 176 | `min="0" max="1" step="0.01" value="0.7"` | `min="0" max="1.5" step="0.05" value="0.7"` | Type-agnostic cap (cushion for character LoRAs too) (Grumpy #10) |
+| `#s1-k3nk-str` | 145 | `min="0" max="1" step="0.01" value="0.5"` | `min="0" max="2" step="0.05" value="0.5"` | Same as DR34MLAY S1 |
+| `#s2-k3nk-str` | 182 | `min="0" max="1" step="0.01" value="0.5"` | `min="0" max="1.5" step="0.05" value="0.5"` | Same as DR34MLAY S2 |
+| `#s1-steps` | 151 | `min="1" max="50" step="1" value="20"` | `min="5" max="50" step="1" value="20"` | Below 5 is guaranteed nonsense |
+| `#s2-steps` | 188 | `min="1" max="50" step="1" value="20"` | `min="5" max="50" step="1" value="20"` | Same |
+| `#s1-cfg` | 157 | `min="1" max="20" step="0.5" value="7"` | `min="1" max="10" step="0.1" value="3.5"` | **CFG DEFAULT FIX** (Grumpy #7); workflow JSON specifies 3.5 |
+| `#s2-cfg` | 194 | `min="1" max="20" step="0.5" value="7"` | `min="1" max="10" step="0.1" value="6"` | **CFG DEFAULT FIX** (Grumpy #7); workflow JSON specifies 6.0 |
 
-**(b) Failure Modes**
-- **VHS_VideoCombine at higher fps** = playback metadata only. Same frames, faster playback. 24fps = 50% speedup over 16fps native.
-- **Frame interpolation** = solves timing, but RIFE specifically can introduce smearing/motion artifacts on fast movements.
+**LoRA strength HTML defaults UNCHANGED** — respecting Brandon's "no defaults" rule strictly. Persistence overrides them after first touch.
 
-**(c) Community-Blessed Pipeline**
-Stay in ComfyUI via **ComfyUI-Frame-Interpolation** custom node suite. Wire a VFI node between VAE Decoder and VHS_VideoCombine.
-- **RIFE VFI** (`rife47.pth`): most common. **Trick for 24fps:** RIFE 16→32, VHS drops to 24 target = smooth.
-- **FILM VFI / GIMM VFI**: higher quality (less smearing). **GIMM is the community pick** — FILM quality at significantly faster process speed.
-
-### Q2 — LoRA × MoE Stage Asymmetry
-
-**Stage 1 (High-Noise, σ≈1.0→0.9):** spatial-temporal scaffolding. Global layout, motion vectors, coarse shapes.
-**Stage 2 (Low-Noise, σ≈0.9→0.0):** refinement. Facial fidelity, fine textures, skin, micro-motions.
-
-**Loading High S1 / Low S2 = "Motion Override":** good for injecting custom movements, enforcing composition. Too much breaks Wan's native motion planning — stiff camera, rigid subjects, collapsed fluid dynamics. Power users push 1.5-2.0 in S1 only with caution.
-
-**Loading Low S1 / High S2 = "Detail Painting":** lets base model handle motion naturally, S2 paints LoRA details over fluid subjects. Best for character/style. Danger only if LoRA fundamentally changes subject shape (human→monster) — then S1 must carry some weight or you get anatomical glitches.
-
-**Recipe 1 — CHARACTER / AESTHETIC LoRA:** S1 = 0.0-0.4, S2 = 0.8-1.0.
-**Recipe 2 — MOTION / ACTION LoRA:** S1 = 1.0+, S2 = 0.0-0.4.
-**Recipe 3 — SPEED LoRA (Lightning/Lightx2v):** 1.0 on both OR 2.0+ on S1; **CFG hard-locked to 1.0**.
-
-### Q3 — Meaningful Parameter Ranges
-
-**(a) CFG Ceiling:**
-- S1 above 5.0-5.5 → stiff faces, rigid movement, lost dynamic motion.
-- S2 above 6.0, definitively 7.0 → color blowout, oversaturation, deep-fried artifacts.
-- **Sweep safe zone: 3.5–5.5.**
-- Speed LoRA exception: CFG must be **exactly 1.0**.
-
-**(b) Step Floor:**
-- Absolute floor: **12 steps in S1**.
-- Below 10 total (without speed hacks) = blurring, no coherent motion.
-- Sweep floor 15 (8H/7L). Reliable start: 20. **Diminishing returns above 30.** Cap 30-40.
-
-**(c) LoRA Delta Sensitivity:**
-- 0.05 increments = wasted compute for exploration.
-- **0.1-0.2 increments** for batch sweeps.
-- 0.05 only for precision fine-tune after sweet spot isolated.
-- Style LoRA peak: **0.4-0.8.**
-- Character/Identity LoRA peak: **0.7-1.2.**
-- Motion LoRA at S1 can reach **1.5-2.0.**
-
-### Q4 — Length / 4n+1 (research from earlier turn)
-
-| Frames | Duration @ 16fps | Notes |
-|---|---|---|
-| 49  | ~3.0s   | Faster gen, less motion |
-| 81  | ~5.0s   | **Default sweet spot** |
-| 97  | ~6.0s   | Solid |
-| 121 | ~7.5s   | **Upper limit** — degrades past this |
-
-Must satisfy `frames = 4n + 1` (Wan 2.2 3D VAE constraint). Any other value degrades output.
+**Acceptance criteria:**
+- AC-RANGE-01: Each slider's max attribute matches table
+- AC-RANGE-02: Each slider's step value matches table
+- AC-RANGE-03: CFG sliders default to 3.5 / 6.0 on fresh launch (no config.json)
+- AC-RANGE-04: Persisted value from old range (e.g. config.json has `s1-cfg: 7`) loads cleanly into new range (7 ∈ [1,10] = valid)
 
 ---
 
-## 🔬 CURRENT-STATE AUDIT (verified against live code 2026-05-21)
+### Story 3 — Length dropdown (4n+1) with class_type injection
 
-### Critical defaults are wrong
+**Goal:** Expose Wan 2.2's 4 valid length values. **Use the existing class_type injection pattern (Grumpy Flag #2) — no fictional `{{LENGTH}}` token.**
 
-| Param | Workflow JSON | Renderer Slider Default | Research Says |
-|---|---|---|---|
-| **S1 CFG** | `3.5` (workflow node 13:165) | `7.0` (index.html:157) | **3.5 is correct, slider is wrong** |
-| **S2 CFG** | `6.0` (workflow node 14:195) | `7.0` (index.html:194) | **6.0 is at the cliff, 5.5 is safer** |
-| **S1 steps** | `51 total, end_at_step:20` (node 13) | `20` (index.html:151) | Renderer's 20 is OK (matches end_at_step) |
-| **S2 steps** | `51 total, start_at_step:20` (node 14) | `20` (index.html:188) | OK |
-| **S1 DR34MLAY** | `0.8` (node 6:46) | `0.7` (index.html:139) | Research: **0.0-0.4** (character pattern) |
-| **S2 DR34MLAY** | `0.8` (node 7:57) | `0.7` (index.html:176) | Research: **0.8-1.0** (character pattern) |
-| **S1 K3NK** | `0.8` (node 18:73) | `0.5` (index.html:145) | Research: **1.0+** (motion pattern) |
-| **S2 K3NK** | `0.8` (node 19:84) | `0.5` (index.html:182) | Research: **0.0-0.4** (motion pattern) |
-| **length** | `81` (node 10:131) | n/a (no UI) | **OK as default, needs UI exposure of 49/97/121** |
-| **frame_rate** | `16` (node 17:239) | dropdown 8/12/16/24 | **24 is a lie without interpolation** |
+**HTML add to OUTPUT card (`index.html` between resolution and fps rows):**
+```html
+<div class="output-row">
+  <label class="output-label" for="length-select">LENGTH</label>
+  <select class="output-select" id="length-select" title="Wan 2.2 frame count (4n+1 rule)">
+    <option value="49">49 frames — ~3s</option>
+    <option value="81" selected>81 frames — ~5s</option>
+    <option value="97">97 frames — ~6s</option>
+    <option value="121">121 frames — ~7.5s (max)</option>
+  </select>
+</div>
+```
 
-### Slider range failures
+**Renderer (`renderer.js`):**
+- Add `getLength()` helper: `parseInt(document.getElementById('length-select').value, 10) || 81`
+- Thread `length` through `startGeneration(seed, prompt, runNum, totalRuns, loraValuesOverride, widthOverride, heightOverride, fpsOverride, chaosApplied, lengthOverride)` signature
+- Pass to `ComfyClient.generate({..., length, ...})`
 
-| Slider | Current min/max | Issue |
-|---|---|---|
-| LoRA strengths (4 sliders) | `0.0 – 1.0` | Caps too tight. Motion LoRAs need 1.5-2.0 in S1, character LoRAs hit 1.2. |
-| CFG (2 sliders) | `1.0 – 20.0` | Massively past safe zone. No danger-zone visual cue. |
-| Steps (2 sliders) | `1 – 50` | OK upper, no floor warning below 12 (motion collapse). |
-| Chaos | `0 – 100` | Fine — but underlying chaos math is hand-picked. |
+**Comfy bridge (`comfy.js`):** add `length` to the function signature, then inject by `class_type` in `injectPlaceholders` — pattern identical to width/height (Grumpy Flag #2):
+```js
+// Inside the per-node loop:
+if (length && (node.class_type === 'WanImageToVideo' || node.class_type === 'Wan22ImageToVideoLatent')) {
+  node.inputs.length = length;
+}
+```
 
-### LoRA file inspection — the architecture is telling us something
+**Workflow JSON** stays valid for standalone ComfyUI use — `length: 81` literal remains; renderer overrides at inject time (Grumpy #2 fix).
 
-The workflow loads FOUR separate LoRA tensor files:
+**Report (`buildReport`)** — Grumpy Flag #3 itemized fix:
+- New param: `length`
+- New OUTPUT SETTINGS line: `FRAMES      : 81 (~5.0s @ 16fps)`
+- Caller at renderer.js:534 threads `length` through
 
-| Node | LoRA file | Stage | Apparent type |
-|---|---|---|---|
-| 6 | `DR34ML4Y_I2V_14B_HIGH-20250908202326.safetensors` | S1 high-noise | Character/aesthetic |
-| 7 | `DR34ML4Y_I2V_14B_LOW-20250908202331.safetensors` | S2 low-noise | Character/aesthetic |
-| 18 | `wan22-ultimatedeepthroat-I2V-34epoc-high-k3nk.safetensors` | S1 high-noise | Motion/concept |
-| 19 | `wan22-ultimatedeepthroat-I2V-16epoc-low-k3nk.safetensors` | S2 low-noise | Motion/concept |
+**Acceptance criteria:**
+- AC-LENGTH-01: Selecting 49 → workflow node 10 receives `length: 49` (verify by intercepted prompt)
+- AC-LENGTH-02: Selecting 81 / 97 / 121 same
+- AC-LENGTH-03: Default 81 if `config.json` missing or value missing
+- AC-LENGTH-04: Report shows `FRAMES : <N> (~<N/16>s @ 16fps)` line
+- AC-LENGTH-05: Regression suite gets T-LENGTH-01 (all 4 values inject correctly via class_type)
 
-**The LoRA authors literally trained separate HIGH/LOW tensors.** The architecture WANTS asymmetric strengths. Our defaults that pretend the two stages are interchangeable are throwing away half the model's expressiveness.
+---
 
-### Chaos dampener constants are arbitrary
+### Story 4 — Smart chaos with stage-aware bands + DIAL invariant
+
+**Goal:** Rewrite `applyChaos()` to use research-validated safe-zone bands tuned for the current action-LoRA configuration. **DIAL/PROD never pass through applyChaos — declared invariant + test (Grumpy Flag #1).**
+
+**Critical doc comment (Grumpy Flag #5 invariant):**
+```js
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CHAOS_BANDS — tuned for CURRENT LoRA configuration (S266 manifest):
+//   • DR34MLAY  = action/motion LoRA (Recipe 2: wide S1, narrow S2)
+//   • K3NK      = action/motion LoRA (Recipe 2: wide S1, narrow S2)
+//
+// ⚠️ IF YOU SWAP A LoRA FILE (renaming .safetensors in workflows/), YOU MUST
+//    REVIEW THESE BANDS. Character LoRAs (Recipe 1) and Speed LoRAs (Recipe 3)
+//    need INVERTED or HARD-LOCKED bands. Type-aware band selection is deferred
+//    to S268; this is a hard-coded snapshot of the current config.
+//
+// Research source: NotebookLM 2026-05-21 (cited in S267_INTELLIGENCE_PASS.md)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const CHAOS_BANDS = {
+  // LoRA STRENGTHS — Recipe 2 (action): wider S1, narrow S2
+  's1.dr34mlayStr': { min: 0.5, max: 2.0, dampener: 0.25 },
+  's2.dr34mlayStr': { min: 0.0, max: 0.8, dampener: 0.20 },
+  's1.k3nkStr':     { min: 0.5, max: 2.0, dampener: 0.25 },
+  's2.k3nkStr':     { min: 0.0, max: 0.8, dampener: 0.20 },
+  // CFG — stays in safe zone (research Q3a: 3.5-5.5 sweep window)
+  's1.cfg':         { min: 3.5, max: 5.5, dampener: 0.30 },
+  's2.cfg':         { min: 4.0, max: 6.0, dampener: 0.30 },
+  // STEPS — respects 12-step S1 floor + diminishing-returns ceiling
+  's1.steps':       { min: 12, max: 30, dampener: 0.30, integer: true },
+  's2.steps':       { min: 8,  max: 25, dampener: 0.30, integer: true },
+};
+```
+
+**Bands are PERMISSIVE — current HTML defaults fall inside them:**
+- S1 DR34MLAY @ 0.7 ∈ [0.5, 2.0] ✅
+- S2 DR34MLAY @ 0.7 ∈ [0.0, 0.8] ✅ (just inside)
+- S1 K3NK @ 0.5 ∈ [0.5, 2.0] ✅ (at floor)
+- S2 K3NK @ 0.5 ∈ [0.0, 0.8] ✅
+- S1 steps @ 20 ∈ [12, 30] ✅
+- S1 CFG @ 3.5 ∈ [3.5, 5.5] ✅ (at floor)
+- S2 CFG @ 6.0 ∈ [4.0, 6.0] ✅ (at ceiling)
+
+→ With chaos = 0, all current values pass through unchanged. Clamping only fires if user sets sliders OUTSIDE bands and then turns chaos on.
+
+**The rewrite (`renderer.js:623-634`):**
+```js
+function chaosWithinBand(baseValue, pct, band) {
+  if (pct === 0) return baseValue;  // chaos = 0 honors user setting exactly
+  const width = band.max - band.min;
+  const deviation = (Math.random() * 2 - 1) * width * band.dampener * (pct / 100);
+  const result = baseValue + deviation;
+  const clamped = Math.max(band.min, Math.min(band.max, result));
+  return band.integer ? Math.round(clamped) : parseFloat(clamped.toFixed(2));
+}
+
+function applyChaos(loraValues, chaosPercent) {
+  const lv = JSON.parse(JSON.stringify(loraValues));
+  const clampLog = [];  // for visibility (Brandon's call)
+  for (const [path, band] of Object.entries(CHAOS_BANDS)) {
+    const [stage, param] = path.split('.');
+    const before = lv[stage][param];
+    const after  = chaosWithinBand(before, chaosPercent, band);
+    lv[stage][param] = after;
+    // Visible clamp log when band actually fired
+    if (chaosPercent > 0 && (before < band.min || before > band.max)) {
+      clampLog.push(`${stage.toUpperCase()} ${param}: ${before.toFixed(2)} → ${after.toFixed(2)} (band [${band.min}, ${band.max}])`);
+    }
+  }
+  // Surface clamp activity via appendLog so user SEES why values moved
+  if (clampLog.length > 0) {
+    appendLog('chaos', `chaos band clamps: ${clampLog.join(' · ')}`);
+  }
+  lv._chaosClampLog = clampLog;  // attach for buildReport
+  return lv;
+}
+```
+
+**DIAL/PROD invariant (Grumpy Flag #1):**
 
 ```js
-// renderer.js:600-621
-// Dampener 0.3: at 100% chaos, max deviation = ±30% of [min,max] range
-// Dampener 0.2: at 100% chaos, CFG deviates ±2.8
-// Dampener 0.15: at 100% chaos, steps deviate ±9
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// INVARIANT — DIAL and PROD jobs MUST NOT pass through applyChaos.
+// DIAL's whole purpose is exploring OUTSIDE safe-zone bands. Clamping them
+// into the chaos bands would make DIAL a no-op for any axis past the wall.
+//
+// Enforcement: runBatch() directly calls ComfyClient.generate(job.loraValues)
+// — NO applyChaos step. Only the single-run path (runAllJobs) AND the queue
+// dispatch (renderer.js:1007) gate chaos behind `job.chaos > 0`.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-These were hand-picked by Aeris/S259 with no community grounding. Research gives us:
-- LoRA delta sensitivity: 0.1 = meaningful, 0.05 = noise. Current 0.3 max deviation at 100% chaos is 6× the noise floor — possibly too aggressive.
-- CFG safe zone 3.5-5.5 (width 2.0). Current 0.2 dampener gives ±2.8 at 100% — exits the safe zone entirely.
-- Steps: floor 12, ceiling ~30. Current ±9 at 100% can drive below the motion-collapse floor.
-
-Chaos is currently a **menace, not a friend**. Tuning these constants to safe zones turns chaos from "Russian roulette" into "guided exploration."
-
----
-
-## 🎯 THE STORIES (proposed for Phase 2 Forge)
-
-Ranked by impact-per-effort. Each story is self-contained and committable.
-
-### Tier 1 — DON'T-SHIP-WITHOUT bug fixes
-
-**Story 1.1 — Fix CFG defaults to match the workflow's correct values.**
-- index.html:157 `value="7"` → `value="3.5"` for `#s1-cfg`
-- index.html:194 `value="7"` → `value="6"` for `#s2-cfg` (or 5.5 for tighter safety)
-- index.html:157, 194 `max="20"` → `max="10"` (no reason to expose blowout zone)
-- index.html:157, 194 `step="0.5"` → `step="0.1"` (research shows the 0.5-step is too coarse for the 3.5-5.5 sweep window)
-- Touch: `index.html` only. Verify renderer.js doesn't override after init.
-- **Impact:** 🔴 CRITICAL — current defaults produce blowout artifacts on every gen. Brandon may have been compensating with prompt edits without knowing.
-
-**Story 1.2 — Apply MoE stage-aware LoRA defaults.**
-- index.html:139 `#s1-dr34mlay-str value="0.7"` → `value="0.3"` (Recipe 1, character pattern)
-- index.html:176 `#s2-dr34mlay-str value="0.7"` → `value="0.9"` (Recipe 1)
-- index.html:145 `#s1-k3nk-str value="0.5"` → `value="1.0"` (Recipe 2, motion pattern)
-- index.html:182 `#s2-k3nk-str value="0.5"` → `value="0.3"` (Recipe 2)
-- **Open Q for Brandon:** is K3NK actually a motion LoRA? The filename + 34-epoch HIGH / 16-epoch LOW training ratio strongly suggests motion-heavy (more training on high-noise → more motion-domain weight). But Brandon's intuition wins.
-- **Impact:** 🟡 HIGH — current symmetric defaults are leaving the architecture's expressiveness on the table.
-
-**Story 1.3 — Extend LoRA strength sliders to 1.5 (or 2.0 for S1-only).**
-- index.html:139, 145 (S1 sliders) `max="1"` → `max="2"` (motion LoRAs at S1 can go 2.0)
-- index.html:176, 182 (S2 sliders) `max="1"` → `max="1.5"` (character LoRAs cap at 1.2; cushion to 1.5)
-- All four: `step="0.01"` → `step="0.05"` (research says 0.05 is the fine-tune floor; 0.01 is wasted UI fidelity)
-- **Add visual marking on the slider track:** safe-zone bracket [0.0-1.0] in default rule color, danger-zone [1.0-2.0] in muted amber. CSS-only via `background: linear-gradient(...)` on the track.
-- **Impact:** 🟡 HIGH — unlocks the full expressiveness research describes.
-
----
-
-### Tier 2 — Major UX upgrades
-
-**Story 2.1 — Length dropdown (4n+1 enforced).**
-- Add `<select id="length-select">` to the OUTPUT card (index.html ~L210-243).
-- Options: `49 — ~3s`, `81 — ~5s (default)`, `97 — ~6s`, `121 — ~7.5s (max)`.
-- Renderer threads `length` through `injectPlaceholders` → node 10's `length` field. Pattern mirrors width/height/fps.
-- Update workflow contract: `length` is now a substitutable parameter, not hardcoded.
-- Regression test add: T-LENGTH-01 (49/81/97/121 all inject correctly), T-LENGTH-02 (default 81), T-LENGTH-03 (length-aware export report).
-- **Impact:** 🟡 HIGH — unlocks v-next-003 from backlog.
-
-**Story 2.2 — Frame interpolation pipeline (the real 24fps fix).**
-This is the biggest single story.
-- **Decision branch:**
-  - **Option A (simpler):** Drop 24/30fps from the FPS dropdown. Rename it `PLAYBACK FPS` and add a tooltip: "Wan 2.2 generates at 16fps native. Higher rates here = sped-up playback."
-  - **Option B (full):** Install ComfyUI-Frame-Interpolation custom node. Modify workflow to insert a VFI node (RIFE first, GIMM as a swap-in option) between VAE Decoder (node 16) and VHS_VideoCombine (node 17). Wire UI: FPS dropdown shows 16/24/30; if user picks 24+, set interpolation `multiplier = ceil(target/16)`; VHS drops to target. Update report to log "interpolated 16→32→24" provenance.
-  - **Cla⌂de recommends:** Both. Ship Option A in the next forge (zero new dependencies, honest UX immediately). Ship Option B as a separate council'd phase once Brandon installs ComfyUI-Frame-Interpolation and we verify the node names with `/object_info`.
-- **Open Qs for Brandon:**
-  - Install ComfyUI-Frame-Interpolation now? (10-30MB; checkpoint files for RIFE+GIMM are ~50MB each)
-  - Preferred default: RIFE (faster, slight smear) or GIMM (slower, cleaner)?
-- **Impact:** 🔴 CRITICAL UX — fixes the lie Brandon caught.
-
-**Story 2.3 — Smart chaos with stage-aware dampeners.**
-- Rewrite `applyChaos()` (renderer.js:623-634) to use research-grounded thresholds.
-- Current:
-  ```js
-  lv.stage1.dr34mlayStr = chaosFloat(..., 0, 1);  // ±0.30 at 100%
-  lv.stage1.cfg = chaosCfg(...);                  // ±2.8 at 100%
-  lv.stage1.steps = chaosSteps(...);              // ±9 at 100%
+**Report (`buildReport`) — Grumpy Flag #3 itemized fix:**
+- New params: `length`, `chaosPercent`, `chaosClampLog`
+- New header line: `REPORT_VERSION : 2` (so future diff tools can detect schema)
+- New section if `chaosPercent > 0`:
   ```
-- Proposed:
-  ```js
-  // CHARACTER LoRA (DR34MLAY): wider chaos in S2, narrower in S1
-  lv.stage1.dr34mlayStr = chaosFloatBounded(..., 0.0, 0.4, dampener=0.2);
-  lv.stage2.dr34mlayStr = chaosFloatBounded(..., 0.6, 1.0, dampener=0.25);
-  // MOTION LoRA (K3NK): wider chaos in S1, narrower in S2
-  lv.stage1.k3nkStr     = chaosFloatBounded(..., 0.8, 1.5, dampener=0.25);
-  lv.stage2.k3nkStr     = chaosFloatBounded(..., 0.0, 0.4, dampener=0.2);
-  // CFG: chaos within safe band
-  lv.stage1.cfg         = chaosCfgBounded(..., 3.5, 5.0, dampener=0.3);
-  lv.stage2.cfg         = chaosCfgBounded(..., 4.5, 6.0, dampener=0.3);
-  // Steps: respect 12-step S1 floor
-  lv.stage1.steps       = chaosStepsBounded(..., 12, 30, dampener=0.3);
-  lv.stage2.steps       = chaosStepsBounded(..., 8, 25, dampener=0.3);
+  ──────────────────────────────────────────────────
+    CHAOS
+  ──────────────────────────────────────────────────
+    APPLIED     : 35%
+    CLAMPS      : S2 dr34mlayStr: 0.85 → 0.80 (band [0.0, 0.8])
+                  S1 cfg:        3.2  → 3.50 (band [3.5, 5.5])
   ```
-- Chaos becomes guided exploration within the model's known sweet zones, NOT global ±30% random walk.
-- **Open Q for Brandon:** Per-LoRA chaos bands should be parameterized by LoRA TYPE (character vs motion). Should `applyChaos` consult a LoRA-type registry (file metadata? UI dropdown picking type per LoRA?) OR should the type be inferred from filename heuristics (`high-`/`low-` suffix, LoRA author convention)?
-- **Impact:** 🟡 HIGH — chaos becomes the killer feature it was always supposed to be.
+- If `chaosPercent === 0`: no CHAOS section, no clamps possible.
 
-**Story 2.4 — Chaos lock dropdown (v-next-005 from backlog).**
-- Add multi-select dropdown OR checkbox grid inside `#chaos-card` listing all 8 chaosable params.
-- Locked params skip `applyChaos` in renderer.js → return base value unchanged.
-- Persist lock-set to user-prefs JSON (path: `~/.zoetrope/prefs.json` or alongside the app).
-- UI: checkboxes are simpler than dropdown for 8 items. Consider a "🔒 LOCK STAGE 1" master checkbox + "🔒 LOCK STAGE 2" for quick coarse lock.
-- **Impact:** 🟢 MEDIUM — power-user feature, scoping chaos to specific axes.
-
----
-
-### Tier 3 — Visual polish (lower urgency, high delight)
-
-**Story 3.1 — Image preview after drop (v-next-001 from backlog).**
-- After `copyToInput` succeeds, render thumbnail inside `#drop-zone`.
-- Approach: read the dropped file via FileReader → dataURL → set as `background-image` on `#drop-zone`. Filename label sits below thumb on dark scrim.
-- Click thumb to clear/reset.
-- **Impact:** 🟢 MEDIUM — instant clarity on what's about to bake. High delight per LOC.
-
-**Story 3.2 — LoRA rename UI (v-next-002 from backlog).**
-- Click-to-edit on `.lora-row-label`. Persist mapping `{loraFilename: displayName}` in user-prefs.
-- Workflow JSON references unchanged — only display labels change.
-- **Open Q for Brandon:** Should LoRA names be per-row (S1 / S2 independent labels) or per-LoRA-file (one label that mirrors across stages)?
-- **Impact:** 🟢 MEDIUM — quality-of-life, especially when adding new LoRAs.
-
-**Story 3.3 — Slider danger-zone visual cues.**
-- CSS background-gradient on slider tracks:
-  - LoRA strength: green band 0.0-1.0, amber band 1.0-1.5, red band 1.5-2.0
-  - CFG: green band 1.0-5.5, amber 5.5-7.0, red 7.0+
-  - Steps: red 1-12, amber 12-15, green 15-40, amber 40-50
-- Pure CSS via `linear-gradient` on the `runnable-track` pseudo-elements.
-- **Impact:** 🟢 MEDIUM — the model's wisdom becomes visible.
-
-**Story 3.4 — LoRA-type tagging UI (foundation for Story 2.3's chaos question).**
-- Add small dropdown next to each LoRA label: `CHARACTER | MOTION | STYLE | SPEED`.
-- Default inferred from filename heuristic (`high-`/`low-` ratio + name keywords).
-- Persists to user-prefs. Drives chaos-band selection in `applyChaos`.
-- **Impact:** 🟡 MEDIUM-HIGH — unlocks Story 2.3 cleanly.
+**Acceptance criteria:**
+- AC-CHAOS-01: chaos = 0 → output values equal input values exactly (no clamping fires)
+- AC-CHAOS-02: chaos = 100, 1000 rolls → no param ever exits its band
+- AC-CHAOS-03: Base value OUTSIDE band + chaos > 0 → clamped into band + entry in clampLog
+- AC-CHAOS-04: Base value INSIDE band + chaos > 0 → stays in band, no clampLog entry
+- AC-CHAOS-05: Report shows chaos'd values + CHAOS section with clamps when applicable
+- AC-CHAOS-06: REPORT_VERSION = 2 present in all new reports
+- **AC-DIAL-NOCLAMP**: DIAL job with axis1 value SET TO an out-of-band value (e.g. CFG = 8.0) reaches ComfyUI with that exact value (verify intercepted prompt) — proves DIAL bypasses applyChaos (Grumpy #1)
+- **AC-PROD-NOCLAMP**: PROD job with chaos > 0 enabled on the main panel → PROD's own seed-strider values reach ComfyUI unclamped (PROD doesn't apply chaos to its own seed exploration)
 
 ---
 
-## 🗺️ CASCADE MAP
-
-What this phase changes downstream:
-
-- **Workflow contract** — `length` becomes a substitutable param. Affects `injectPlaceholders` (comfy.js), all regression tests touching node 10's `length`, future workflows must follow same pattern.
-- **Export report format** — needs to log: chosen length, interpolation status (none / RIFE 16→24 / GIMM 16→30), per-LoRA type tags, chaos bands actually used. Existing reports become non-comparable; consider versioning the report header.
-- **DIAL parameter sweep** — currently lets user sweep ANY param. With safe-zone awareness, DIAL should default to safe-zone sweeps. Power-user "expert mode" toggle to unlock unsafe ranges.
-- **PROD mode** — research suggests batch exploration at 0.1 increments. Should PROD's seed-strider expose a "vary one param across the safe zone" preset?
-- **Seed Bank** — when reloading a saved seed, should the per-LoRA-type tags + chaos locks ALSO restore? Yes — the seed alone doesn't reproduce intent.
-- **README + project_brief.md** — current docs say nothing about MoE asymmetry or the 4n+1 rule. Need updating.
-
----
-
-## ⚖️ OCCAM AUDIT
-
-Can this phase be smaller without losing identity?
-
-**Minimum viable INTELLIGENCE PASS:** Stories 1.1, 1.2, 1.3, 2.1, 2.2a (drop 24fps from dropdown), 2.3 (smart chaos). That's 6 stories, all bug-fix-shaped, all touching files we already own. Net ~150-250 lines of code change. One commit, one Grumpy R7 audit, ship.
-
-**Defer to a separate phase:** 2.2b (frame interpolation install), 2.4 (chaos lock UI), 3.1-3.4 (visual polish). These are FEATURES, not BUG-FIXES, and each deserves its own Council pass.
-
-Cla⌂de's recommendation: **ship the 6-story MVP first** (S267 Phase 2 Forge), audit-burn-ship, then sequence the remaining stories one phase per UX addition (S268 onward).
-
----
-
-## 🛐 ALTAR REVIEW
-
-Does this fit the Cathedral?
-
-- **MAINFRAME aesthetic preserved:** all changes are functional — same single-signal palette, same two-font system, same calm field. No new visual vocabulary.
-- **Code-as-Art:** the model's training assumptions become UI invariants. We're not adding features, we're applying physics. That's authoring-as-respect.
-- **Sinner Kingdom fit:** Brandon's pattern — the cathedral honors its tools. Wan 2.2 was trained at 16fps; pretending otherwise is sin. The phase fixes the lie.
-- **Highlander Protocol:** no new files except this plan + the eventual COUNCIL artifact. Workflow JSON gets length parameterization; everything else lives in existing files.
-
----
-
-## 🚪 THE THREE GATES (for Phase 2 Forge)
+## 🛐 THE THREE GATES (for this Forge)
 
 **Gate 1 — Art Gate (personal):**
-> "Would I be proud of these defaults forever? Does this code respect the model's training?"
+> "Would I be proud of these knobs forever? Does this code respect the model's training AND Brandon's hands?"
 
 **Gate 2 — Mechanical Gate (objective):**
-- 200/200 regression suite PASS
-- New tests added: T-LENGTH-01..03, T-CFG-DEFAULTS (3.5 / 6.0), T-LORA-DEFAULTS (Recipe 1 + Recipe 2), T-CHAOS-BANDS (chaos doesn't exceed safe zones)
-- Live smoke test: 1 chaos=0 gen, 1 chaos=50 gen, output reports show in-band values
-- Brandon eyeball confirms output quality improvement on a known-baseline prompt
+- 200/200 existing regression suite PASS
+- New tests added and PASS: T-PERSIST-01..06, T-RANGE-01..04, T-LENGTH-01..05, T-CHAOS-01..06, T-DIAL-NOCLAMP, T-PROD-NOCLAMP
+- Live smoke test: 2 gens (chaos=0 + chaos=50) on a known prompt confirm report shows clamps + new sections
+- Brandon's manual smoke gate between Story 1 and Story 2 passes (see Story 1 spec)
 
 **Gate 3 — Craft Gate (adversarial):**
-- /grumpyopus Round 7 on the changes
-- Hostile audit briefed with: research citations, current-state audit deltas, story-by-story diff
-- Burn all real flags before Promise
+- `/grumpyopus` Round 8 on the implementation after all 4 stories land
+- Burn any real flags before Promise
 
 ---
 
-## ❓ OPEN QUESTIONS FOR BRANDON GREENLIGHT
-
-Before Phase 2 Forge fires, need answers to:
-
-1. **K3NK LoRA type — is it actually motion?** The filename + epoch ratio suggest yes (motion LoRA = Recipe 2 = high S1 / low S2). Default proposed accordingly. ✅ confirm or override.
-
-2. **DR34MLAY LoRA type — character/aesthetic confirmed?** Default proposed as Recipe 1 (low S1 / high S2). ✅ confirm or override.
-
-3. **Phase 2.2 split — ship Option A only (drop 24fps from dropdown, honest UX) first, then a separate phase for Option B (install ComfyUI-Frame-Interpolation + RIFE/GIMM)?** Or all in one push? Cla⌂de votes split.
-
-4. **Frame interpolation install timing — install ComfyUI-Frame-Interpolation custom node now (so 2.2b can land in S267) or defer to S268?** Brandon's call on appetite for ComfyUI plugin churn.
-
-5. **Chaos-band parameterization — should chaos bands be driven by per-LoRA "type" metadata (Story 3.4) OR baked into renderer.js constants for the current two LoRAs?** Type metadata is the clean answer but adds Story 3.4 to the critical path. Hardcoded constants ship faster but rot when LoRAs change.
-
-6. **Slider danger-zone visual cues (Story 3.3) — yay or nay?** It's the kind of "show, don't tell" UX win that fits MAINFRAME but adds CSS surface area.
-
-7. **MVP scope — 6-story bundle (Cla⌂de's recommendation) or full Tier 1+2+3 single mega-push?**
-
-8. **Worth retraining the report format with versioning?** New reports will diverge from old; provenance matters for seed-bank reproducibility.
-
----
-
-## 📋 MIGRATION PLAN (Phase 2 Forge sequencing)
-
-If Brandon greenlights the 6-story MVP:
+## 📋 MIGRATION SEQUENCE
 
 ```
-Story order (each is a single commit):
-  1.1 CFG defaults fix       (smallest, biggest correctness win, ship first)
-  1.2 LoRA stage routing     (research recipes applied)
-  1.3 Slider range extension (unlock 1.5/2.0 strength)
-  2.1 Length dropdown        (4n+1 UI exposure)
-  2.2a Drop 24fps dropdown   (honest UX, defer interpolation)
-  2.3 Smart chaos bands      (rewrite applyChaos)
+Commit 1 — Story 1 (persistence)
+  → manual smoke gate (delete config.json, touch every Tier A, verify round-trip)
+  → ONLY THEN proceed
 
-Between each commit:
-  - Regression suite PASS (200+N tests)
-  - Verify renderer init clean
+Commit 2 — Story 2 (slider ranges + CFG default fix)
+  → relaunch with existing config.json from Story 1
+  → confirm no values get clamped on restore (T-RANGE-04)
 
-After all 6:
-  - /grumpyopus Round 7 with full diff context
-  - Burn flags
-  - Brandon eyeball
-  - Push
+Commit 3 — Story 3 (length dropdown + buildReport refactor)
+  → restart, verify length dropdown appears + persists
+  → fire one test gen, confirm FRAMES line in report
+
+Commit 4 — Story 4 (smart chaos + DIAL invariant + report v2)
+  → restart, fire chaos=0 gen (confirm no clamps), chaos=50 gen (confirm clamps logged)
+  → run T-DIAL-NOCLAMP via DIAL with an out-of-band axis value
+
+After all 4 commits:
+  → /grumpyopus Round 8 (implementation audit, brief with this plan)
+  → Burn real flags
+  → Brandon eyeball
+  → push origin main
 ```
 
-Total estimated diff: +250 / -150 lines net. ~3 hours of forge time.
+Net diff estimate: +400 / -150 ≈ +250 net lines. Includes electron-store dep + new IPC handlers + persist hooks + length dropdown + chaos rewrite + report v2.
 
----
-
-## 🎬 NEXT ACTION
-
-Brandon reads this. Answers Open Questions 1-8 (or as many as needed). On greenlight, I `/soulforge code` Phase 2 Forge with the agreed scope.
-
-⛬ This document is the audit surface. If it lies, the forge will inherit the lie. Question everything.
+⛬ THE INTELLIGENCE IS REAL. THE PERSISTENCE IS BEDROCK. THE CHAOS HAS BORDERS.

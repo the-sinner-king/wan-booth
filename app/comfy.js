@@ -75,12 +75,19 @@
     return window.wan.loadWorkflow(workflowName);
   }
 
-  function injectPlaceholders(workflow, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix) {
+  function injectPlaceholders(workflow, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix, length) {
     const w = JSON.parse(JSON.stringify(workflow));
     // S264 Cla⌂de patch (BUG-Fl6): validate ALWAYS — was `if (loraValues)`, which
     // meant any LoRA-less path silently skipped the contract check. Workflow integrity
     // is a property of the workflow itself, not the injection mode.
     validateWorkflow14b(w);
+    // S267 Story 3 — validate 4n+1 rule on length before injection (Grumpy R7 Flag #2
+    // fix; use class_type injection like resolution/fps, NOT a {{LENGTH}} token).
+    if (length !== undefined && length !== null) {
+      if (!Number.isInteger(length) || (length - 1) % 4 !== 0) {
+        throw new Error('length must satisfy 4n+1 (got ' + length + '). Valid: 49, 81, 97, 121.');
+      }
+    }
     for (const [nodeId, node] of Object.entries(w)) {
       if (!node.inputs) continue;
 
@@ -89,10 +96,15 @@
       if (node.inputs.text       === '{{PROMPT}}')     node.inputs.text       = prompt;
       if (node.inputs.noise_seed === '{{SEED}}')       node.inputs.noise_seed = parseInt(seed, 10);
 
-      // Resolution — by class_type (workflow-agnostic, handles both 5B and 14B latent nodes)
-      if (width && height && (node.class_type === 'WanImageToVideo' || node.class_type === 'Wan22ImageToVideoLatent')) {
-        node.inputs.width  = width;
-        node.inputs.height = height;
+      // Resolution + LENGTH — by class_type (workflow-agnostic, handles both 5B and 14B latent nodes)
+      if (node.class_type === 'WanImageToVideo' || node.class_type === 'Wan22ImageToVideoLatent') {
+        if (width && height) {
+          node.inputs.width  = width;
+          node.inputs.height = height;
+        }
+        // S267 Story 3 — length param. Workflow JSON keeps `"length": 81` literal
+        // (so it stays valid for standalone ComfyUI debug); we overwrite at inject.
+        if (length !== undefined && length !== null) node.inputs.length = length;
       }
 
       // FPS + filename prefix — by class_type, RF-I pattern
@@ -122,7 +134,7 @@
   }
 
   async function generate({ imagePath, prompt, seed, workflowName = 'i2v_14B_2stage',
-                             loraValues, width, height, frameRate, filenamePrefix,
+                             loraValues, width, height, frameRate, filenamePrefix, length,
                              onProgress, onComplete, onError, onLog }) {
     const clientId = generateClientId();
     let ws;
@@ -159,7 +171,7 @@
         if (node.class_type === 'VHS_VideoCombine') videoOutputNode = id;
       }
 
-      const injected = injectPlaceholders(workflow, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix);
+      const injected = injectPlaceholders(workflow, imagePath, prompt, seed, loraValues, width, height, frameRate, filenamePrefix, length);
 
       const wsUrl = new URL('/ws', COMFY_WS);
       wsUrl.searchParams.set('clientId', clientId);

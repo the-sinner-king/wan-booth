@@ -6,6 +6,39 @@ const http = require('http');
 const { spawn } = require('child_process');
 const { pathToFileURL } = require('url');
 const { randomUUID } = require('crypto');
+const Store = require('electron-store');
+
+// ── S267 — Universal value persistence (electron-store backed) ─────────────────
+// Schema-validated. Atomic-write on Windows. JSON-schema rejection guards against
+// NaN / out-of-range / wrong-type writes from buggy upstream chains. Storage path:
+// app.getPath('userData') → on Windows = %APPDATA%\zoetrope\config.json (NOT
+// under OneDrive — confirmed safe from sync interference). `clearInvalidConfig`
+// resets gracefully if the file is manually corrupted instead of crashing the app.
+const PREFS_SCHEMA = {
+  's1-dr34mlay-str': { type: 'number',  minimum: 0, maximum: 2,    default: 0.7 },
+  's2-dr34mlay-str': { type: 'number',  minimum: 0, maximum: 1.5,  default: 0.7 },
+  's1-k3nk-str':     { type: 'number',  minimum: 0, maximum: 2,    default: 0.5 },
+  's2-k3nk-str':     { type: 'number',  minimum: 0, maximum: 1.5,  default: 0.5 },
+  's1-steps':        { type: 'integer', minimum: 5, maximum: 50,   default: 20 },
+  's2-steps':        { type: 'integer', minimum: 5, maximum: 50,   default: 20 },
+  's1-cfg':          { type: 'number',  minimum: 1, maximum: 10,   default: 3.5 },
+  's2-cfg':          { type: 'number',  minimum: 1, maximum: 10,   default: 6.0 },
+  'chaos-pct':       { type: 'integer', minimum: 0, maximum: 100,  default: 0  },
+  'resolution-select': { type: 'string', default: '832x480' },
+  'fps-select':      { type: 'string', default: '16' },
+  'runs-select':     { type: 'string', default: '1' },
+  'length-select':   { type: 'string', enum: ['49','81','97','121'], default: '81' },
+  'stage-1-toggle':  { type: 'boolean', default: true },
+  'stage-2-toggle':  { type: 'boolean', default: true },
+  'seed-mode':       { type: 'string',  enum: ['random','fixed'], default: 'random' },
+  'seed-value':      { type: 'integer', minimum: 0, default: 42 },
+};
+
+const prefs = new Store({
+  name: 'config',
+  schema: PREFS_SCHEMA,
+  clearInvalidConfig: true,
+});
 
 // ── Debug logger ───────────────────────────────────────────────────────────────
 const DEBUG_LOG = path.join(os.tmpdir(), 'wan_booth_debug.log');
@@ -303,6 +336,25 @@ ipcMain.handle('wan:deleteSeed', async (event, id) => {
   const data = _readSeeds();
   data.seeds = data.seeds.filter(s => s.id !== id);
   _writeSeeds(data);
+  return { ok: true };
+});
+
+// ── S267 Story 1 — Universal value persistence IPC ──────────────────────────
+// JSON-schema validation happens inside electron-store. Schema rejects bad
+// writes — IPC handler surfaces the error so renderer can appendLog. The
+// renderer NEVER catches silently; bad writes are visible.
+ipcMain.handle('wan:getPrefs', async () => prefs.store);
+
+ipcMain.handle('wan:setPref', async (event, key, value) => {
+  if (typeof key !== 'string' || !(key in PREFS_SCHEMA)) {
+    throw new Error('Unknown pref key: ' + key);
+  }
+  prefs.set(key, value);  // throws on schema violation
+  return { ok: true };
+});
+
+ipcMain.handle('wan:resetPrefs', async () => {
+  prefs.clear();
   return { ok: true };
 });
 

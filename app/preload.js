@@ -21,4 +21,8 @@ contextBridge.exposeInMainWorld('wan', {
   listSeeds:      ()               => ipcRenderer.invoke('wan:listSeeds'),
   saveSeed:       (entry)          => ipcRenderer.invoke('wan:saveSeed', entry),
   deleteSeed:     (id)             => ipcRenderer.invoke('wan:deleteSeed', id),
+  // S267 Story 1 — universal value persistence
+  getPrefs:       ()               => ipcRenderer.invoke('wan:getPrefs'),
+  setPref:        (key, value)     => ipcRenderer.invoke('wan:setPref', key, value),
+  resetPrefs:     ()               => ipcRenderer.invoke('wan:resetPrefs'),
 });

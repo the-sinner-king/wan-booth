@@ -203,6 +203,116 @@ async function init() {
   initDialUI();
   initProdUI();
   initBatchPanel();
+  // S267 Story 1 — universal value persistence. Restore BEFORE wiring listeners
+  // so the dispatched 'input'/'change' events don't fire persistPref during
+  // restore (which would be a no-op anyway but causes extra IPC chatter).
+  await restorePrefs();
+  wirePersistence();
+}
+
+// ─── S267 Story 1 — Universal value persistence ───────────────────────────────
+// Tier A keys (13): see PREFS_SCHEMA in main.js. Includes 8 LoRA-stage sliders +
+// chaos + 4 dropdowns + 2 stage toggles + seed-mode + seed-value. Per Grumpy R7
+// Flag #4, stage toggles + seed mode + seed value are Tier A (drives gen quality
+// — Brandon flipping a stage off and finding it back on next launch would burn
+// an 18-min render).
+const PERSIST_KEYS = [
+  's1-dr34mlay-str', 's2-dr34mlay-str', 's1-k3nk-str', 's2-k3nk-str',
+  's1-steps', 's2-steps', 's1-cfg', 's2-cfg',
+  'chaos-pct',
+  'resolution-select', 'fps-select', 'runs-select', 'length-select',
+  'stage-1-toggle', 'stage-2-toggle',
+];
+// 'seed-mode' + 'seed-value' are handled by a custom hook (seedToggle button +
+// seedValue input) since seed-mode is button state, not an element value.
+
+// Per-key debounce slots — AbortController based (Grumpy R7 Upgrade #2). On
+// renderer unload, beforeunload listener aborts every pending timer so we
+// never leak a callback past the window close.
+const _persistAbort = new Map();
+
+function persistPref(key, value) {
+  const prior = _persistAbort.get(key);
+  if (prior) prior.abort();
+  const ctrl = new AbortController();
+  _persistAbort.set(key, ctrl);
+  setTimeout(() => {
+    if (ctrl.signal.aborted) return;
+    window.wan.setPref(key, value).catch(err => {
+      // electron-store schema rejection lands here — log so user sees WHY a
+      // value didn't stick. Don't crash, don't retry, don't overwrite.
+      appendLog('error', `persist ${key}: ${err.message || err}`);
+    });
+  }, 200);
+}
+
+window.addEventListener('beforeunload', () => {
+  for (const ctrl of _persistAbort.values()) ctrl.abort();
+});
+
+async function restorePrefs() {
+  let stored;
+  try { stored = await window.wan.getPrefs(); }
+  catch (err) {
+    appendLog('error', `restorePrefs: ${err.message || err}`);
+    return;
+  }
+  for (const key of PERSIST_KEYS) {
+    if (!(key in stored)) continue;
+    const el = document.getElementById(key);
+    if (!el) continue;
+    if (el.type === 'checkbox') {
+      el.checked = !!stored[key];
+    } else {
+      el.value = stored[key];
+    }
+    // Dispatch input + change so any downstream listeners (display value
+    // updates, accordion logic, etc.) get the synthetic restoration event.
+    el.dispatchEvent(new Event('input',  { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  // Seed state — paired (mode + value). Mode drives UI display.
+  if (stored['seed-mode'] === 'fixed') {
+    seedMode = 'fixed';
+    seedToggle.textContent = 'FIXED';
+    seedValue.style.display = 'inline-block';
+  } else {
+    seedMode = 'random';
+    seedToggle.textContent = 'RANDOM';
+    seedValue.style.display = 'none';
+  }
+  if (typeof stored['seed-value'] === 'number') {
+    seedValue.value = stored['seed-value'];
+  }
+}
+
+function wirePersistence() {
+  // Numeric sliders + dropdowns use 'input' (continuous) for snappy feel.
+  // Checkboxes fire 'change' (no input event on checkbox state toggle in some browsers).
+  for (const key of PERSIST_KEYS) {
+    const el = document.getElementById(key);
+    if (!el) continue;
+    if (el.type === 'checkbox') {
+      el.addEventListener('change', () => persistPref(key, el.checked));
+    } else {
+      el.addEventListener('input', () => {
+        const v = el.tagName === 'SELECT' ? el.value : parseFloat(el.value);
+        persistPref(key, el.tagName === 'SELECT' ? el.value : v);
+      });
+    }
+  }
+  // Seed mode — fires when seedToggle is clicked. Persist both keys.
+  seedToggle.addEventListener('click', () => {
+    // Listener order: this fires AFTER the existing toggle handler (which
+    // updates seedMode + button text), so seedMode reflects the new state.
+    persistPref('seed-mode', seedMode);
+    persistPref('seed-value', parseInt(seedValue.value, 10) || 42);
+  });
+  // Seed value input — only meaningful when mode is fixed, but always persist.
+  seedValue.addEventListener('input', () => {
+    const v = parseInt(seedValue.value, 10);
+    if (Number.isFinite(v)) persistPref('seed-value', v);
+  });
 }
 
 async function checkComfyStatus() {
@@ -324,9 +434,21 @@ function getRunCount() {
   return Math.max(1, Math.min(10, parseInt(runsSelect.value, 10) || 1));
 }
 
+// S267 Story 3 — Wan 2.2 4n+1 frame count from dropdown. Default 81 (sweet spot).
+function getLength() {
+  const el = document.getElementById('length-select');
+  const v = el ? parseInt(el.value, 10) : 81;
+  // Defensive: if somehow a non-4n+1 lands here, snap back to 81 (the workflow's
+  // historical literal). Should never fire — dropdown only offers valid values.
+  if (!Number.isInteger(v) || (v - 1) % 4 !== 0) return 81;
+  return v;
+}
+
 // ─── EXPORT REPORT ────────────────────────────────────────────────────────────
 // Privacy: prompt is intentionally NOT included in the report — it never gets written to disk.
-function buildReport({ outputFilename, seed, runNum, totalRuns, duration, lora, resolution, fps }) {
+// S267 Story 3+4 — buildReport now accepts length + chaosPercent + chaosClampLog.
+// Adds REPORT_VERSION header for future diff tools (Grumpy R7 Flag #3).
+function buildReport({ outputFilename, seed, runNum, totalRuns, duration, lora, resolution, fps, length, chaosPercent, chaosClampLog }) {
   const now = new Date().toISOString().replace('T', ' ').split('.')[0];
   const h = Math.floor(duration / 3600);
   const m = Math.floor((duration % 3600) / 60);
@@ -335,50 +457,73 @@ function buildReport({ outputFilename, seed, runNum, totalRuns, duration, lora, 
   const srcDim = selectedImageDimensions
     ? `${selectedImageDimensions.width}×${selectedImageDimensions.height} (source)`
     : 'unknown';
+  const lenSec = (length != null && fps) ? (length / fps).toFixed(1) : '?';
 
-  return [
+  const lines = [
     '═══════════════════════════════════════════════════════',
     '  ZOETROPE — GENERATION REPORT',
     '═══════════════════════════════════════════════════════',
     '',
-    `  DATE/TIME   : ${now}`,
-    `  OUTPUT FILE : ${outputFilename}`,
-    `  DURATION    : ${dur}`,
-    `  RUN         : ${runNum} of ${totalRuns}`,
+    `  REPORT_VERSION : 2`,
+    `  DATE/TIME      : ${now}`,
+    `  OUTPUT FILE    : ${outputFilename}`,
+    `  DURATION       : ${dur}`,
+    `  RUN            : ${runNum} of ${totalRuns}`,
     '',
     '───────────────────────────────────────────────────────',
     '  INPUT',
     '───────────────────────────────────────────────────────',
-    `  IMAGE       : ${selectedImageFilename}`,
-    `  DIMENSIONS  : ${srcDim}`,
-    `  SEED        : ${seed} (${seedMode})`,
+    `  IMAGE          : ${selectedImageFilename}`,
+    `  DIMENSIONS     : ${srcDim}`,
+    `  SEED           : ${seed} (${seedMode})`,
     '',
     '───────────────────────────────────────────────────────',
     '  OUTPUT SETTINGS',
     '───────────────────────────────────────────────────────',
-    `  RESOLUTION  : ${resolution.width}×${resolution.height}`,
-    `  FRAME RATE  : ${fps} FPS`,
-    `  WORKFLOW    : i2v_14B_2stage`,
+    `  RESOLUTION     : ${resolution.width}×${resolution.height}`,
+    `  FRAMES         : ${length != null ? length : '?'} (~${lenSec}s @ ${fps}fps)`,
+    `  FRAME RATE     : ${fps} FPS`,
+    `  WORKFLOW       : i2v_14B_2stage`,
     '',
     '───────────────────────────────────────────────────────',
-    '  STAGE 1 — HIGH DETAIL PASS',
+    '  STAGE 1 — HIGH-NOISE PASS',
     '───────────────────────────────────────────────────────',
-    `  DR34ML4Y    : ${lora.stage1.dr34mlayStr.toFixed(2)}`,
-    `  K3NK        : ${lora.stage1.k3nkStr.toFixed(2)}`,
-    `  CFG         : ${lora.stage1.cfg.toFixed(1)}`,
-    `  STEPS       : ${lora.stage1.steps}  (end_at_step)`,
+    `  DR34ML4Y       : ${lora.stage1.dr34mlayStr.toFixed(2)}`,
+    `  K3NK           : ${lora.stage1.k3nkStr.toFixed(2)}`,
+    `  CFG            : ${lora.stage1.cfg.toFixed(2)}`,
+    `  STEPS          : ${lora.stage1.steps}  (end_at_step)`,
     '',
     '───────────────────────────────────────────────────────',
-    '  STAGE 2 — REFINEMENT PASS',
+    '  STAGE 2 — LOW-NOISE REFINEMENT',
     '───────────────────────────────────────────────────────',
-    `  DR34ML4Y    : ${lora.stage2.dr34mlayStr.toFixed(2)}`,
-    `  K3NK        : ${lora.stage2.k3nkStr.toFixed(2)}`,
-    `  CFG         : ${lora.stage2.cfg.toFixed(1)}`,
-    `  STEPS       : ${lora.stage2.steps}  (stage 2 duration)`,
-    `  TOTAL STEPS : ${lora.stage1.steps + lora.stage2.steps}`,
-    '',
-    '═══════════════════════════════════════════════════════',
-  ].join('\n');
+    `  DR34ML4Y       : ${lora.stage2.dr34mlayStr.toFixed(2)}`,
+    `  K3NK           : ${lora.stage2.k3nkStr.toFixed(2)}`,
+    `  CFG            : ${lora.stage2.cfg.toFixed(2)}`,
+    `  STEPS          : ${lora.stage2.steps}  (stage 2 duration)`,
+    `  TOTAL STEPS    : ${lora.stage1.steps + lora.stage2.steps}`,
+  ];
+
+  // Chaos section — only present when chaos actually fired (Grumpy R7 #3)
+  if (chaosPercent && chaosPercent > 0) {
+    lines.push(
+      '',
+      '───────────────────────────────────────────────────────',
+      '  CHAOS',
+      '───────────────────────────────────────────────────────',
+      `  APPLIED        : ${chaosPercent}%`,
+    );
+    if (Array.isArray(chaosClampLog) && chaosClampLog.length > 0) {
+      lines.push(`  CLAMPS         : ${chaosClampLog[0]}`);
+      for (let i = 1; i < chaosClampLog.length; i++) {
+        lines.push(`                   ${chaosClampLog[i]}`);
+      }
+    } else {
+      lines.push(`  CLAMPS         : (none — all base values within bands)`);
+    }
+  }
+
+  lines.push('', '═══════════════════════════════════════════════════════');
+  return lines.join('\n');
 }
 
 // ─── GENERATE ─────────────────────────────────────────────────────────────────
@@ -455,7 +600,7 @@ async function runAllJobs(baseSeed, prompt) {
 function startGeneration(seed, prompt, runNum, totalRuns,
                          loraValuesOverride = null, widthOverride = null,
                          heightOverride = null, fpsOverride = null,
-                         chaosApplied = 0) {
+                         chaosApplied = 0, lengthOverride = null) {
   return new Promise((resolve) => {
     // S264 Cla⌂de patch (DBG): top-of-executor checkpoint
     appendLog('init', '[startGeneration] EXECUTOR ENTERED — runNum=' + runNum + ' totalRuns=' + totalRuns);
@@ -476,14 +621,15 @@ function startGeneration(seed, prompt, runNum, totalRuns,
       return;
     }
 
-    let lora, resolution, fps;
+    let lora, resolution, fps, length;
     try {
       lora       = loraValuesOverride || getLoraValues();
       resolution = (widthOverride !== null && heightOverride !== null)
         ? { width: widthOverride, height: heightOverride }
         : getResolutionPreset();
       fps        = fpsOverride !== null ? fpsOverride : getFrameRate();
-      appendLog('init', '[startGeneration] params built — resolution=' + JSON.stringify(resolution) + ' fps=' + fps);
+      length     = lengthOverride !== null ? lengthOverride : getLength();
+      appendLog('init', '[startGeneration] params built — resolution=' + JSON.stringify(resolution) + ' fps=' + fps + ' length=' + length);
     } catch (err) {
       appendLog('error', '[startGeneration] threw during param build: ' + (err.message || err));
       resolve(false);
@@ -509,6 +655,7 @@ function startGeneration(seed, prompt, runNum, totalRuns,
       width:          resolution.width,
       height:         resolution.height,
       frameRate:      fps,
+      length:         length,
       onProgress: (percent, label) => {
         if (percent !== null) {
           setProgress(percent);
@@ -531,7 +678,14 @@ function startGeneration(seed, prompt, runNum, totalRuns,
 
         // Write export report alongside the video
         try {
-          const report    = buildReport({ outputFilename, seed, runNum, totalRuns, duration, lora, resolution, fps });
+          // S267 Story 3+4 — thread length + chaosPercent + clampLog through to the report.
+          // lora._chaosClampLog is attached by applyChaos when chaos fires.
+          const report    = buildReport({
+            outputFilename, seed, runNum, totalRuns, duration,
+            lora, resolution, fps, length,
+            chaosPercent:  chaosApplied,
+            chaosClampLog: (lora && lora._chaosClampLog) || [],
+          });
           const safeName  = outputFilename.split(/[/\\]/).pop() || 'output'; // RF-S259-05: basename only
           const stem      = safeName.replace(/\.[^.]+$/, '');
           const rptFile   = stem + '_report.txt';
@@ -595,41 +749,76 @@ function setStatus(msg, state) {
   statusText.dataset.state = state || 'idle';
 }
 
-// ─── CHAOS MATH ──────────────────────────────────────────────────────────────
-// Dampener 0.3: at 100% chaos, max deviation = ±30% of [min,max] range
-function chaosFloat(value, pct, min, max) {
-  if (pct === 0) return value;
-  const maxDev = (max - min) * (pct / 100) * 0.3;
-  const delta  = (Math.random() * 2 - 1) * maxDev;
-  return Math.max(min, Math.min(max, parseFloat((value + delta).toFixed(2))));
-}
+// ─── S267 Story 4 — Smart chaos with stage-aware bands ─────────────────────────
+//
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CHAOS_BANDS — tuned for CURRENT LoRA configuration (S267 manifest):
+//   • DR34MLAY  = action/motion LoRA (Recipe 2 from NotebookLM research:
+//                 wide S1 swing, narrow S2 swing)
+//   • K3NK      = action/motion LoRA (same Recipe 2 pattern)
+//
+// ⚠️ IF YOU SWAP A LoRA FILE (renaming the .safetensors in workflows/), YOU MUST
+//    REVIEW THESE BANDS. Character LoRAs follow Recipe 1 (inverted: low S1 / high S2).
+//    Speed LoRAs (Lightning, Lightx2v) follow Recipe 3 (1.0 both OR 2.0+ S1; CFG=1.0).
+//    Type-aware band selection by per-LoRA tag is DEFERRED to S268 — this is a
+//    hardcoded snapshot of the current two-action-LoRA configuration.
+//
+// Research source: NotebookLM 2026-05-21 — cited in S267_INTELLIGENCE_PASS.md.
+//   - LoRA delta sensitivity 0.1 (Q3c) → dampeners 0.20-0.25
+//   - CFG safe-zone 3.5-5.5 (Q3a)      → S1 band [3.5, 5.5], S2 band [4.0, 6.0]
+//   - Step floor 12 in S1 (Q3b)        → S1 band [12, 30], S2 band [8, 25]
+//
+// Behavior: when chaos % > 0, each param's value drifts within its dampened
+// envelope but is HARD-CLAMPED to the band's [min, max]. If the user's base
+// value is already outside the band, chaos pulls it INTO the band — and the
+// clamp is LOGGED VISIBLY via appendLog so the user sees why values moved.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const CHAOS_BANDS = {
+  // LoRA STRENGTHS — Recipe 2 (action LoRA): wide S1, narrow S2
+  's1.dr34mlayStr': { min: 0.5, max: 2.0, dampener: 0.25 },
+  's2.dr34mlayStr': { min: 0.0, max: 0.8, dampener: 0.20 },
+  's1.k3nkStr':     { min: 0.5, max: 2.0, dampener: 0.25 },
+  's2.k3nkStr':     { min: 0.0, max: 0.8, dampener: 0.20 },
+  // CFG — sweep safe-zone from research
+  's1.cfg':         { min: 3.5, max: 5.5, dampener: 0.30 },
+  's2.cfg':         { min: 4.0, max: 6.0, dampener: 0.30 },
+  // STEPS — respects 12-step S1 motion-collapse floor + diminishing-returns ceiling
+  's1.steps':       { min: 12, max: 30, dampener: 0.30, integer: true },
+  's2.steps':       { min: 8,  max: 25, dampener: 0.30, integer: true },
+};
 
-// Dampener 0.2: at 100% chaos, CFG deviates ±2.8
-function chaosCfg(value, pct) {
-  if (pct === 0) return value;
-  const maxDev = 14 * (pct / 100) * 0.2;
-  const delta  = (Math.random() * 2 - 1) * maxDev;
-  return Math.max(1, Math.min(15, parseFloat((value + delta).toFixed(1))));
-}
-
-// Dampener 0.15: at 100% chaos, steps deviate ±9 — stays above motion-collapse threshold
-function chaosSteps(value, pct) {
-  if (pct === 0) return value;
-  const maxDev = 60 * (pct / 100) * 0.15;
-  const delta  = Math.round((Math.random() * 2 - 1) * maxDev);
-  return Math.max(1, Math.min(60, value + delta));
+function chaosWithinBand(baseValue, pct, band) {
+  if (pct === 0) return baseValue;  // chaos = 0 honors user setting exactly
+  const width = band.max - band.min;
+  const deviation = (Math.random() * 2 - 1) * width * band.dampener * (pct / 100);
+  const result = baseValue + deviation;
+  const clamped = Math.max(band.min, Math.min(band.max, result));
+  return band.integer ? Math.round(clamped) : parseFloat(clamped.toFixed(2));
 }
 
 function applyChaos(loraValues, chaosPercent) {
   const lv = JSON.parse(JSON.stringify(loraValues));
-  lv.stage1.dr34mlayStr = chaosFloat(lv.stage1.dr34mlayStr, chaosPercent, 0, 1);
-  lv.stage1.k3nkStr     = chaosFloat(lv.stage1.k3nkStr,     chaosPercent, 0, 1);
-  lv.stage1.steps       = chaosSteps(lv.stage1.steps,        chaosPercent);
-  lv.stage1.cfg         = chaosCfg(lv.stage1.cfg,            chaosPercent);
-  lv.stage2.dr34mlayStr = chaosFloat(lv.stage2.dr34mlayStr, chaosPercent, 0, 1);
-  lv.stage2.k3nkStr     = chaosFloat(lv.stage2.k3nkStr,     chaosPercent, 0, 1);
-  lv.stage2.steps       = chaosSteps(lv.stage2.steps,        chaosPercent);
-  lv.stage2.cfg         = chaosCfg(lv.stage2.cfg,            chaosPercent);
+  const clampLog = [];
+  for (const [path, band] of Object.entries(CHAOS_BANDS)) {
+    const [stage, param] = path.split('.');
+    const before = lv[stage][param];
+    const after  = chaosWithinBand(before, chaosPercent, band);
+    lv[stage][param] = after;
+    // Visible clamp log when band fires (base value was outside band)
+    if (chaosPercent > 0 && (before < band.min || before > band.max)) {
+      const beforeStr = band.integer ? String(before) : Number(before).toFixed(2);
+      const afterStr  = band.integer ? String(after)  : Number(after).toFixed(2);
+      const minStr = band.integer ? band.min : band.min.toFixed(1);
+      const maxStr = band.integer ? band.max : band.max.toFixed(1);
+      clampLog.push(`${stage.toUpperCase()} ${param}: ${beforeStr} → ${afterStr} (band [${minStr}, ${maxStr}])`);
+    }
+  }
+  // Surface clamp activity via appendLog so user SEES why values moved
+  if (clampLog.length > 0) {
+    appendLog('chaos', 'chaos band clamps: ' + clampLog.join(' · '));
+  }
+  // Attach the clamp log to the loraValues so buildReport can include it
+  lv._chaosClampLog = clampLog;
   return lv;
 }
 
@@ -1157,12 +1346,17 @@ function estimateBatchEta(jobs, jobIndex, currentJobPct) {
 // Pre-S264 it ignored them entirely → workflow's hardcoded 832x480/16fps silently won
 // regardless of the user's UI picks. Also: imageFilename (basename) not host path —
 // ComfyUI's LoadImage resolves filenames against its input/ dir; absolute paths 400.
-async function runBatch(jobs, imageFilename, prompt, width, height, frameRate) {
+async function runBatch(jobs, imageFilename, prompt, width, height, frameRate, length) {
   batchActive     = true;
   batchQueue      = jobs;
   batchJobIndex   = 0;
   batchCurrentPct = 0;
   updateBatchPanel();
+
+  // S267 — INVARIANT: DIAL/PROD jobs MUST NOT pass through applyChaos.
+  // DIAL's whole purpose is exploring OUTSIDE the chaos safe-zone bands.
+  // Clamping them would defeat the point. This function calls ComfyClient.generate
+  // directly with job.loraValues — no chaos step. See CHAOS_BANDS in renderer.js.
 
   for (const job of jobs) {
     if (!batchActive) break;
@@ -1178,10 +1372,11 @@ async function runBatch(jobs, imageFilename, prompt, width, height, frameRate) {
         prompt,
         seed:           job.seed,
         workflowName:   get14bWorkflow(),
-        loraValues:     job.loraValues,
+        loraValues:     job.loraValues,   // S267: NO applyChaos — DIAL invariant
         width,                            // S264: forward UI's resolution pick
         height,
         frameRate,                        // S264: forward UI's FPS pick
+        length,                           // S267 Story 3: forward UI's length pick
         filenamePrefix: job.filenamePrefix,
         onProgress: (pct) => {
           batchCurrentPct = pct;
@@ -1439,11 +1634,12 @@ function initDialUI() {
       // Was: dropped on the floor → workflow's hardcoded 832x480/16fps silently won.
       const { width, height } = getResolutionPreset();
       const fps = getFrameRate();
+      const length = getLength();
       appendLog('init', '[click] DIAL guards passed — ' +
-        (a1.steps * (a2 ? a2.steps : 1)) + ' jobs @ ' + width + 'x' + height + ' ' + fps + 'fps');
+        (a1.steps * (a2 ? a2.steps : 1)) + ' jobs @ ' + width + 'x' + height + ' ' + fps + 'fps · length=' + length);
 
       const jobs = buildDialJobs(getLoraValues(), dialSeedValue, a1, a2);
-      await runBatch(jobs, selectedImageFilename, prompt, width, height, fps);
+      await runBatch(jobs, selectedImageFilename, prompt, width, height, fps, length);
     });
   }
 }
@@ -1503,11 +1699,12 @@ function initProdUI() {
       // S264 Cla⌂de patch (BUG-Fl2): capture resolution/fps from UI.
       const { width, height } = getResolutionPreset();
       const fps = getFrameRate();
+      const length = getLength();
       appendLog('init', '[click] PROD guards passed — ' + count + ' jobs ' +
-        '@ ' + width + 'x' + height + ' ' + fps + 'fps strategy=' + strategy);
+        '@ ' + width + 'x' + height + ' ' + fps + 'fps strategy=' + strategy + ' length=' + length);
 
       const jobs = buildProdJobs(getLoraValues(), count, strategy, baseSeed);
-      await runBatch(jobs, selectedImageFilename, prompt, width, height, fps);
+      await runBatch(jobs, selectedImageFilename, prompt, width, height, fps, length);
     });
   }
 }
